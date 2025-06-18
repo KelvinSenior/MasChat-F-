@@ -1,4 +1,5 @@
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React from "react";
 import {
   Image,
@@ -76,13 +77,18 @@ const notifications = [
 ];
 
 export default function Notifications() {
+  const router = useRouter();
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Notifications</Text>
-        <TouchableOpacity style={styles.iconBtn}>
-          <Ionicons name="search" size={22} color="#222" />
+        <TouchableOpacity
+          onPress={() => router.push("/SearchScreen")}
+          style={styles.iconBtn}
+        >
+          <Ionicons name="search" size={24} color="#1877f2" />
         </TouchableOpacity>
       </View>
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -96,21 +102,25 @@ export default function Notifications() {
                 </View>
               ) : (
                 <Image
-                  source={typeof item.avatar === "string" ? { uri: item.avatar } : item.avatar}
+                  source={
+                    typeof item.avatar === "string"
+                      ? { uri: item.avatar }
+                      : item.avatar
+                  }
                   style={styles.avatar}
                 />
               )}
               <View style={{ flex: 1 }}>
                 <Text style={styles.messageText}>
-                  {item.name ? <Text style={styles.bold}>{item.name} </Text> : null}
+                  {item.name ? (
+                    <Text style={styles.bold}>{item.name} </Text>
+                  ) : null}
                   {item.message}
                 </Text>
                 {item.mutual && (
                   <Text style={styles.mutual}>{item.mutual}</Text>
                 )}
-                {item.time && (
-                  <Text style={styles.time}>{item.time}</Text>
-                )}
+                {item.time && <Text style={styles.time}>{item.time}</Text>}
               </View>
               <TouchableOpacity>
                 <Ionicons name="ellipsis-horizontal" size={22} color="#888" />

@@ -1,8 +1,47 @@
 import { Feather, FontAwesome, Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { useRouter } from 'expo-router';
 import React from "react";
 import { Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 
+const stories = [
+  {
+    id: "create",
+    isCreate: true,
+    icon: "add-circle",
+    label: "Create Story",
+  },
+  {
+    id: "1",
+    isCreate: false,
+    image: "https://randomuser.me/api/portraits/men/2.jpg",
+    label: "John",
+    online: true,
+  },
+  {
+    id: "2",
+    isCreate: false,
+    image: "https://randomuser.me/api/portraits/women/3.jpg",
+    label: "Jane",
+    online: false,
+  },
+  {
+    id: "3",
+    isCreate: false,
+    image: "https://randomuser.me/api/portraits/men/4.jpg",
+    label: "Mike",
+    online: true,
+  },
+  {
+    id: "4",
+    isCreate: false,
+    image: "https://randomuser.me/api/portraits/women/5.jpg",
+    label: "Anna",
+    online: false,
+  },
+];
+
 export default function HomeScreen() {
+  const router = useRouter();
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -12,11 +51,11 @@ export default function HomeScreen() {
           <TouchableOpacity style={styles.iconBtn}>
             <Ionicons name="add" size={24} color="#050505" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Ionicons name="search" size={24} color="#050505" />
+          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/SearchScreen')}>
+            <Ionicons name="search" size={24} color="#1877f2" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Ionicons name="chatbubble-ellipses" size={24} color="#050505" />
+          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push("/MessengerScreen")}>
+            <Ionicons name="chatbubble-ellipses" size={28} color="#050505" />
           </TouchableOpacity>
         </View>
       </View>
@@ -24,10 +63,12 @@ export default function HomeScreen() {
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* What's on your mind */}
         <View style={styles.statusContainer}>
+          <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
           <Image
-            source={{ uri: "https://randomuser.me/api/portraits/men/1.jpg" }}
+            source={{ uri: "https://randomuser.me/api/portraits/men/1.jpg" }} // Replace with user's profile image URI
             style={styles.avatar}
           />
+        </TouchableOpacity>
           <TextInput
             style={styles.statusInput}
             placeholder="What's on your mind?"
@@ -38,26 +79,24 @@ export default function HomeScreen() {
 
         {/* Stories */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.storiesRow}>
-          <View style={styles.story}>
-            <Image
-              source={{ uri: "https://randomuser.me/api/portraits/men/1.jpg" }}
-              style={styles.storyAvatar}
-            />
-            <View style={styles.addStoryBtn}>
-              <Ionicons name="add" size={18} color="#fff" />
-            </View>
-            <Text style={styles.storyLabel}>Create story</Text>
-          </View>
-          {[2, 3, 4, 5].map((n) => (
-            <View style={styles.story} key={n}>
-              <Image
-                source={{ uri: `https://randomuser.me/api/portraits/men/${n}.jpg` }}
-                style={styles.storyAvatar}
-              />
-              <View style={styles.storyRing} />
-              <Text style={styles.storyLabel}>Friend {n}</Text>
-            </View>
-          ))}
+          {stories.map((story) =>
+            story.isCreate ? (
+              <View key={story.id} style={styles.storyItem}>
+                <View style={styles.createStoryCircle}>
+                  <Ionicons name={story.icon as any} size={54} color="#1877f2" /> {/* Increased size */}
+                </View>
+                <Text style={styles.storyLabel}>{story.label}</Text>
+              </View>
+            ) : (
+              <View key={story.id} style={styles.storyItem}>
+                <View>
+                  <Image source={{ uri: story.image }} style={styles.storyImage} />
+                  {story.online && <View style={styles.onlineDot} />}
+                </View>
+                <Text style={styles.storyLabel}>{story.label}</Text>
+              </View>
+            )
+          )}
         </ScrollView>
 
         {/* Feed */}
@@ -278,5 +317,34 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginLeft: 6,
     fontSize: 15,
+  },
+  createStoryCircle: {
+    width: 72, // Increased width
+    height: 72, // Increased height
+    borderRadius: 36,
+    backgroundColor: "#23272f",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
+  storyImage: {
+    width: 64, // Increased width
+    height: 64, // Increased height
+    borderRadius: 32,
+    marginBottom: 4,
+    borderWidth: 2,
+    borderColor: "#1877f2",
+  },
+  storyItem: { alignItems: "center", marginRight: 18, width: 80 }, // Adjust width for larger icon
+  onlineDot: {
+    position: "absolute",
+    bottom: 4,
+    right: 4,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#4cd137",
+    borderWidth: 2,
+    borderColor: "#fff",
   },
 });

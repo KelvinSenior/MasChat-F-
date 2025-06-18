@@ -1,13 +1,14 @@
 import { Feather, FontAwesome, Ionicons } from "@expo/vector-icons";
+import { useRouter } from 'expo-router';
 import React, { useState } from "react";
 import {
-    Dimensions,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const TABS = ["For you", "Live", "Reels", "Following"];
@@ -43,6 +44,7 @@ const videoFeed = [
 
 export default function Videos() {
   const [activeTab, setActiveTab] = useState("For you");
+  const router = useRouter();
 
   return (
     <View style={styles.container}>
@@ -53,7 +55,7 @@ export default function Videos() {
           <TouchableOpacity style={styles.iconBtn}>
             <Ionicons name="person" size={22} color="#222" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/SearchScreen')}>
             <Ionicons name="search" size={22} color="#222" />
           </TouchableOpacity>
         </View>

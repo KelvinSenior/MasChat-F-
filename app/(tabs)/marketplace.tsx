@@ -1,4 +1,5 @@
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React from "react";
 import {
   FlatList,
@@ -56,6 +57,8 @@ const products = [
 ];
 
 export default function Marketplace() {
+  const router = useRouter();
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -65,8 +68,11 @@ export default function Marketplace() {
           <TouchableOpacity>
             <Ionicons name="person-outline" size={26} color="#222" />
           </TouchableOpacity>
-          <TouchableOpacity style={{ marginLeft: 16 }}>
-            <Ionicons name="search-outline" size={26} color="#222" />
+          <TouchableOpacity
+            style={{ marginLeft: 16 }}
+            onPress={() => router.push("/SearchScreen")}
+          >
+            <Ionicons name="search" size={24} color="#1877f2" />
           </TouchableOpacity>
         </View>
       </View>
@@ -86,7 +92,7 @@ export default function Marketplace() {
 
       {/* Location */}
       <View style={styles.locationRow}>
-        <Text style={styles.sectionTitle}>Today's picks</Text>
+        <Text style={styles.sectionTitle}> Todays picks</Text>
         <View style={styles.locationInfo}>
           <MaterialIcons name="location-pin" size={18} color="#1877f2" />
           <Text style={styles.locationText}>Accra, Ghana · 5 km</Text>

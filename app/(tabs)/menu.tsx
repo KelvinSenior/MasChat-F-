@@ -1,4 +1,5 @@
 import { Entypo, FontAwesome5, Ionicons, MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
+import { useRouter } from 'expo-router';
 import React from "react";
 import {
   Image,
@@ -59,35 +60,49 @@ const menuOptions = [
     label: "Saved",
     icon: <MaterialIcons name="bookmark" size={24} color="#a259e6" />,
   },
+   { label: "Support", icon: <Ionicons name="heart-outline" size={26} color="#2196f3" /> },
+  { label: "Ad Center", icon: <MaterialCommunityIcons name="bullhorn-outline" size={26} color="#2196f3" /> },
+  { label: "Pages", icon: <MaterialCommunityIcons name="flag-outline" size={26} color="#f59e42" /> },
+  { label: "Events", icon: <MaterialCommunityIcons name="calendar-star" size={26} color="#ef4444" /> },
+  { label: "Games", icon: <MaterialCommunityIcons name="gamepad-variant-outline" size={26} color="#2196f3" /> },
+  { label: "Finds", icon: <MaterialCommunityIcons name="tag-heart-outline" size={26} color="#ef4444" /> },
+  { label: "Avatars", icon: <MaterialCommunityIcons name="emoticon-outline" size={26} color="#2196f3" /> },
+  { label: "Messenger Kids", icon: <MaterialCommunityIcons name="message-bulleted" size={26} color="#22d3ee" /> },
 ];
 
 export default function Menu() {
+  const router = useRouter();
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Menu</Text>
         <View style={styles.headerIcons}>
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity onPress={() => router.push('/SettingsScreen')} style={styles.iconBtn}>
             <Ionicons name="settings-sharp" size={22} color="#222" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity onPress={() => router.push('/SearchScreen')} style={styles.iconBtn}>
             <Ionicons name="search" size={22} color="#222" />
           </TouchableOpacity>
         </View>
       </View>
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Profile Card */}
-        <View style={styles.profileCard}>
-          <Image source={{ uri: user.avatar }} style={styles.profileAvatar} />
-          <Text style={styles.profileName}>{user.name}</Text>
-          <View style={styles.profileBadgeWrap}>
+        <TouchableOpacity
+        onPress={() => router.push("/(tabs)/profile")}
+        style={styles.profileCard}
+      >
+        <Image source={{ uri: user.avatar }} style={styles.profileAvatar} />
+        <Text style={styles.profileName}>{user.name}</Text>
+        <View style={styles.profileBadgeWrap}>
             <Image source={{ uri: shortcuts[1].avatar }} style={styles.profileBadgeAvatar} />
             <View style={styles.badgeCircle}>
               <Text style={styles.badgeText}>{user.badge}+</Text>
             </View>
-          </View>
         </View>
+        </TouchableOpacity>
+        
         {/* Shortcuts */}
         <Text style={styles.sectionLabel}>Your shortcuts</Text>
         <View style={styles.shortcutsRow}>

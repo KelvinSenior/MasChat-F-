@@ -1,4 +1,5 @@
 import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -11,6 +12,8 @@ const STORY_IMAGES = [
 ];
 
 export default function Profile() {
+  const router = useRouter();
+
   return (
     <ScrollView style={styles.container}>
       {/* Cover Photo */}
@@ -31,8 +34,8 @@ export default function Profile() {
           <TouchableOpacity style={styles.iconBtn}>
             <Ionicons name="share-outline" size={22} color="#222" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Ionicons name="search-outline" size={22} color="#222" />
+          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/SearchScreen')}>
+            <Ionicons name="search" size={24} color="#1877f2" />
           </TouchableOpacity>
         </View>
       </View>
