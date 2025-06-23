@@ -1,32 +1,59 @@
-// import { styles } from "@/styles/auth.style};
 import { Ionicons } from "@expo/vector-icons";
 import { Redirect, useRouter } from "expo-router";
 import React, { useState } from "react";
 import { StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 
-export default function Login() {
+export default function SignUp() {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loggedIn, setLoggedIn] = useState(false);
+  const [signedUp, setSignedUp] = useState(false);
   const router = useRouter();
 
-  const handleLogin = () => {
-    // Add authentication logic here if needed
-    setLoggedIn(true);
+  const handleSignUp = async () => {
+    try {
+      const response = await fetch("http://192.168.1.94:5432/api/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+        }),
+      });
+
+      if (response.ok) {
+        setSignedUp(true);
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || "Sign up failed. Please try again.");
+      }
+    } catch (error) {
+      alert("Network error. Please try again.");
+    }
   };
 
-  if (loggedIn) {
-    return <Redirect href="/(tabs)/home" />;
+  if (signedUp) {
+    return <Redirect href="/(auth)/login" />;
   }
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
       <View style={styles.header}>
-        <Ionicons name="chatbubbles" size={40} color="#1877f2" />
-        <Text style={styles.title}>MasChat</Text>
+        <Ionicons name="person-add" size={40} color="#1877f2" />
+        <Text style={styles.title}>Sign Up</Text>
       </View>
       <View style={styles.form}>
+        <TextInput
+          style={styles.input}
+          placeholder="Full Name"
+          placeholderTextColor="#aaa"
+          value={name}
+          onChangeText={setName}
+        />
         <TextInput
           style={styles.input}
           placeholder="Email or Phone"
@@ -44,11 +71,8 @@ export default function Login() {
           onChangeText={setPassword}
           secureTextEntry
         />
-        <TouchableOpacity style={styles.button} onPress={handleLogin}>
-          <Text style={styles.buttonText}>Log In</Text>
-        </TouchableOpacity>
-        <TouchableOpacity>
-          <Text style={styles.forgot}>Forgot Password?</Text>
+        <TouchableOpacity style={styles.button} onPress={handleSignUp}>
+          <Text style={styles.buttonText}>Sign Up</Text>
         </TouchableOpacity>
         <View style={styles.dividerContainer}>
           <View style={styles.divider} />
@@ -57,9 +81,9 @@ export default function Login() {
         </View>
         <TouchableOpacity
           style={styles.createButton}
-          onPress={() => router.push("/(auth)/signup")}
+          onPress={() => router.push("/(auth)/login")}
         >
-          <Text style={styles.createButtonText}>Create New Account</Text>
+          <Text style={styles.createButtonText}>Already have an account? Log In</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -116,13 +140,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
   },
-  forgot: {
-    color: "#1877f2",
-    textAlign: "center",
-    marginBottom: 16,
-    textDecorationLine: "underline",
-    fontSize: 15,
-  },
   dividerContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -152,4 +169,3 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 });
-
