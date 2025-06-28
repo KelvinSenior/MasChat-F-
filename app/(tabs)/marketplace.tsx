@@ -65,8 +65,8 @@ export default function Marketplace() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Marketplace</Text>
         <View style={styles.headerIcons}>
-          <TouchableOpacity>
-            <Ionicons name="person-outline" size={26} color="#222" />
+          <TouchableOpacity onPress={() => router.push("/profile")}style={styles.iconBtn}>
+            <Ionicons name="person" size={26} color="#222" />
           </TouchableOpacity>
           <TouchableOpacity
             style={{ marginLeft: 16 }}
@@ -122,6 +122,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
+  },
+  iconBtn: {
+    padding: 6,
+    borderRadius: 20,
+    backgroundColor: "#e7f0fd",
+    alignItems: "center",
+    justifyContent: "center",
   },
   header: {
     flexDirection: "row",

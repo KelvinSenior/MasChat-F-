@@ -6,7 +6,7 @@ import { FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } 
 const RECENTS = [
   { id: "1", label: "akanakoji kyojiro", icon: "time-outline", color: "#888" },
   { id: "2", label: "Friends", icon: "people-circle", color: "#3b82f6" },
-  { id: "3", label: "Birthdays", icon: "cake", color: "#10b981" },
+  { id: "3", label: "Birthdays", icon: "happy", color: "#10b981" },
 ];
 
 export default function SearchScreen() {
@@ -44,7 +44,7 @@ export default function SearchScreen() {
         keyExtractor={item => item.id}
         renderItem={({ item }) => (
           <View style={styles.recentItem}>
-            <Ionicons name={item.icon} size={28} color={item.color} />
+            <Ionicons name={item.icon as any} size={28} color={item.color} />
             <Text style={styles.recentLabel}>{item.label}</Text>
             <Ionicons name="ellipsis-horizontal" size={22} color="#888" style={{ marginLeft: "auto" }} />
           </View>

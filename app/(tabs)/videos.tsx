@@ -52,7 +52,7 @@ export default function Videos() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Video</Text>
         <View style={styles.headerIcons}>
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity onPress={() => router.push("/profile")}style={styles.iconBtn}>
             <Ionicons name="person" size={22} color="#222" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/SearchScreen')}>

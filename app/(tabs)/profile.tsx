@@ -28,12 +28,9 @@ export default function Profile() {
         </View>
         {/* Top right icons */}
         <View style={styles.topIcons}>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Feather name="edit-2" size={20} color="#222" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Ionicons name="share-outline" size={22} color="#222" />
-          </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push("/editProfile")} style={{ backgroundColor: "#222", borderRadius: 16, padding: 6 }}>
+            <Feather name="edit-2" size={20} color="#fff" />
+            </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/SearchScreen')}>
             <Ionicons name="search" size={24} color="#1877f2" />
           </TouchableOpacity>

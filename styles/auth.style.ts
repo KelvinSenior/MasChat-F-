@@ -22,4 +22,22 @@ export const styles = StyleSheet.create({
     backgroundColor: "#f0f0f0",
     marginHorizontal: 4,
   },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    padding: 10,
+    marginVertical: 8,
+    borderRadius: 5,
+  },
+  button: {
+    backgroundColor: "#1877f2",
+    padding: 12,
+    borderRadius: 5,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  buttonText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
 });

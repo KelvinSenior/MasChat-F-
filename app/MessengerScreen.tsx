@@ -105,12 +105,17 @@ export default function MessengerScreen() {
         >
           {stories.map((story) =>
             story.isCreate ? (
-              <View key={story.id} style={styles.storyItem}>
+              <TouchableOpacity
+                key={story.id}
+                style={styles.storyItem}
+                activeOpacity={0.8}
+                onPress={() => router.push("/(create)/newStory")}
+              >
                 <View style={styles.createStoryCircle}>
                   <Ionicons name={story.icon} size={38} color="#1877f2" />
                 </View>
                 <Text style={styles.storyLabel}>{story.label}</Text>
-              </View>
+              </TouchableOpacity>
             ) : (
               <View key={story.id} style={styles.storyItem}>
                 <View>

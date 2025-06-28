@@ -87,7 +87,11 @@ export default function Menu() {
           </TouchableOpacity>
         </View>
       </View>
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+  style={styles.scroll}
+  showsVerticalScrollIndicator={false}
+  contentContainerStyle={{ paddingBottom: 100 }} // Increased padding for logout button
+>
         {/* Profile Card */}
         <TouchableOpacity
         onPress={() => router.push("/(tabs)/profile")}
@@ -132,12 +136,31 @@ export default function Menu() {
         {/* Menu Options Grid */}
         <View style={styles.menuGrid}>
           {menuOptions.map((item) => (
-            <TouchableOpacity key={item.label} style={styles.menuOption}>
+            <TouchableOpacity
+              key={item.label}
+              style={styles.menuOption}
+              onPress={() => {
+                if (item.label === "Reels") {
+                  router.push("/videos");
+                } else if (item.label === "Marketplace") {
+                  router.push("/(tabs)/marketplace");
+                }
+                // Add more navigation for other menu items here if needed
+              }}
+            >
               {item.icon}
               <Text style={styles.menuLabel}>{item.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
+        {/* Logout Button */}
+        <TouchableOpacity
+    style={styles.logoutBtn}
+    onPress={() => router.replace("/(auth)/login")}
+  >
+    <Ionicons name="log-out-outline" size={22} color="#fff" />
+    <Text style={styles.logoutText}>Logout</Text>
+  </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -334,5 +357,21 @@ const styles = StyleSheet.create({
     color: "#222",
     marginTop: 8,
     fontWeight: "500",
+  },
+  logoutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f02849",
+    borderRadius: 12,
+    marginHorizontal: 16,
+    marginTop: 24,
+    paddingVertical: 14,
+  },
+  logoutText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
+    marginLeft: 10,
   },
 });

@@ -1,7 +1,7 @@
 import { Feather, FontAwesome, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from 'expo-router';
-import React from "react";
-import { Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import React, { useState } from "react";
+import { Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 
 const stories = [
   {
@@ -42,13 +42,21 @@ const stories = [
 
 export default function HomeScreen() {
   const router = useRouter();
+  const [showAddMenu, setShowAddMenu] = useState(false);
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.logo}>MasChat</Text>
+        <Text style={styles.logo}>
+          Mas
+          <Text style={styles.logoChat}>Chat</Text>
+        </Text>
         <View style={styles.headerIcons}>
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => setShowAddMenu(true)}
+          >
             <Ionicons name="add" size={24} color="#050505" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/SearchScreen')}>
@@ -59,6 +67,63 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Add Menu Modal */}
+      <Modal
+        visible={showAddMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAddMenu(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPressOut={() => setShowAddMenu(false)}
+        >
+          <View style={styles.addMenuBox}>
+            <TouchableOpacity
+              style={styles.addMenuItem}
+              onPress={() => {
+                setShowAddMenu(false);
+                router.push("/(create)/newPost");
+              }}
+            >
+              <Ionicons name="create-outline" size={22} color="#222" />
+              <Text style={styles.addMenuText}>Post</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.addMenuItem}
+              onPress={() => {
+                setShowAddMenu(false);
+                router.push("/(create)/newStory");
+              }}
+            >
+              <Ionicons name="images-outline" size={22} color="#222" />
+              <Text style={styles.addMenuText}>Story</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.addMenuItem}
+              onPress={() => {
+                setShowAddMenu(false);
+                router.push("/(create)/newReel");
+              }}
+            >
+              <Ionicons name="film-outline" size={22} color="#222" />
+              <Text style={styles.addMenuText}>Reel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.addMenuItem}
+              onPress={() => {
+                setShowAddMenu(false);
+                router.push("/(create)/LiveScreen");
+              }}
+            >
+              <Ionicons name="videocam-outline" size={22} color="#222" />
+              <Text style={styles.addMenuText}>Live</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* What's on your mind */}
@@ -74,29 +139,35 @@ export default function HomeScreen() {
             placeholder="What's on your mind?"
             placeholderTextColor="#888"
           />
+          <TouchableOpacity onPress={() => router.push("/editProfile")}>
           <MaterialIcons name="photo-library" size={28} color="#1877f2" />
+          </TouchableOpacity>
         </View>
 
         {/* Stories */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.storiesRow}>
           {stories.map((story) =>
-            story.isCreate ? (
-              <View key={story.id} style={styles.storyItem}>
-                <View style={styles.createStoryCircle}>
-                  <Ionicons name={story.icon as any} size={54} color="#1877f2" /> {/* Increased size */}
-                </View>
-                <Text style={styles.storyLabel}>{story.label}</Text>
-              </View>
-            ) : (
-              <View key={story.id} style={styles.storyItem}>
-                <View>
-                  <Image source={{ uri: story.image }} style={styles.storyImage} />
-                  {story.online && <View style={styles.onlineDot} />}
-                </View>
-                <Text style={styles.storyLabel}>{story.label}</Text>
-              </View>
-            )
-          )}
+  story.isCreate ? (
+    <TouchableOpacity 
+      key={story.id} 
+      style={styles.storyItem}
+      onPress={() => router.push("/(create)/newStory")}
+    >
+      <View style={styles.createStoryCircle}>
+        <Ionicons name={story.icon as any} size={54} color="#1877f2" />
+      </View>
+      <Text style={styles.storyLabel}>{story.label}</Text>
+    </TouchableOpacity>
+  ) : (
+    <TouchableOpacity key={story.id} style={styles.storyItem}>
+      <View>
+        <Image source={{ uri: story.image }} style={styles.storyImage} />
+        {story.online && <View style={styles.onlineDot} />}
+      </View>
+      <Text style={styles.storyLabel}>{story.label}</Text>
+    </TouchableOpacity>
+  )
+)}
         </ScrollView>
 
         {/* Feed */}
@@ -159,12 +230,15 @@ const styles = StyleSheet.create({
     borderBottomColor: "#e4e6eb",
   },
   logo: {
-    color: "#1877f2",
     fontSize: 32,
     fontWeight: "bold",
     fontFamily: "sans-serif",
     letterSpacing: 1,
     flex: 1,
+    color: "#1877f2", // blue for "Mas"
+  },
+  logoChat: {
+    color: "#ff9800", // orange for "Chat"
   },
   headerIcons: {
     flexDirection: "row",
@@ -346,5 +420,36 @@ const styles = StyleSheet.create({
     backgroundColor: "#4cd137",
     borderWidth: 2,
     borderColor: "#fff",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.18)",
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
+  },
+  addMenuBox: {
+    marginTop: 60,
+    marginRight: 18,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    paddingVertical: 8,
+    width: 170,
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  addMenuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+  },
+  addMenuText: {
+    fontSize: 16,
+    color: "#222",
+    marginLeft: 14,
+    fontWeight: "500",
   },
 });

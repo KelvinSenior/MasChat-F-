@@ -1,171 +1,352 @@
-import { Ionicons } from "@expo/vector-icons";
-import { Redirect, useRouter } from "expo-router";
-import React, { useState } from "react";
-import { StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Ionicons } from '@expo/vector-icons';
+import { AxiosError } from 'axios';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import {
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import * as Animatable from 'react-native-animatable';
+import Toast from 'react-native-toast-message';
+import client from '../../api/client'; // Adjust path if needed
 
 export default function SignUp() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [signedUp, setSignedUp] = useState(false);
   const router = useRouter();
+  const [formData, setFormData] = useState({
+    username: '',
+    email: '',
+    password: '',
+    confirmPassword: ''
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState({
+    username: '',
+    email: '',
+    password: '',
+    confirmPassword: ''
+  });
 
-  const handleSignUp = async () => {
+  const validateForm = () => {
+    let valid = true;
+    const newErrors = {
+      username: '',
+      email: '',
+      password: '',
+      confirmPassword: ''
+    };
+
+    if (!formData.username.trim()) {
+      newErrors.username = 'Name is required';
+      valid = false;
+    }
+
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+      valid = false;
+    } else if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
+      newErrors.email = 'Email is invalid';
+      valid = false;
+    }
+
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+      valid = false;
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+      valid = false;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+      valid = false;
+    }
+
+    setErrors(newErrors);
+    return valid;
+  };
+
+  // Handle Axios errors
+  const isAxiosError = (error: any): error is AxiosError => {
+    return error.isAxiosError === true;
+  };
+
+  const handleAxiosError = (error: AxiosError) => {
+    if (error.code === 'ECONNABORTED') return 'Request timeout. Check your connection.';
+    if (error.response?.status === 409) return 'Email already registered';
+    const data = error.response?.data as { message?: string };
+    if (data?.message) return data.message;
+    return 'Registration failed. Please try again.';
+  };
+
+  const handleRegister = async () => {
+    if (!validateForm()) return;
+
     try {
-      const response = await fetch("http://192.168.1.94:5432/api/signup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name,
-          email,
-          password,
-        }),
+      const { username, email, password } = formData;
+      const response = await client.post('/auth/register', {
+        username: username.trim(),
+        email: email.trim(),
+        password: password,
       });
 
-      if (response.ok) {
-        setSignedUp(true);
-      } else {
-        const errorData = await response.json();
-        alert(errorData.message || "Sign up failed. Please try again.");
+      if (response.data?.message === "User registered successfully!") {
+        Toast.show({
+          type: 'success',
+          text1: 'Registration Successful',
+          text2: 'Welcome to MasChat!',
+          visibilityTime: 3000,
+          position: 'top',
+          topOffset: 60
+        });
+        setTimeout(() => router.replace('/(auth)/login'), 1500);
+        return;
       }
+      throw new Error('Invalid response from server');
     } catch (error) {
-      alert("Network error. Please try again.");
+      const errorMessage = isAxiosError(error) 
+        ? handleAxiosError(error) 
+        : 'Registration failed. Please try again.';
+
+      Toast.show({
+        type: 'error',
+        text1: 'Registration Failed',
+        text2: errorMessage,
+        position: 'top',
+        visibilityTime: 5000,
+        autoHide: true,
+        topOffset: 60,
+        props: {
+          text2NumberOfLines: 4
+        }
+      });
     }
   };
 
-  if (signedUp) {
-    return <Redirect href="/(auth)/login" />;
-  }
+  const handleSubmit = () => {
+    if (validateForm()) {
+      handleRegister();
+    }
+  };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
-      <View style={styles.header}>
-        <Ionicons name="person-add" size={40} color="#1877f2" />
-        <Text style={styles.title}>Sign Up</Text>
-      </View>
-      <View style={styles.form}>
-        <TextInput
-          style={styles.input}
-          placeholder="Full Name"
-          placeholderTextColor="#aaa"
-          value={name}
-          onChangeText={setName}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Email or Phone"
-          placeholderTextColor="#aaa"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor="#aaa"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-        <TouchableOpacity style={styles.button} onPress={handleSignUp}>
-          <Text style={styles.buttonText}>Sign Up</Text>
-        </TouchableOpacity>
-        <View style={styles.dividerContainer}>
-          <View style={styles.divider} />
-          <Text style={styles.or}>OR</Text>
-          <View style={styles.divider} />
-        </View>
-        <TouchableOpacity
-          style={styles.createButton}
-          onPress={() => router.push("/(auth)/login")}
+    <LinearGradient
+      colors={['#f8f9fa', '#e9ecef']}
+      style={styles.container}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoid}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.createButtonText}>Already have an account? Log In</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+          <Animatable.View
+            animation="fadeInDown"
+            duration={1000}
+            style={styles.header}
+          >
+            <Image
+              source={require('../../assets/GROUP 88-MasChat.png')}
+              style={styles.logo}
+            />
+            <Text style={styles.title}>Create Account</Text>
+            <Text style={styles.subtitle}>Join MasChat community today</Text>
+          </Animatable.View>
+
+          <Animatable.View
+            animation="fadeInUp"
+            duration={1000}
+            style={styles.formContainer}
+          >
+            {/* Name Input */}
+            <View style={styles.inputContainer}>
+              <Ionicons name="person-outline" size={20} color="#6c757d" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Full Name"
+                placeholderTextColor="#6c757d"
+                value={formData.username}
+                onChangeText={(text) => setFormData({ ...formData, username: text })}
+              />
+            </View>
+            {errors.username ? <Text style={styles.errorText}>{errors.username}</Text> : null}
+
+            {/* Email Input */}
+            <View style={styles.inputContainer}>
+              <Ionicons name="mail-outline" size={20} color="#6c757d" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Email Address"
+                placeholderTextColor="#6c757d"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={formData.email}
+                onChangeText={(text) => setFormData({ ...formData, email: text })}
+              />
+            </View>
+            {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
+
+            {/* Password Input */}
+            <View style={styles.inputContainer}>
+              <Ionicons name="lock-closed-outline" size={20} color="#6c757d" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                placeholderTextColor="#6c757d"
+                secureTextEntry={!showPassword}
+                value={formData.password}
+                onChangeText={(text) => setFormData({ ...formData, password: text })}
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.passwordToggle}
+              >
+                <Ionicons
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={20}
+                  color="#6c757d"
+                />
+              </TouchableOpacity>
+            </View>
+            {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
+
+            {/* Confirm Password Input */}
+            <View style={styles.inputContainer}>
+              <Ionicons name="lock-closed-outline" size={20} color="#6c757d" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Confirm Password"
+                placeholderTextColor="#6c757d"
+                secureTextEntry={!showPassword}
+                value={formData.confirmPassword}
+                onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
+              />
+            </View>
+            {errors.confirmPassword ? <Text style={styles.errorText}>{errors.confirmPassword}</Text> : null}
+
+            {/* Submit Button */}
+            <TouchableOpacity style={styles.button} onPress={handleSubmit}>
+              <Text style={styles.buttonText}>Sign Up</Text>
+            </TouchableOpacity>
+
+            {/* Already have account */}
+            <TouchableOpacity
+              style={styles.loginLink}
+              onPress={() => router.push("/(auth)/login")}
+            >
+              <Text style={styles.loginLinkText}>Already have an account? Log In</Text>
+            </TouchableOpacity>
+          </Animatable.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+      <Toast />
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
-    justifyContent: "center",
+  },
+  keyboardAvoid: {
+    flex: 1,
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
     paddingHorizontal: 24,
+    paddingVertical: 24,
   },
   header: {
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: 16,
+  },
+  logo: {
+    width: 90,
+    height: 90,
+    resizeMode: "contain",
+    marginBottom: 8,
   },
   title: {
     color: "#1877f2",
-    fontSize: 36,
+    fontSize: 28,
     fontWeight: "bold",
-    marginTop: 8,
+    marginTop: 4,
     letterSpacing: 1,
   },
-  form: {
-    backgroundColor: "#111",
+  subtitle: {
+    color: "#6c757d",
+    fontSize: 15,
+    marginTop: 2,
+    marginBottom: 8,
+  },
+  formContainer: {
+    backgroundColor: "#fff",
     borderRadius: 12,
     padding: 24,
     shadowColor: "#1877f2",
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 10,
-    elevation: 8,
+    elevation: 4,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f1f3f4",
+    borderRadius: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    paddingHorizontal: 8,
+  },
+  inputIcon: {
+    marginRight: 6,
   },
   input: {
-    backgroundColor: "#222",
-    color: "#fff",
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    flex: 1,
+    color: "#222",
     fontSize: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#1877f2",
+    paddingVertical: 12,
+    backgroundColor: "transparent",
+  },
+  passwordToggle: {
+    padding: 4,
   },
   button: {
     backgroundColor: "#1877f2",
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: "center",
-    marginBottom: 12,
+    marginTop: 8,
+    marginBottom: 8,
   },
   buttonText: {
     color: "#fff",
     fontSize: 18,
     fontWeight: "bold",
   },
-  dividerContainer: {
-    flexDirection: "row",
+  errorText: {
+    color: "#f02849",
+    fontSize: 13,
+    marginBottom: 4,
+    marginLeft: 6,
+  },
+  loginLink: {
     alignItems: "center",
-    marginVertical: 16,
+    marginTop: 8,
   },
-  divider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#222",
-  },
-  or: {
-    color: "#aaa",
-    marginHorizontal: 10,
-    fontWeight: "bold",
-  },
-  createButton: {
-    backgroundColor: "#222",
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#1877f2",
-  },
-  createButtonText: {
+  loginLinkText: {
     color: "#1877f2",
-    fontSize: 18,
     fontWeight: "bold",
+    fontSize: 16,
   },
 });
