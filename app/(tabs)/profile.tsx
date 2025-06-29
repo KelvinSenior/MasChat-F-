@@ -1,10 +1,10 @@
-import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const COVER_PHOTO = "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80";
-const PROFILE_PHOTO = "https://i.imgur.com/6XbK6bE.jpg"; // Replace with your own
+const PROFILE_PHOTO = "https://i.imgur.com/6XbK6bE.jpg";
 const STORY_IMAGES = [
   "https://i.imgur.com/6XbK6bE.jpg",
   "https://i.imgur.com/2nCt3Sbl.jpg",
@@ -13,6 +13,9 @@ const STORY_IMAGES = [
 
 export default function Profile() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState('Posts');
+
+  const tabs = ['Posts', 'About', 'Videos', 'Photos', 'Events'];
 
   return (
     <ScrollView style={styles.container}>
@@ -28,10 +31,10 @@ export default function Profile() {
         </View>
         {/* Top right icons */}
         <View style={styles.topIcons}>
-            <TouchableOpacity onPress={() => router.push("/editProfile")} style={{ backgroundColor: "#222", borderRadius: 16, padding: 6 }}>
+          <TouchableOpacity onPress={() => router.push("../screens/editProfile")} style={{ backgroundColor: "#222", borderRadius: 16, padding: 6 }}>
             <Feather name="edit-2" size={20} color="#fff" />
-            </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/SearchScreen')}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('../screens/SearchScreen')}>
             <Ionicons name="search" size={24} color="#1877f2" />
           </TouchableOpacity>
         </View>
@@ -56,35 +59,22 @@ export default function Profile() {
 
       {/* Action Buttons */}
       <View style={styles.actionRow}>
-        <TouchableOpacity style={styles.actionBtnBlue}>
-          <Text style={styles.actionBtnBlueText}>Professional dashboard</Text>
-        </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn}>
           <Text style={styles.actionBtnText}>Create reel</Text>
         </TouchableOpacity>
       </View>
-      <TouchableOpacity style={styles.advertiseBtn}>
-        <MaterialIcons name="campaign" size={18} color="#222" />
-        <Text style={styles.advertiseText}>Advertise</Text>
-      </TouchableOpacity>
 
       {/* Tabs */}
       <View style={styles.tabsRow}>
-        <TouchableOpacity style={styles.activeTab}>
-          <Text style={styles.activeTabText}>Posts</Text>
-        </TouchableOpacity>
-        <TouchableOpacity>
-          <Text style={styles.tabText}>About</Text>
-        </TouchableOpacity>
-        <TouchableOpacity>
-          <Text style={styles.tabText}>Videos</Text>
-        </TouchableOpacity>
-        <TouchableOpacity>
-          <Text style={styles.tabText}>Photos</Text>
-        </TouchableOpacity>
-        <TouchableOpacity>
-          <Text style={styles.tabText}>Events</Text>
-        </TouchableOpacity>
+        {tabs.map((tab) => (
+          <TouchableOpacity 
+            key={tab}
+            style={[styles.tabButton, activeTab === tab && styles.activeTab]}
+            onPress={() => setActiveTab(tab)}
+          >
+            <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{tab}</Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {/* Details */}
@@ -178,40 +168,18 @@ const styles = StyleSheet.create({
   bio: { fontSize: 15, color: "#222", marginBottom: 8 },
   actionRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "center",
     paddingHorizontal: 18,
     marginTop: 10,
   },
-  actionBtnBlue: {
-    backgroundColor: "#1877f2",
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    flex: 1,
-    marginRight: 8,
-    alignItems: "center",
-  },
-  actionBtnBlueText: { color: "#fff", fontWeight: "bold", fontSize: 15 },
   actionBtn: {
     backgroundColor: "#e7f0fd",
     borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 12,
-    flex: 1,
     alignItems: "center",
   },
   actionBtnText: { color: "#1877f2", fontWeight: "bold", fontSize: 15 },
-  advertiseBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f2f2f2",
-    marginHorizontal: 18,
-    marginTop: 10,
-    borderRadius: 8,
-    paddingVertical: 10,
-    justifyContent: "center",
-  },
-  advertiseText: { marginLeft: 8, color: "#222", fontWeight: "bold" },
   tabsRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -220,20 +188,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
   },
+  tabButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    marginRight: 8,
+  },
   activeTab: {
     backgroundColor: "#e7f0fd",
     borderRadius: 16,
-    marginRight: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 16,
   },
-  activeTabText: { color: "#1877f2", fontWeight: "bold", fontSize: 15 },
+  activeTabText: { color: "#1877f2", fontWeight: "bold" },
   tabText: {
     color: "#222",
     fontSize: 15,
-    marginRight: 12,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
   },
   detailsSection: {
     paddingHorizontal: 18,

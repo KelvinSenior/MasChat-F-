@@ -70,7 +70,7 @@ export default function Marketplace() {
           </TouchableOpacity>
           <TouchableOpacity
             style={{ marginLeft: 16 }}
-            onPress={() => router.push("/SearchScreen")}
+            onPress={() => router.push("/screens/SearchScreen")}
           >
             <Ionicons name="search" size={24} color="#1877f2" />
           </TouchableOpacity>

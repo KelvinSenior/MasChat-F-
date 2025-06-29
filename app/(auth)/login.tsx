@@ -7,6 +7,8 @@ import { Image, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View }
 import * as Animatable from 'react-native-animatable';
 import Toast from 'react-native-toast-message';
 
+const BASE_URL = "http://10.132.74.85:8080/api"; // Make sure this matches your backend
+
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -55,11 +57,25 @@ export default function Login() {
 
   const handleLogin = async () => {
     if (!validateForm()) return;
-    setLoading(true);
 
+    // First test connection
+    const isConnected = await testConnection();
+    if (!isConnected) {
+      Toast.show({
+        type: 'error',
+        text1: 'Connection Failed',
+        text2: 'Cannot reach server. Check your network and server IP.',
+        position: 'top',
+        visibilityTime: 4000,
+        topOffset: 60,
+      });
+      return;
+    }
+
+    setLoading(true);
     try {
       const response = await axios.post(
-        "http://192.168.71.125:8080/api/auth/login",
+        `${BASE_URL}/auth/login`,
         {
           username: username.trim(),
           password: password,
@@ -69,53 +85,37 @@ export default function Login() {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
           },
-          timeout: 8000
+          timeout: 10000,
         }
       );
-
-      console.log("Full response:", response); // For debugging
 
       if (response.data?.token) {
         await AsyncStorage.setItem('userToken', response.data.token);
         await AsyncStorage.setItem('username', username.trim());
-
-        // Add this line to check the stored token after saving it
-        const storedToken = await AsyncStorage.getItem('userToken');
-        console.log("Stored token:", storedToken);
-
         Toast.show({
           type: 'success',
           text1: 'Login Successful',
           text2: 'Welcome back to MasChat!',
-          visibilityTime: 3000,
           position: 'top',
-          topOffset: 60
+          visibilityTime: 3000,
+          topOffset: 60,
         });
-
         router.replace('/(tabs)/home');
         return;
       }
       throw new Error('Token missing in response');
     } catch (error) {
-      console.error("Login error:", error);
-
       let errorMessage = 'Login failed. Please try again.';
-      if (isAxiosError(error)) {
-        if (error.response?.status === 200) {
-          errorMessage = 'Login successful but redirection failed';
-        } else {
-          errorMessage = handleAxiosError(error);
-        }
+      if (axios.isAxiosError(error)) {
+        errorMessage = error.response?.data?.message || error.message;
       }
-
       Toast.show({
         type: 'error',
-        text1: 'Login Issue',
+        text1: 'Login Error',
         text2: errorMessage,
         position: 'top',
         visibilityTime: 5000,
         topOffset: 60,
-        props: { text2NumberOfLines: 4 }
       });
     } finally {
       setLoading(false);
@@ -126,12 +126,14 @@ export default function Login() {
   const testConnection = async () => {
     try {
       const response = await axios.get(
-        "http://192.168.71.125:8080/api/auth/test",
+        "http://10.132.74.85:8080/api/auth/test",
         { timeout: 3000 }
       );
       console.log("Connection test:", response.data);
+      return true;
     } catch (error) {
       console.error("Connection failed:", error);
+      return false;
     }
   };
 

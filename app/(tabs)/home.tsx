@@ -59,10 +59,10 @@ export default function HomeScreen() {
           >
             <Ionicons name="add" size={24} color="#050505" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/SearchScreen')}>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('../screens/SearchScreen')}>
             <Ionicons name="search" size={24} color="#1877f2" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push("/MessengerScreen")}>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push("../screens/MessengerScreen")}>
             <Ionicons name="chatbubble-ellipses" size={28} color="#050505" />
           </TouchableOpacity>
         </View>
@@ -114,13 +114,13 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={styles.addMenuItem}
               onPress={() => {
-                setShowAddMenu(false);
-                router.push("/(create)/LiveScreen");
-              }}
-            >
-              <Ionicons name="videocam-outline" size={22} color="#222" />
-              <Text style={styles.addMenuText}>Live</Text>
-            </TouchableOpacity>
+              setShowAddMenu(false);
+              router.push("/(create)/LiveScreen"); // Make sure this matches your route
+  }}
+>
+  <Ionicons name="videocam-outline" size={22} color="#222" />
+  <Text style={styles.addMenuText}>Live</Text>
+</TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -139,7 +139,7 @@ export default function HomeScreen() {
             placeholder="What's on your mind?"
             placeholderTextColor="#888"
           />
-          <TouchableOpacity onPress={() => router.push("/editProfile")}>
+          <TouchableOpacity onPress={() => router.push("/(create)/newPost")}>
           <MaterialIcons name="photo-library" size={28} color="#1877f2" />
           </TouchableOpacity>
         </View>

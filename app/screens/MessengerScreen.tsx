@@ -132,7 +132,10 @@ export default function MessengerScreen() {
           data={chats}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.chatItem}>
+            <TouchableOpacity
+              style={styles.chatItem}
+              onPress={() => router.push("/screens/ChatScreen")}
+            >
               <View>
                 <Image source={{ uri: item.image }} style={styles.chatImage} />
                 {item.online && <View style={styles.onlineDotChat} />}

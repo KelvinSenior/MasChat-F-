@@ -79,10 +79,10 @@ export default function Menu() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Menu</Text>
         <View style={styles.headerIcons}>
-          <TouchableOpacity onPress={() => router.push('/SettingsScreen')} style={styles.iconBtn}>
+          <TouchableOpacity onPress={() => router.push('/screens/SettingsScreen')} style={styles.iconBtn}>
             <Ionicons name="settings-sharp" size={22} color="#222" />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push('/SearchScreen')} style={styles.iconBtn}>
+          <TouchableOpacity onPress={() => router.push('/screens/SearchScreen')} style={styles.iconBtn}>
             <Ionicons name="search" size={22} color="#222" />
           </TouchableOpacity>
         </View>

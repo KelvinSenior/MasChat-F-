@@ -85,7 +85,7 @@ export default function Notifications() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Notifications</Text>
         <TouchableOpacity
-          onPress={() => router.push("/SearchScreen")}
+          onPress={() => router.push("../screens/SearchScreen")}
           style={styles.iconBtn}
         >
           <Ionicons name="search" size={24} color="#1877f2" />

@@ -1,14 +1,16 @@
-import { Entypo, FontAwesome5, Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Entypo, FontAwesome5, Ionicons } from "@expo/vector-icons";
+import axios from "axios";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const user = {
@@ -20,14 +22,6 @@ const options = [
   {
     icon: <Ionicons name="image" size={22} color="#22c55e" />,
     label: "Photo/video",
-  },
-  {
-    icon: <MaterialIcons name="poll" size={22} color="#f59e42" />,
-    label: "Poll",
-  },
-  {
-    icon: <Ionicons name="person-add" size={22} color="#3b82f6" />,
-    label: "Tag people",
   },
   {
     icon: <FontAwesome5 name="smile" size={22} color="#fbbf24" />,
@@ -46,6 +40,35 @@ const options = [
 export default function NewPost() {
   const router = useRouter();
   const [post, setPost] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!post.trim()) {
+      Alert.alert("Error", "Post cannot be empty");
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      const response = await axios.post('http://10.132.74.85:8080/api/posts', { 
+        content: post,
+        userId: 1, // You should replace with actual user ID
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      if (response.status === 201) {
+        router.back();
+      }
+    } catch (error) {
+      console.error("Post failed:", error);
+      Alert.alert("Error", "Failed to create post. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -55,8 +78,10 @@ export default function NewPost() {
           <Ionicons name="close" size={28} color="#222" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Create post</Text>
-        <TouchableOpacity>
-          <Text style={styles.nextBtn}>Next</Text>
+        <TouchableOpacity onPress={handleSubmit} disabled={isLoading}>
+          <Text style={[styles.nextBtn, isLoading && styles.disabledBtn]}>
+            {isLoading ? "Posting..." : "Post"}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -74,21 +99,6 @@ export default function NewPost() {
             <TouchableOpacity style={styles.chip}>
               <Ionicons name="albums" size={14} color="#1877f2" />
               <Text style={styles.chipText}>Album</Text>
-              <Ionicons name="chevron-down" size={14} color="#1877f2" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.chip}>
-              <Ionicons name="logo-instagram" size={14} color="#1877f2" />
-              <Text style={styles.chipText}>Off</Text>
-              <Ionicons name="chevron-down" size={14} color="#1877f2" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.chip}>
-              <Ionicons name="lock-closed" size={14} color="#1877f2" />
-              <Text style={styles.chipText}>Off</Text>
-              <Ionicons name="chevron-down" size={14} color="#1877f2" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.chip}>
-              <Ionicons name="pricetag" size={14} color="#1877f2" />
-              <Text style={styles.chipText}>AI label off</Text>
               <Ionicons name="chevron-down" size={14} color="#1877f2" />
             </TouchableOpacity>
           </ScrollView>
@@ -141,6 +151,9 @@ const styles = StyleSheet.create({
     color: "#1877f2",
     fontWeight: "bold",
     fontSize: 16,
+  },
+  disabledBtn: {
+    opacity: 0.5,
   },
   userRow: {
     flexDirection: "row",
