@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { AxiosError } from 'axios';
+import axios, { AxiosError } from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -16,7 +16,9 @@ import {
 } from 'react-native';
 import * as Animatable from 'react-native-animatable';
 import Toast from 'react-native-toast-message';
-import client from '../../api/client'; // Adjust path if needed
+
+// const BASE_URL = "http://10.132.74.85:8080/api"; // Same as your login
+const BASE_URL = "http://10.132.74.85:8080/api"; // Same as your login
 
 export default function SignUp() {
   const router = useRouter();
@@ -91,11 +93,22 @@ export default function SignUp() {
 
     try {
       const { username, email, password } = formData;
-      const response = await client.post('/auth/register', {
-        username: username.trim(),
-        email: email.trim(),
-        password: password,
-      });
+      const response = await axios.post(
+        `${BASE_URL}/auth/register`,
+        {
+          username: username.trim(),
+          email: email.trim(),
+          password: password,
+          fullName: username.trim(),
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          timeout: 10000,
+        }
+      );
 
       if (response.data?.message === "User registered successfully!") {
         Toast.show({

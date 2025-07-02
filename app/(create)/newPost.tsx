@@ -3,14 +3,14 @@ import axios from "axios";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 const user = {
@@ -50,7 +50,7 @@ export default function NewPost() {
     
     setIsLoading(true);
     try {
-      const response = await axios.post('http://10.132.74.85:8080/api/posts', { 
+      const response = await axios.post('http://192.168.107.125:8080/api/posts', { 
         content: post,
         userId: 1, // You should replace with actual user ID
       }, {

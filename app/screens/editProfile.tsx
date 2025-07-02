@@ -1,8 +1,10 @@
 import { FontAwesome5, Ionicons, MaterialIcons } from "@expo/vector-icons";
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   Keyboard,
   KeyboardAvoidingView,
@@ -15,63 +17,120 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
+import { useAuth } from '../context/AuthContext';
+import { updateProfile, uploadImage } from '../lib/services/userService';
+
+const DEFAULT_PROFILE_PIC = 'https://i.imgur.com/6XbK6bE.jpg';
+const DEFAULT_COVER_PHOTO = 'https://images.unsplash.com/photo-1506744038136-46273834b3fb';
 
 export default function EditProfile() {
   const router = useRouter();
-  const [showAvatar, setShowAvatar] = useState(false);
-  const [editingField, setEditingField] = useState<string | null>(null);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const { user, updateUser } = useAuth();
+  const [loading, setLoading] = useState(false);
   const [profileData, setProfileData] = useState({
-    profilePic: "https://i.imgur.com/6XbK6bE.jpg",
-    avatar: "https://i.imgur.com/2nCt3Sbl.jpg",
-    coverPhoto: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80",
-    bio: "Progressing is an action not a caption",
+    profilePicture: user?.profilePicture ?? DEFAULT_PROFILE_PIC,
+    avatar: user?.details?.avatar ?? DEFAULT_PROFILE_PIC,
+    coverPhoto: user?.coverPhoto ?? DEFAULT_COVER_PHOTO,
+    bio: user?.bio ?? "",
     details: {
-      profileType: "Just for fun",
-      worksAt1: "Student",
-      worksAt2: "Self Employed Entrepreneur",
-      studiedAt: "Harvard University",
-      wentTo: "Presbyterian Boys Secondary School (Presec Legon)",
-      currentCity: "",
-      hometown: "",
-      relationshipStatus: ""
+      profileType: user?.details?.profileType ?? "Just for fun",
+      worksAt1: user?.details?.worksAt1 ?? "",
+      worksAt2: user?.details?.worksAt2 ?? "",
+      studiedAt: user?.details?.studiedAt ?? "",
+      wentTo: user?.details?.wentTo ?? "",
+      currentCity: user?.details?.currentCity ?? "",
+      hometown: user?.details?.hometown ?? "",
+      relationshipStatus: user?.details?.relationshipStatus ?? "",
+      showAvatar: user?.details?.showAvatar ?? false
     }
   });
-  const [tempValue, setTempValue] = useState("");
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [tempValue, setTempValue] = useState('');
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
       'keyboardDidShow',
-      () => {
-        setKeyboardVisible(true);
-      }
+      () => setKeyboardVisible(true)
     );
     const keyboardDidHideListener = Keyboard.addListener(
       'keyboardDidHide',
-      () => {
-        setKeyboardVisible(false);
-      }
+      () => setKeyboardVisible(false)
     );
-
     return () => {
       keyboardDidShowListener.remove();
       keyboardDidHideListener.remove();
     };
   }, []);
 
-  const pickImage = async (field: 'profilePic' | 'avatar' | 'coverPhoto') => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: field === 'coverPhoto' ? [3, 1] : [1, 1],
-      quality: 1,
-    });
+  if (!user) {
+    return (
+      <View style={styles.container}>
+        <Text>Please sign in to edit profile</Text>
+      </View>
+    );
+  }
 
-    if (!result.canceled) {
-      setProfileData(prev => ({
-        ...prev,
-        [field]: result.assets[0].uri
-      }));
+  const pickImage = async (field: 'profilePicture' | 'avatar' | 'coverPhoto') => {
+    try {
+      setLoading(true);
+      let result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: 'images',
+        allowsEditing: true,
+        aspect: field === 'coverPhoto' ? [3, 1] : [1, 1],
+        quality: 1,
+      });
+
+      if (!result.canceled && user?.id && updateUser) {
+        const uploadType = field;
+        const manipResult = await ImageManipulator.manipulateAsync(
+          result.assets[0].uri,
+          [{ resize: { width: 800 } }],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+        );
+        let imageUrl = await uploadImage(manipResult.uri, uploadType, user.id);
+        // Ensure absolute URL
+        if (imageUrl && !imageUrl.startsWith('http')) {
+          imageUrl = `http://10.132.74.85:8080${imageUrl}`;
+        }
+
+        if (field === 'avatar') {
+          await updateProfile(user.id, {
+            details: {
+              avatar: imageUrl,
+              showAvatar: profileData.details.showAvatar
+            }
+          });
+          setProfileData(prev => ({
+            ...prev,
+            avatar: imageUrl
+          }));
+        } else {
+          await updateProfile(user.id, { [field]: imageUrl });
+          setProfileData(prev => ({
+            ...prev,
+            [field]: imageUrl
+          }));
+        }
+        await updateUser();
+      }
+    } catch (error) {
+      console.error('Error updating image:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      setLoading(true);
+      const updatedUser = await updateProfile(user.id, profileData);
+      updateUser(updatedUser);
+      router.back();
+    } catch (error) {
+      console.error('Error updating profile:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -82,9 +141,7 @@ export default function EditProfile() {
 
   const saveEdit = () => {
     if (!editingField) return;
-
     if (editingField.includes('.')) {
-      // Nested field (details)
       const [parent, child] = editingField.split('.');
       setProfileData(prev => ({
         ...prev,
@@ -94,13 +151,11 @@ export default function EditProfile() {
         }
       }));
     } else {
-      // Top-level field
       setProfileData(prev => ({
         ...prev,
         [editingField]: tempValue
       }));
     }
-
     setEditingField(null);
     Keyboard.dismiss();
   };
@@ -110,12 +165,55 @@ export default function EditProfile() {
     Keyboard.dismiss();
   };
 
+  function renderDetailRow(field: string, icon: React.ReactNode, text: string, placeholder?: boolean) {
+    const isEditing = editingField === field;
+    const currentValue = field.includes('.')
+      ? profileData.details[field.split('.')[1] as keyof typeof profileData.details]
+      : profileData[field as keyof typeof profileData];
+
+    return (
+      <View style={styles.detailRow}>
+        {icon}
+        {isEditing ? (
+          <View style={styles.editContainer}>
+            <TextInput
+              style={[styles.detailText, styles.textInput]}
+              value={tempValue}
+              onChangeText={setTempValue}
+              autoFocus
+            />
+            <View style={styles.editActions}>
+              <TouchableOpacity onPress={cancelEdit}>
+                <Text style={styles.cancelButton}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={saveEdit}>
+                <Text style={styles.saveButton}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.detailTextContainer}>
+            <Text style={[styles.detailText, placeholder && styles.placeholderText]}>
+              {text}
+            </Text>
+            <TouchableOpacity
+              style={styles.editIcon}
+              onPress={() => startEditing(field, currentValue as string)}
+            >
+              <Ionicons name="create-outline" size={16} color="#1877f2" />
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
-      <ScrollView 
+      <ScrollView
         style={styles.container}
         contentContainerStyle={keyboardVisible ? styles.scrollViewContentKeyboardOpen : styles.scrollViewContent}
         keyboardShouldPersistTaps="handled"
@@ -126,18 +224,24 @@ export default function EditProfile() {
             <Ionicons name="arrow-back" size={26} color="#222" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Edit Profile</Text>
-          <View style={{ width: 26 }} />
+          <TouchableOpacity onPress={handleSave} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator size="small" color="#1877f2" />
+            ) : (
+              <Text style={styles.saveButton}>Save</Text>
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Profile Picture */}
         <Text style={styles.sectionTitle}>
           Profile picture
-          <TouchableOpacity onPress={() => pickImage('profilePic')}>
+          <TouchableOpacity onPress={() => pickImage('profilePicture')}>
             <Text style={styles.editLink}> Edit</Text>
           </TouchableOpacity>
         </Text>
         <Image
-          source={{ uri: profileData.profilePic }}
+          source={{ uri: profileData.profilePicture }}
           style={styles.profilePic}
         />
 
@@ -157,9 +261,14 @@ export default function EditProfile() {
             Show on profile <Ionicons name="information-circle-outline" size={14} color="#888" />
           </Text>
           <Switch
-            value={showAvatar}
-            onValueChange={setShowAvatar}
-            thumbColor={showAvatar ? "#1877f2" : "#ccc"}
+            value={profileData.details.showAvatar}
+            onValueChange={val =>
+              setProfileData(prev => ({
+                ...prev,
+                details: { ...prev.details, showAvatar: val }
+              }))
+            }
+            thumbColor={profileData.details.showAvatar ? "#1877f2" : "#ccc"}
           />
         </View>
         <Text style={styles.avatarInfo}>
@@ -219,45 +328,45 @@ export default function EditProfile() {
           <Ionicons name="information-circle-outline" size={18} color="#222" />,
           `Profile · ${profileData.details.profileType}`
         )}
-        
+
         {renderDetailRow(
           'details.worksAt1',
           <MaterialIcons name="work-outline" size={18} color="#222" />,
           `Works at ${profileData.details.worksAt1}`
         )}
-        
+
         {renderDetailRow(
           'details.worksAt2',
           <MaterialIcons name="work-outline" size={18} color="#222" />,
           `Works at ${profileData.details.worksAt2}`
         )}
-        
+
         {renderDetailRow(
           'details.studiedAt',
           <FontAwesome5 name="university" size={16} color="#222" />,
           `Studied at ${profileData.details.studiedAt}`
         )}
-        
+
         {renderDetailRow(
           'details.wentTo',
           <FontAwesome5 name="school" size={16} color="#222" />,
           `Went to ${profileData.details.wentTo}`
         )}
-        
+
         {renderDetailRow(
           'details.currentCity',
           <Ionicons name="home-outline" size={18} color="#222" />,
           profileData.details.currentCity || "Current City",
           true
         )}
-        
+
         {renderDetailRow(
           'details.hometown',
           <Ionicons name="location-outline" size={18} color="#222" />,
           profileData.details.hometown || "Hometown",
           true
         )}
-        
+
         {renderDetailRow(
           'details.relationshipStatus',
           <Ionicons name="heart-outline" size={18} color="#222" />,
@@ -267,49 +376,6 @@ export default function EditProfile() {
       </ScrollView>
     </KeyboardAvoidingView>
   );
-
-  function renderDetailRow(field: string, icon: React.ReactNode, text: string, placeholder?: boolean) {
-    const isEditing = editingField === field;
-    const currentValue = field.includes('.') 
-      ? profileData.details[field.split('.')[1] as keyof typeof profileData.details]
-      : profileData[field as keyof typeof profileData];
-
-    return (
-      <View style={styles.detailRow}>
-        {icon}
-        {isEditing ? (
-          <View style={styles.editContainer}>
-            <TextInput
-              style={[styles.detailText, styles.textInput]}
-              value={tempValue}
-              onChangeText={setTempValue}
-              autoFocus
-            />
-            <View style={styles.editActions}>
-              <TouchableOpacity onPress={cancelEdit}>
-                <Text style={styles.cancelButton}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={saveEdit}>
-                <Text style={styles.saveButton}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.detailTextContainer}>
-            <Text style={[styles.detailText, placeholder && styles.placeholderText]}>
-              {text}
-            </Text>
-            <TouchableOpacity 
-              style={styles.editIcon} 
-              onPress={() => startEditing(field, currentValue as string)}
-            >
-              <Ionicons name="create-outline" size={16} color="#1877f2" />
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-    );
-  }
 }
 
 const styles = StyleSheet.create({
@@ -318,7 +384,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20
   },
   scrollViewContentKeyboardOpen: {
-    paddingBottom: 300 // Extra padding when keyboard is open
+    paddingBottom: 300
   },
   header: {
     flexDirection: "row",
@@ -422,7 +488,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   placeholderText: {
-    color: "#222", // Changed from #bbb to #222
+    color: "#222",
   },
   editIcon: {
     marginLeft: 10,

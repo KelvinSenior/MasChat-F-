@@ -6,6 +6,7 @@ import React, { useEffect, useState } from "react";
 import { Image, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import * as Animatable from 'react-native-animatable';
 import Toast from 'react-native-toast-message';
+import { useAuth } from '../context/AuthContext';
 
 const BASE_URL = "http://10.132.74.85:8080/api"; // Make sure this matches your backend
 
@@ -18,6 +19,8 @@ export default function Login() {
   });
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  const { signIn } = useAuth();
 
   const validateForm = () => {
     let valid = true;
@@ -90,7 +93,14 @@ export default function Login() {
       );
 
       if (response.data?.token) {
-        await AsyncStorage.setItem('userToken', response.data.token);
+        let { token, user } = response.data;
+        // Map userId to id for consistency
+        if (user.userId && !user.id) {
+          user.id = user.userId;
+          delete user.userId;
+        }
+        await signIn(token, user);
+        await AsyncStorage.setItem('userToken', token);
         await AsyncStorage.setItem('username', username.trim());
         Toast.show({
           type: 'success',
@@ -332,7 +342,3 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
 });
-
-function signIn(token: any, username: string) {
-  throw new Error('Function not implemented.');
-}
