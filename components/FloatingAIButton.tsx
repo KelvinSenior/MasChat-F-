@@ -23,9 +23,10 @@ export default function FloatingAIButton({ onPress }: FloatingAIButtonProps) {
   const translateX = useSharedValue(startingPosition.x);
   const translateY = useSharedValue(startingPosition.y);
   
-  // Track if button is pressed
+  // Track button states
   const isPressed = useSharedValue(false);
   const isHovered = useSharedValue(false);
+  const isActive = useSharedValue(false);
 
   // Pan gesture handler
   const panGesture = Gesture.Pan()
@@ -43,6 +44,15 @@ export default function FloatingAIButton({ onPress }: FloatingAIButtonProps) {
     })
     .onFinalize(() => {
       isPressed.value = false;
+      // Snap to edges if not near starting position
+      if (translateY.value < height - 200) {
+        const snapToSide = translateX.value < width / 2 ? 20 : width - 76;
+        translateX.value = withSpring(snapToSide);
+        translateY.value = withSpring(20);
+      } else {
+        translateX.value = withSpring(startingPosition.x);
+        translateY.value = withSpring(startingPosition.y);
+      }
     });
 
   // Animated styles
@@ -50,32 +60,44 @@ export default function FloatingAIButton({ onPress }: FloatingAIButtonProps) {
     transform: [
       { translateX: translateX.value },
       { translateY: translateY.value },
-      { scale: withSpring(isPressed.value ? 0.9 : 1) },
+      { scale: withSpring(isPressed.value ? 0.9 : isActive.value ? 1.1 : 1) },
     ],
-    shadowOpacity: withTiming(isPressed.value ? 0.3 : 0.2),
-    backgroundColor: withTiming(isPressed.value ? '#0f5fd6' : '#1877f2'),
+    shadowOpacity: withTiming(isPressed.value ? 0.3 : isActive.value ? 0.4 : 0.2),
+    backgroundColor: withTiming(isPressed.value ? '#0f5fd6' : isActive.value ? '#1a6ff2' : '#1877f2'),
   }));
 
   const iconAnimatedStyle = useAnimatedStyle(() => ({
     transform: [
-      { scale: withSpring(isPressed.value ? 0.9 : 1) },
+      { scale: withSpring(isPressed.value ? 0.9 : isActive.value ? 1.2 : 1) },
       { rotate: withSpring(isHovered.value ? '0deg' : '0deg') },
     ],
+  }));
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: isActive.value ? withSpring(1.3) : withSpring(1) }],
+    opacity: isActive.value ? withTiming(0.5) : withTiming(0),
   }));
 
   return (
     <GestureDetector gesture={panGesture}>
       <Animated.View 
         style={[styles.buttonContainer, animatedStyle]}
-        onTouchStart={() => isHovered.value = true}
-        onTouchEnd={() => isHovered.value = false}
+        onTouchStart={() => {
+          isHovered.value = true;
+          isActive.value = true;
+        }}
+        onTouchEnd={() => {
+          isHovered.value = false;
+          isActive.value = false;
+          onPress();
+        }}
       >
+        <Animated.View style={[styles.pulseEffect, pulseStyle]} />
         <Animated.View style={[styles.iconContainer, iconAnimatedStyle]}>
           <Ionicons
-            name="sparkles" // Changed to a more AI-relevant icon
-            size={24} // Smaller size
+            name="sparkles"
+            size={24}
             color="#fff"
-            onPress={onPress}
           />
         </Animated.View>
       </Animated.View>
@@ -99,14 +121,17 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
   },
+  pulseEffect: {
+    position: 'absolute',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#1877f2',
+  },
   iconContainer: {
     width: '100%',
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  fab: {
-    textAlign: 'center',
-    textAlignVertical: 'center',
   },
 });

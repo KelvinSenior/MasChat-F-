@@ -5,6 +5,7 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import AIChatModal from '../components/AIChatModal';
 import FloatingAIButton from '../components/FloatingAIButton';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from "./context/ThemeContext";
 
 export default function RootLayout() {
   const [showChat, setShowChat] = useState(false);
@@ -15,17 +16,19 @@ export default function RootLayout() {
     };
   }, []);
 
-  return ( 
-    <SafeAreaProvider>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: 'white' }}>
-        <FloatingAIButton onPress={() => setShowChat(true)} />
-        <AuthProvider>
-          <Slot />
-        </AuthProvider>
-      </SafeAreaView>
-      <AIChatModal visible={showChat} onClose={() => setShowChat(false)} />
-      </GestureHandlerRootView>
-    </SafeAreaProvider>
+  return (
+    <ThemeProvider>
+      <SafeAreaProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: 'white' }}>
+            <FloatingAIButton onPress={() => setShowChat(true)} />
+            <AuthProvider>
+              <Slot />
+            </AuthProvider>
+          </SafeAreaView>
+          <AIChatModal visible={showChat} onClose={() => setShowChat(false)} />
+        </GestureHandlerRootView>
+      </SafeAreaProvider>
+    </ThemeProvider>
   );
 }

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Image, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
@@ -8,7 +9,7 @@ import * as Animatable from 'react-native-animatable';
 import Toast from 'react-native-toast-message';
 import { useAuth } from '../context/AuthContext';
 
-const BASE_URL = "http://10.132.74.85:8080/api"; // Make sure this matches your backend
+const BASE_URL = "http://10.132.74.85:8080/api";
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -18,6 +19,7 @@ export default function Login() {
     password: '',
   });
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
   const { signIn } = useAuth();
@@ -46,22 +48,9 @@ export default function Login() {
     return valid;
   };
 
-  const isAxiosError = (error: any): error is AxiosError => {
-    return error.isAxiosError === true;
-  };
-
-  const handleAxiosError = (error: AxiosError) => {
-    if (error.code === 'ECONNABORTED') return 'Request timeout. Check your connection.';
-    if (error.response?.status === 401) return 'Invalid username or password';
-    const data = error.response?.data as { message?: string };
-    if (data?.message) return data.message;
-    return 'Login failed. Please try again.';
-  };
-
   const handleLogin = async () => {
     if (!validateForm()) return;
 
-    // First test connection
     const isConnected = await testConnection();
     if (!isConnected) {
       Toast.show({
@@ -79,29 +68,18 @@ export default function Login() {
     try {
       const response = await axios.post(
         `${BASE_URL}/auth/login`,
-        {
-          username: username.trim(),
-          password: password,
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          timeout: 10000,
-        }
+        { username: username.trim(), password },
+        { headers: { 'Content-Type': 'application/json' }, timeout: 10000 }
       );
 
       if (response.data?.token) {
         let { token, user } = response.data;
-        // Map userId to id for consistency
-        if (user.userId && !user.id) {
-          user.id = user.userId;
-          delete user.userId;
-        }
+        if (user.userId && !user.id) user = { ...user, id: user.userId };
+        
         await signIn(token, user);
         await AsyncStorage.setItem('userToken', token);
         await AsyncStorage.setItem('username', username.trim());
+        
         Toast.show({
           type: 'success',
           text1: 'Login Successful',
@@ -111,9 +89,7 @@ export default function Login() {
           topOffset: 60,
         });
         router.replace('/(tabs)/home');
-        return;
       }
-      throw new Error('Token missing in response');
     } catch (error) {
       let errorMessage = 'Login failed. Please try again.';
       if (axios.isAxiosError(error)) {
@@ -132,82 +108,81 @@ export default function Login() {
     }
   };
 
-  // Place the function inside your component
   const testConnection = async () => {
     try {
-      const response = await axios.get(
-        "http://10.132.74.85:8080/api/auth/test",
-        { timeout: 3000 }
-      );
-      console.log("Connection test:", response.data);
+      await axios.get(`${BASE_URL}/auth/test`, { timeout: 3000 });
       return true;
     } catch (error) {
-      console.error("Connection failed:", error);
       return false;
     }
   };
 
-  // Call it once when the component mounts
-  useEffect(() => {
-    testConnection();
-  }, []);
+  useEffect(() => { testConnection(); }, []);
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
-      <Animatable.View
-        animation="fadeInDown"
-        duration={1000}
-        style={styles.header}
-      >
+    <LinearGradient colors={['#f5f7fa', '#e4e8f0']} style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#f5f7fa" />
+      
+      <Animatable.View animation="fadeInDown" duration={1000} style={styles.header}>
         <Image
           source={require("../../assets/GROUP 88-MasChat.png")}
-          style={{ width: 120, height: 120, resizeMode: "contain", marginBottom: 8 }}
+          style={styles.logo}
         />
         <Text style={styles.title}>Welcome Back!</Text>
         <Text style={styles.subtitle}>Connect, chat, and share with MasChat</Text>
       </Animatable.View>
-      <Animatable.View
-        animation="fadeInUp"
-        duration={1000}
-        style={styles.form}
-      >
+
+      <Animatable.View animation="fadeInUp" duration={1000} style={styles.form}>
         {/* Username Input */}
         <View style={styles.inputContainer}>
-          <Ionicons name="person-outline" size={20} color="#aaa" style={styles.inputIcon} />
+          <Ionicons name="person-outline" size={20} color="#888" style={styles.inputIcon} />
           <TextInput
             style={styles.input}
             placeholder="Username"
-            placeholderTextColor="#aaa"
+            placeholderTextColor="#888"
             value={username}
             onChangeText={setUsername}
             autoCapitalize="none"
           />
         </View>
-        {errors.username ? <Text style={styles.errorText}>{errors.username}</Text> : null}
+        {errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
 
         {/* Password Input */}
         <View style={styles.inputContainer}>
-          <Ionicons name="lock-closed-outline" size={20} color="#aaa" style={styles.inputIcon} />
+          <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
           <TextInput
             style={styles.input}
             placeholder="Password"
-            placeholderTextColor="#aaa"
+            placeholderTextColor="#888"
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
+            secureTextEntry={!showPassword}
           />
+          <TouchableOpacity onPress={() => setShowPassword((prev) => !prev)}>
+            <Ionicons
+              name={showPassword ? "eye-off-outline" : "eye-outline"}
+              size={22}
+              color="#888"
+            />
+          </TouchableOpacity>
         </View>
-        {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
+        {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
 
         <TouchableOpacity 
           style={[styles.button, loading && styles.disabledButton]} 
           onPress={handleLogin}
           disabled={loading}
         >
-          <Text style={styles.buttonText}>
-            {loading ? 'Logging in...' : 'Log In'}
-          </Text>
+          <LinearGradient
+            colors={['#1877f2', '#0a5bc4']}
+            style={styles.buttonGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Text style={styles.buttonText}>
+              {loading ? 'Logging in...' : 'Log In'}
+            </Text>
+          </LinearGradient>
         </TouchableOpacity>
         
         <TouchableOpacity>
@@ -228,84 +203,96 @@ export default function Login() {
         </TouchableOpacity>
       </Animatable.View>
       <Toast />
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
-    justifyContent: "center",
     paddingHorizontal: 24,
   },
   header: {
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 24,
+    paddingTop: 40,
+  },
+  logo: {
+    width: 120,
+    height: 120,
+    resizeMode: "contain",
+    marginBottom: 8,
   },
   title: {
     color: "#1877f2",
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: "bold",
     marginTop: 4,
-    letterSpacing: 1,
+    fontFamily: 'sans-serif-medium',
+    textShadowColor: 'rgba(0,0,0,0.1)',
+    textShadowOffset: {width: 1, height: 1},
+    textShadowRadius: 2
   },
   subtitle: {
-    color: "#6c757d",
-    fontSize: 15,
+    color: "#666",
+    fontSize: 16,
     marginTop: 2,
-    marginBottom: 8,
+    fontFamily: 'sans-serif'
   },
   form: {
-    backgroundColor: "#111",
-    borderRadius: 12,
+    backgroundColor: "#fff",
+    borderRadius: 16,
     padding: 24,
-    shadowColor: "#1877f2",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 8,
+    shadowRadius: 8,
+    elevation: 5,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#222",
-    borderRadius: 8,
+    backgroundColor: "#f0f2f5",
+    borderRadius: 12,
     paddingHorizontal: 16,
     marginBottom: 8,
-    borderWidth: 1,
-    borderColor: "#1877f2",
+    height: 50,
   },
   inputIcon: {
-    marginRight: 8,
+    marginRight: 12,
   },
   input: {
     flex: 1,
-    color: "#fff",
-    paddingVertical: 12,
+    color: "#222",
     fontSize: 16,
+    fontFamily: 'sans-serif'
   },
   button: {
-    backgroundColor: "#1877f2",
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: "center",
-    marginBottom: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 16,
+    height: 50,
+  },
+  buttonGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   disabledButton: {
-    backgroundColor: "#4e9af1",
     opacity: 0.7,
   },
   buttonText: {
     color: "#fff",
     fontSize: 18,
     fontWeight: "bold",
+    fontFamily: 'sans-serif-medium'
   },
   forgot: {
     color: "#1877f2",
     textAlign: "center",
     marginBottom: 16,
-    textDecorationLine: "underline",
     fontSize: 15,
+    fontFamily: 'sans-serif-medium'
   },
   dividerContainer: {
     flexDirection: "row",
@@ -315,16 +302,17 @@ const styles = StyleSheet.create({
   divider: {
     flex: 1,
     height: 1,
-    backgroundColor: "#222",
+    backgroundColor: "#e4e6eb",
   },
   or: {
-    color: "#aaa",
+    color: "#888",
     marginHorizontal: 10,
     fontWeight: "bold",
+    fontFamily: 'sans-serif-medium'
   },
   createButton: {
-    backgroundColor: "#222",
-    borderRadius: 8,
+    backgroundColor: "#fff",
+    borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
     borderWidth: 1,
@@ -332,13 +320,15 @@ const styles = StyleSheet.create({
   },
   createButtonText: {
     color: "#1877f2",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "bold",
+    fontFamily: 'sans-serif-medium'
   },
   errorText: {
     color: "#f02849",
     fontSize: 13,
     marginBottom: 12,
-    marginLeft: 6,
+    marginLeft: 12,
+    fontFamily: 'sans-serif'
   },
 });

@@ -14,6 +14,7 @@ type UserDetails = {
   hometown?: string;
   relationshipStatus?: string;
   showAvatar?: boolean;
+  avatarSwipeEnabled?: boolean;
   avatar?: string;
   followerCount?: number;
   followingCount?: number;
@@ -27,6 +28,7 @@ type User = {
   profilePicture?: string;
   coverPhoto?: string;
   bio?: string;
+  avatar?: string;
   details?: UserDetails;
   createdAt?: string;
   updatedAt?: string;

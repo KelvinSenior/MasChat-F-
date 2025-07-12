@@ -1,4 +1,5 @@
 import { FontAwesome, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { FlatList, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
@@ -66,30 +67,52 @@ export default function MessengerScreen() {
   const router = useRouter();
 
   return (
-    <View style={styles.container}>
+    <LinearGradient colors={['#f5f7fa', '#e4e8f0']} style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>messenger</Text>
+      <LinearGradient
+        colors={['#1877f2', '#0a5bc4']}
+        style={styles.header}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+      >
+        <Text style={styles.headerTitle}>Messenger</Text>
         <View style={styles.headerIcons}>
-          <TouchableOpacity style={styles.headerIconBtn}>
-            <Ionicons name="create-outline" size={22} color="#fff" />
+          <TouchableOpacity 
+            style={styles.headerIconBtn}
+            onPress={() => router.push("/(create)/newMessage")}
+          >
+            <LinearGradient 
+              colors={['#4facfe', '#00f2fe']} 
+              style={styles.iconBtnGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Ionicons name="create-outline" size={20} color="white" />
+            </LinearGradient>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerIconBtn}
             onPress={() => router.push("/(tabs)/home")}
           >
-            <FontAwesome name="home" size={22} color="#1877f2" />
+            <LinearGradient 
+              colors={['#667eea', '#764ba2']} 
+              style={styles.iconBtnGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <FontAwesome name="home" size={20} color="white" />
+            </LinearGradient>
           </TouchableOpacity>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Search Bar */}
       <View style={styles.searchBar}>
-        <Ionicons name="search" size={20} color="#aaa" style={{ marginLeft: 8 }} />
+        <Ionicons name="search" size={20} color="#888" style={{ marginLeft: 12 }} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Ask Meta AI or Search"
-          placeholderTextColor="#aaa"
+          placeholder="Search messages"
+          placeholderTextColor="#888"
           value={search}
           onChangeText={setSearch}
         />
@@ -101,7 +124,7 @@ export default function MessengerScreen() {
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.storiesRow}
-          contentContainerStyle={{ alignItems: "center" }}
+          contentContainerStyle={{ alignItems: "center", paddingHorizontal: 12 }}
         >
           {stories.map((story) =>
             story.isCreate ? (
@@ -111,17 +134,27 @@ export default function MessengerScreen() {
                 activeOpacity={0.8}
                 onPress={() => router.push("/(create)/newStory")}
               >
-                <View style={styles.createStoryCircle}>
-                  <Ionicons name={story.icon} size={38} color="#1877f2" />
-                </View>
+                <LinearGradient
+                  colors={['#a18cd1', '#fbc2eb']}
+                  style={styles.createStoryCircle}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <Ionicons name={story.icon} size={28} color="white" />
+                </LinearGradient>
                 <Text style={styles.storyLabel}>{story.label}</Text>
               </TouchableOpacity>
             ) : (
               <View key={story.id} style={styles.storyItem}>
-                <View>
+                <LinearGradient
+                  colors={['#ff9a9e', '#fad0c4']}
+                  style={styles.storyImageContainer}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
                   <Image source={{ uri: story.image }} style={styles.storyImage} />
                   {story.online && <View style={styles.onlineDot} />}
-                </View>
+                </LinearGradient>
                 <Text style={styles.storyLabel}>{story.label}</Text>
               </View>
             )
@@ -134,9 +167,9 @@ export default function MessengerScreen() {
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.chatItem}
-              onPress={() => router.push("/screens/ChatScreen")}
+              onPress={() => router.push({ pathname: "/screens/ChatScreen", params: { recipient: JSON.stringify(item) } })}
             >
-              <View>
+              <View style={styles.chatImageContainer}>
                 <Image source={{ uri: item.image }} style={styles.chatImage} />
                 {item.online && <View style={styles.onlineDotChat} />}
               </View>
@@ -157,128 +190,255 @@ export default function MessengerScreen() {
             </TouchableOpacity>
           )}
           ListFooterComponent={
-            <View style={styles.marketplaceContainer}>
-              <MaterialCommunityIcons name="storefront-outline" size={30} color="#fff" style={styles.marketIcon} />
+            <TouchableOpacity 
+              style={styles.marketplaceContainer}
+              onPress={() => router.push("/(tabs)/marketplace")}
+            >
+              <LinearGradient
+                colors={['#667eea', '#764ba2']}
+                style={styles.marketIconBg}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <MaterialCommunityIcons name="storefront-outline" size={24} color="white" />
+              </LinearGradient>
               <Text style={styles.marketText}>Marketplace</Text>
-            </View>
+            </TouchableOpacity>
           }
         />
       </View>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#18191a" },
+  container: { 
+    flex: 1,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingTop: 48,
-    paddingBottom: 10,
+    paddingBottom: 12,
     paddingHorizontal: 16,
     justifyContent: "space-between",
-    backgroundColor: "#18191a",
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
-  headerTitle: { color: "#fff", fontSize: 28, fontWeight: "bold", textTransform: "lowercase" },
-  headerIcons: { flexDirection: "row" },
+  headerTitle: { 
+    color: "#fff", 
+    fontSize: 24, 
+    fontWeight: "bold", 
+    fontFamily: 'sans-serif-medium',
+    textShadowColor: 'rgba(0,0,0,0.1)',
+    textShadowOffset: {width: 1, height: 1},
+    textShadowRadius: 2
+  },
+  headerIcons: { 
+    flexDirection: "row" 
+  },
   headerIconBtn: {
-    backgroundColor: "#242526",
     borderRadius: 20,
-    padding: 8,
+    overflow: 'hidden',
     marginLeft: 10,
+  },
+  iconBtnGradient: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#242526",
+    backgroundColor: "#fff",
     borderRadius: 20,
     marginHorizontal: 16,
-    marginBottom: 10,
-    height: 38,
+    marginVertical: 12,
+    height: 42,
+    paddingHorizontal: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   searchInput: {
     flex: 1,
-    color: "#fff",
+    color: "#222",
     fontSize: 16,
     marginLeft: 8,
     paddingVertical: 0,
+    fontFamily: 'sans-serif'
   },
-  storiesRow: { paddingVertical: 8, paddingLeft: 10 },
-  storyItem: { alignItems: "center", marginRight: 18, width: 68 },
+  storiesRow: { 
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e4e6eb'
+  },
+  storyItem: { 
+    alignItems: "center", 
+    marginRight: 16, 
+    width: 80 
+  },
   createStoryCircle: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: "#23272f",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 4,
+    marginBottom: 6,
+  },
+  storyImageContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 2,
+    marginBottom: 6,
   },
   storyImage: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    marginBottom: 4,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     borderWidth: 2,
-    borderColor: "#1877f2",
+    borderColor: '#fff'
   },
   storyLabel: {
-    color: "#fff",
-    fontSize: 12,
+    color: "#222",
+    fontSize: 13,
     textAlign: "center",
-    marginTop: 2,
+    fontFamily: 'sans-serif-medium'
   },
   onlineDot: {
     position: "absolute",
     bottom: 6,
-    right: 4,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    right: 6,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     backgroundColor: "#31a24c",
     borderWidth: 2,
-    borderColor: "#18191a",
+    borderColor: "#fff",
   },
   chatItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 13,
+    paddingVertical: 14,
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#23272f",
-    backgroundColor: "#18191a",
+    backgroundColor: '#fff',
+    marginHorizontal: 12,
+    marginVertical: 4,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  chatImage: { width: 52, height: 52, borderRadius: 26 },
-  chatName: { color: "#fff", fontWeight: "bold", fontSize: 16 },
-  chatMessage: { color: "#bbb", fontSize: 14, marginTop: 2 },
-  chatDate: { color: "#bbb", fontSize: 12 },
+  chatImageContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#f0f2f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden'
+  },
+  chatImage: { 
+    width: 56, 
+    height: 56, 
+    borderRadius: 28,
+  },
+  chatName: { 
+    color: "#222", 
+    fontWeight: "bold", 
+    fontSize: 16,
+    fontFamily: 'sans-serif-medium'
+  },
+  chatMessage: { 
+    color: "#666", 
+    fontSize: 14, 
+    marginTop: 4,
+    fontFamily: 'sans-serif'
+  },
+  chatDate: { 
+    color: "#888", 
+    fontSize: 12,
+    fontFamily: 'sans-serif'
+  },
   onlineDotChat: {
     position: "absolute",
-    bottom: 6,
+    bottom: 2,
     right: 2,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     backgroundColor: "#31a24c",
     borderWidth: 2,
-    borderColor: "#18191a",
+    borderColor: "#fff",
   },
   timeBadge: {
-    backgroundColor: "#242526",
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginTop: 4,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginTop: 6,
+    backgroundColor: '#1877f2',
+    justifyContent: 'center',
+    alignItems: 'center'
   },
-  timeBadgeText: { color: "#31a24c", fontSize: 11, fontWeight: "bold" },
+  timeBadgeText: { 
+    color: "#fff", 
+    fontSize: 12, 
+    fontWeight: "bold",
+    fontFamily: 'sans-serif-medium'
+  },
   marketplaceContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#23272f",
+    borderRadius: 14,
     margin: 16,
-    borderRadius: 12,
-    padding: 14,
+    padding: 16,
+    backgroundColor: '#fff',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  marketIcon: { marginRight: 12 },
-  marketText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  marketIconBg: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12
+  },
+  marketText: { 
+    color: "#222", 
+    fontSize: 16, 
+    fontWeight: "bold",
+    fontFamily: 'sans-serif-medium'
+  },
 });

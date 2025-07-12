@@ -1,4 +1,5 @@
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
 import React from "react";
 import {
@@ -80,35 +81,60 @@ export default function Notifications() {
   const router = useRouter();
 
   return (
-    <View style={styles.container}>
+    <LinearGradient colors={['#f5f7fa', '#e4e8f0']} style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <LinearGradient
+        colors={['#1877f2', '#0a5bc4']}
+        style={styles.header}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+      >
         <Text style={styles.headerTitle}>Notifications</Text>
         <TouchableOpacity
           onPress={() => router.push("../screens/SearchScreen")}
           style={styles.iconBtn}
         >
-          <Ionicons name="search" size={24} color="#1877f2" />
+          <LinearGradient 
+            colors={['#4facfe', '#00f2fe']} 
+            style={styles.iconBtnGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Ionicons name="search" size={20} color="white" />
+          </LinearGradient>
         </TouchableOpacity>
-      </View>
+      </LinearGradient>
+
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={styles.sectionLabel}>New</Text>
         {notifications.map((item) => (
           <View key={item.id} style={styles.card}>
             <View style={styles.row}>
               {item.isReport ? (
-                <View style={styles.reportIconWrap}>
-                  <FontAwesome name="flag" size={24} color="#1877f2" />
-                </View>
+                <LinearGradient
+                  colors={['#4facfe', '#00f2fe']}
+                  style={styles.reportIconWrap}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <FontAwesome name="flag" size={20} color="white" />
+                </LinearGradient>
               ) : (
-                <Image
-                  source={
-                    typeof item.avatar === "string"
-                      ? { uri: item.avatar }
-                      : item.avatar
-                  }
-                  style={styles.avatar}
-                />
+                <LinearGradient
+                  colors={['#a18cd1', '#fbc2eb']}
+                  style={styles.avatarContainer}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <Image
+                    source={
+                      typeof item.avatar === "string"
+                        ? { uri: item.avatar }
+                        : item.avatar
+                    }
+                    style={styles.avatar}
+                  />
+                </LinearGradient>
               )}
               <View style={{ flex: 1 }}>
                 <Text style={styles.messageText}>
@@ -123,7 +149,7 @@ export default function Notifications() {
                 {item.time && <Text style={styles.time}>{item.time}</Text>}
               </View>
               <TouchableOpacity>
-                <Ionicons name="ellipsis-horizontal" size={22} color="#888" />
+                <Ionicons name="ellipsis-horizontal" size={20} color="#888" />
               </TouchableOpacity>
             </View>
             {item.actions && (
@@ -131,23 +157,27 @@ export default function Notifications() {
                 {item.actions.map((action) => (
                   <TouchableOpacity
                     key={action}
-                    style={[
-                      styles.actionBtn,
-                      action === "Confirm" || action === "Remix"
-                        ? styles.primaryBtn
-                        : styles.secondaryBtn,
-                    ]}
+                    style={styles.actionBtn}
                   >
-                    <Text
-                      style={[
+                    <LinearGradient
+                      colors={
+                        action === "Confirm" || action === "Remix" 
+                          ? ['#4facfe', '#00f2fe'] 
+                          : ['#e4e6eb', '#d8dadf']
+                      }
+                      style={styles.actionBtnGradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                    >
+                      <Text style={[
                         styles.actionText,
                         action === "Confirm" || action === "Remix"
                           ? styles.primaryText
-                          : styles.secondaryText,
-                      ]}
-                    >
-                      {action}
-                    </Text>
+                          : styles.secondaryText
+                      ]}>
+                        {action}
+                      </Text>
+                    </LinearGradient>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -155,119 +185,152 @@ export default function Notifications() {
           </View>
         ))}
       </ScrollView>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f0f2f5",
   },
   header: {
-    backgroundColor: "#fff",
     flexDirection: "row",
     alignItems: "center",
-    paddingTop: 10,
+    paddingTop: 50,
     paddingHorizontal: 16,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e4e6eb",
+    paddingBottom: 12,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "bold",
-    color: "#222",
+    color: "white",
     flex: 1,
+    fontFamily: 'sans-serif-medium',
+    textShadowColor: 'rgba(0,0,0,0.1)',
+    textShadowOffset: {width: 1, height: 1},
+    textShadowRadius: 2
   },
   iconBtn: {
-    backgroundColor: "#e4e6eb",
-    borderRadius: 20,
-    padding: 6,
-    marginLeft: 10,
+    borderRadius: 18,
+    overflow: 'hidden',
+  },
+  iconBtnGradient: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   scroll: {
     flex: 1,
-    backgroundColor: "#f0f2f5",
+    paddingTop: 8,
   },
   sectionLabel: {
     fontSize: 18,
     fontWeight: "bold",
     color: "#222",
     marginTop: 16,
-    marginBottom: 8,
+    marginBottom: 12,
     marginLeft: 16,
+    fontFamily: 'sans-serif-medium'
   },
   card: {
     backgroundColor: "#fff",
-    borderRadius: 12,
-    marginHorizontal: 12,
-    marginBottom: 10,
-    padding: 12,
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 16,
     shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   row: {
     flexDirection: "row",
     alignItems: "flex-start",
   },
-  avatar: {
+  avatarContainer: {
     width: 48,
     height: 48,
     borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
+    padding: 2
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: 'white'
   },
   reportIconWrap: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#e7f0fd",
-    alignItems: "center",
-    justifyContent: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
   },
   messageText: {
     fontSize: 15,
     color: "#222",
-    marginBottom: 2,
+    marginBottom: 4,
+    lineHeight: 20,
+    fontFamily: 'sans-serif'
   },
   bold: {
     fontWeight: "bold",
     color: "#222",
+    fontFamily: 'sans-serif-medium'
   },
   mutual: {
     fontSize: 13,
-    color: "#888",
-    marginBottom: 2,
+    color: "#666",
+    marginBottom: 4,
+    fontFamily: 'sans-serif'
   },
   time: {
     fontSize: 12,
     color: "#888",
-    marginTop: 2,
+    marginTop: 4,
+    fontFamily: 'sans-serif'
   },
   actionsRow: {
     flexDirection: "row",
-    marginTop: 10,
-    justifyContent: "flex-end",
+    marginTop: 12,
+    justifyContent: 'flex-end',
+    gap: 8
   },
   actionBtn: {
     borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 18,
-    marginLeft: 8,
+    overflow: 'hidden'
   },
-  primaryBtn: {
-    backgroundColor: "#1877f2",
-  },
-  secondaryBtn: {
-    backgroundColor: "#e4e6eb",
+  actionBtnGradient: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   actionText: {
     fontSize: 15,
     fontWeight: "bold",
+    fontFamily: 'sans-serif-medium'
   },
   primaryText: {
     color: "#fff",
