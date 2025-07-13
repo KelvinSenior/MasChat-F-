@@ -126,36 +126,41 @@ export default function AIChatScreen({ onClose }: { onClose: () => void }) {
       </KeyboardAvoidingView>
 
       {/* Input Area */}
-      <View style={styles.inputContainer}>
-        <View style={styles.inputWrapper}>
-          <TouchableOpacity style={styles.attachmentButton}>
-            <MaterialIcons name="attachment" size={24} color="#1877f2" />
-          </TouchableOpacity>
-          <TextInput
-            style={styles.input}
-            value={inputText}
-            onChangeText={setInputText}
-            placeholder="Message MasChat AI..."
-            placeholderTextColor="#888"
-            multiline
-            onSubmitEditing={handleSend}
-          />
-          <TouchableOpacity 
-            style={[
-              styles.sendButton, 
-              !inputText.trim() && styles.sendButtonDisabled
-            ]} 
-            onPress={handleSend}
-            disabled={!inputText.trim()}
-          >
-            <Ionicons 
-              name="send" 
-              size={20} 
-              color={inputText.trim() ? "#fff" : "#aaa"} 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
+      >
+        <View style={styles.inputContainer}>
+          <View style={styles.inputWrapper}>
+            <TouchableOpacity style={styles.attachmentButton}>
+              <MaterialIcons name="attachment" size={24} color="#1877f2" />
+            </TouchableOpacity>
+            <TextInput
+              style={styles.input}
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder="Message MasChat AI..."
+              placeholderTextColor="#888"
+              multiline
+              onSubmitEditing={handleSend}
             />
-          </TouchableOpacity>
+            <TouchableOpacity 
+              style={[
+                styles.sendButton, 
+                !inputText.trim() && styles.sendButtonDisabled
+              ]} 
+              onPress={handleSend}
+              disabled={!inputText.trim()}
+            >
+              <Ionicons 
+                name="send" 
+                size={20} 
+                color={inputText.trim() ? "#fff" : "#aaa"} 
+              />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </LinearGradient>
   );
 }

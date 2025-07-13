@@ -13,7 +13,8 @@ import {
   View
 } from 'react-native';
 import { PanGestureHandler } from 'react-native-gesture-handler';
-import Animated, {
+import Animated,
+{
   useAnimatedGestureHandler,
   useAnimatedStyle,
   useSharedValue,
@@ -114,7 +115,7 @@ export default function Profile() {
 
   return (
     <LinearGradient colors={['#f5f7fa', '#e4e8f0']} style={styles.container}>
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         refreshControl={
           <RefreshControl
@@ -127,19 +128,19 @@ export default function Profile() {
       >
         {/* Cover Photo */}
         <View style={styles.coverContainer}>
-          <Image 
-            source={{ uri: profileData.coverPhoto || DEFAULT_COVER_PHOTO }} 
-            style={styles.coverPhoto} 
+          <Image
+            source={{ uri: profileData.coverPhoto || DEFAULT_COVER_PHOTO }}
+            style={styles.coverPhoto}
           />
-          
+
           {/* Top Right Buttons */}
           <View style={styles.topIcons}>
-            <TouchableOpacity 
-              onPress={() => router.push("../screens/editProfile")} 
+            <TouchableOpacity
+              onPress={() => router.push("../screens/editProfile")}
               style={styles.editBtn}
             >
-              <LinearGradient 
-                colors={['#667eea', '#764ba2']} 
+              <LinearGradient
+                colors={['#667eea', '#764ba2']}
                 style={styles.editBtnGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -148,8 +149,8 @@ export default function Profile() {
               </LinearGradient>
             </TouchableOpacity>
             <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('../screens/SearchScreen')}>
-              <LinearGradient 
-                colors={['#f093fb', '#f5576c']} 
+              <LinearGradient
+                colors={['#f093fb', '#f5576c']}
                 style={styles.iconBtnGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -165,32 +166,32 @@ export default function Profile() {
           <View style={styles.profilePicWrapper}>
             <PanGestureHandler onGestureEvent={gestureHandler}>
               <Animated.View style={animatedStyle}>
-                <Image 
-                  source={{ 
+                <Image
+                  source={{
                     uri: (profileData.details?.showAvatar && profileData.details?.avatar)
                       ? profileData.details.avatar
                       : (profileData.profilePicture || DEFAULT_PROFILE_PHOTO)
-                  }} 
-                  style={styles.profilePic} 
+                  }}
+                  style={styles.profilePic}
                 />
               </Animated.View>
             </PanGestureHandler>
-            
+
             {profileData.details?.avatarSwipeEnabled && (
               <Animated.View style={[styles.avatarPic, avatarStyle]}>
-                <Image 
-                  source={{ uri: profileData.details?.avatar || DEFAULT_PROFILE_PHOTO }} 
-                  style={styles.profilePic} 
+                <Image
+                  source={{ uri: profileData.details?.avatar || DEFAULT_PROFILE_PHOTO }}
+                  style={styles.profilePic}
                 />
               </Animated.View>
             )}
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
               style={styles.cameraBtn}
               onPress={() => router.push("../screens/editProfile")}
             >
-              <LinearGradient 
-                colors={['#4facfe', '#00f2fe']} 
+              <LinearGradient
+                colors={['#4facfe', '#00f2fe']}
                 style={styles.cameraBtnGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -204,25 +205,25 @@ export default function Profile() {
         {/* Profile Info Section */}
         <View style={styles.infoSection}>
           <Text style={styles.name}>
-            {profileData.username || 'No name set'} 
+            {profileData.username || 'No name set'}
             {profileData.verified && <Ionicons name="checkmark-circle" size={18} color="#1877f2" style={styles.verifiedBadge} />}
           </Text>
           <Text style={styles.stats}>
             {profileData.details?.followerCount || 0} followers · {profileData.details?.followingCount || 0} following
           </Text>
-          
+
           {profileData.bio && (
             <Text style={styles.bio}>{profileData.bio}</Text>
           )}
 
           {/* Tabs */}
-          <ScrollView 
-            horizontal 
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.tabsContainer}
           >
             {tabs.map((tab) => (
-              <TouchableOpacity 
+              <TouchableOpacity
                 key={tab}
                 style={[styles.tabButton, activeTab === tab && styles.activeTab]}
                 onPress={() => setActiveTab(tab)}
@@ -233,11 +234,32 @@ export default function Profile() {
           </ScrollView>
 
           {/* Profile Details */}
+          {activeTab === 'About' && (
+            <View style={styles.detailsSection}>
+              {profileData.details?.profileType && (
+                <Text style={styles.detailText}>Profile Type: {profileData.details.profileType}</Text>
+              )}
+              {profileData.details?.worksAt1 && (
+                <Text style={styles.detailText}>Works at: {profileData.details.worksAt1}</Text>
+              )}
+              {profileData.details?.studiedAt && (
+                <Text style={styles.detailText}>Studied at: {profileData.details.studiedAt}</Text>
+              )}
+              {profileData.details?.currentCity && (
+                <Text style={styles.detailText}>Lives in: {profileData.details.currentCity}</Text>
+              )}
+              {profileData.details?.relationshipStatus && (
+                <Text style={styles.detailText}>Relationship: {profileData.details.relationshipStatus}</Text>
+              )}
+              {/* Add more fields as needed */}
+            </View>
+          )}
+
           <View style={styles.detailsSection}>
             {profileData.details?.worksAt1 && (
               <View style={styles.detailRow}>
-                <LinearGradient 
-                  colors={['#4facfe', '#00f2fe']} 
+                <LinearGradient
+                  colors={['#4facfe', '#00f2fe']}
                   style={styles.detailIconBg}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
@@ -249,8 +271,8 @@ export default function Profile() {
             )}
             {profileData.details?.studiedAt && (
               <View style={styles.detailRow}>
-                <LinearGradient 
-                  colors={['#667eea', '#764ba2']} 
+                <LinearGradient
+                  colors={['#667eea', '#764ba2']}
                   style={styles.detailIconBg}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
@@ -262,8 +284,8 @@ export default function Profile() {
             )}
             {profileData.details?.currentCity && (
               <View style={styles.detailRow}>
-                <LinearGradient 
-                  colors={['#f093fb', '#f5576c']} 
+                <LinearGradient
+                  colors={['#f093fb', '#f5576c']}
                   style={styles.detailIconBg}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
@@ -275,8 +297,8 @@ export default function Profile() {
             )}
             {profileData.details?.relationshipStatus && (
               <View style={styles.detailRow}>
-                <LinearGradient 
-                  colors={['#ff758c', '#ff7eb3']} 
+                <LinearGradient
+                  colors={['#ff758c', '#ff7eb3']}
                   style={styles.detailIconBg}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
@@ -310,27 +332,27 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  coverContainer: { 
-    position: "relative", 
+  coverContainer: {
+    position: "relative",
     height: 180,
     backgroundColor: "#eee",
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
     overflow: 'hidden'
   },
-  coverPhoto: { 
-    width: "100%", 
-    height: "100%" 
+  coverPhoto: {
+    width: "100%",
+    height: "100%"
   },
   profilePicContainer: {
     paddingHorizontal: 20,
     marginTop: -50,
   },
-  profilePicWrapper: { 
-    borderRadius: 75, 
-    borderWidth: 4, 
-    borderColor: "#fff", 
-    backgroundColor: "#fff", 
+  profilePicWrapper: {
+    borderRadius: 75,
+    borderWidth: 4,
+    borderColor: "#fff",
+    backgroundColor: "#fff",
     zIndex: 2,
     overflow: 'hidden',
     width: 150,
@@ -345,9 +367,9 @@ const styles = StyleSheet.create({
     elevation: 5,
     alignSelf: 'center',
   },
-  profilePic: { 
-    width: '100%', 
-    height: '100%', 
+  profilePic: {
+    width: '100%',
+    height: '100%',
   },
   avatarPic: {
     position: 'absolute',
@@ -356,11 +378,11 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  cameraBtn: { 
-    position: "absolute", 
-    right: 8, 
-    bottom: 8, 
-    borderRadius: 18, 
+  cameraBtn: {
+    position: "absolute",
+    right: 8,
+    bottom: 8,
+    borderRadius: 18,
     overflow: 'hidden'
   },
   cameraBtnGradient: {
@@ -370,13 +392,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center'
   },
-  topIcons: { 
-    position: "absolute", 
-    right: 16, 
-    top: 16, 
-    flexDirection: "row", 
-    alignItems: "center", 
-    zIndex: 2 
+  topIcons: {
+    position: "absolute",
+    right: 16,
+    top: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    zIndex: 2
   },
   editBtn: {
     borderRadius: 18,
@@ -401,16 +423,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center'
   },
-  infoSection: { 
+  infoSection: {
     marginTop: 20,
-    alignItems: "flex-start", 
-    paddingHorizontal: 20, 
+    alignItems: "flex-start",
+    paddingHorizontal: 20,
     paddingBottom: 12,
   },
-  name: { 
-    fontSize: 26, 
-    fontWeight: "bold", 
-    color: "#222", 
+  name: {
+    fontSize: 26,
+    fontWeight: "bold",
+    color: "#222",
     marginBottom: 4,
     fontFamily: 'sans-serif-medium',
     textAlign: 'center',
@@ -419,17 +441,17 @@ const styles = StyleSheet.create({
   verifiedBadge: {
     marginLeft: 6
   },
-  stats: { 
-    color: "#666", 
-    fontSize: 15, 
+  stats: {
+    color: "#666",
+    fontSize: 15,
     marginBottom: 12,
     fontFamily: 'sans-serif',
     textAlign: 'center',
     width: '100%',
   },
-  bio: { 
-    fontSize: 15, 
-    color: "#222", 
+  bio: {
+    fontSize: 15,
+    color: "#222",
     marginBottom: 16,
     lineHeight: 22,
     fontFamily: 'sans-serif',
@@ -439,25 +461,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     marginBottom: 16,
   },
-  tabButton: { 
-    paddingVertical: 8, 
-    paddingHorizontal: 20, 
+  tabButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 20,
     marginRight: 8,
     borderRadius: 20,
   },
-  activeTab: { 
+  activeTab: {
     backgroundColor: "#e7f0fd",
   },
-  activeTabText: { 
-    color: "#1877f2", 
-    fontWeight: "bold" 
+  activeTabText: {
+    color: "#1877f2",
+    fontWeight: "bold"
   },
-  tabText: { 
-    color: "#666", 
+  tabText: {
+    color: "#666",
     fontSize: 15,
     fontFamily: 'sans-serif-medium'
   },
-  detailsSection: { 
+  detailsSection: {
     width: '100%',
     paddingVertical: 16,
     borderTopWidth: 1,
@@ -466,10 +488,10 @@ const styles = StyleSheet.create({
     borderBottomColor: "#e4e6eb",
     marginBottom: 20
   },
-  detailRow: { 
-    flexDirection: "row", 
-    alignItems: "center", 
-    marginBottom: 12 
+  detailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12
   },
   detailIconBg: {
     width: 32,
@@ -479,8 +501,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 10
   },
-  detailText: { 
-    fontSize: 15, 
+  detailText: {
+    fontSize: 15,
     color: "#222",
     fontFamily: 'sans-serif'
   },

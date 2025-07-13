@@ -217,7 +217,7 @@ export default function ChatScreen() {
           <TouchableOpacity style={styles.headerIconBtn}>
             <Ionicons name="call-outline" size={22} color="#fff" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconBtn}>
+          <TouchableOpacity style={styles.headerIconBtn} onPress={() => router.push('/(create)/LiveScreen')}>
             <Ionicons name="videocam-outline" size={24} color="#fff" />
           </TouchableOpacity>
         </View>

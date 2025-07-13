@@ -1,8 +1,9 @@
 import axios from "axios";
-const BASE_URL = "http://192.168.38.125:8080/api/posts";
+const BASE_URL = "http://10.132.74.85:8080/api/posts";
 
 export const createPost = async (data: any) => {
-  const res = await axios.post(BASE_URL, data);
+  const { userId, ...postData } = data;
+  const res = await axios.post(`${BASE_URL}?userId=${userId}`, postData);
   return res.data;
 };
 

@@ -54,7 +54,7 @@ export default function EditProfile() {
     bio: user?.bio ?? "",
     avatar: user?.avatar ?? user?.details?.avatar ?? DEFAULT_PROFILE_PIC,
     details: {
-      profileType: user?.details?.profileType ?? "Just for fun",
+      profileType: user?.details?.profileType ?? "",
       worksAt1: user?.details?.worksAt1 ?? "",
       worksAt2: user?.details?.worksAt2 ?? "",
       studiedAt: user?.details?.studiedAt ?? "",
@@ -515,35 +515,33 @@ export default function EditProfile() {
           <View style={styles.rowBetween}>
             <Text style={styles.sectionTitle}>Bio</Text>
             {editingField === 'bio' ? (
-              <View style={styles.editActions}>
-                <TouchableOpacity onPress={cancelEdit}>
-                  <Text style={styles.cancelButton}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={saveEdit}>
-                  <Text style={styles.saveButton}>Save</Text>
-                </TouchableOpacity>
+              <View style={styles.editContainer}>
+                <TextInput
+                  style={styles.textInput}
+                  value={tempValue}
+                  onChangeText={setTempValue}
+                  multiline
+                  autoFocus
+                  placeholder="Tell people about yourself"
+                  placeholderTextColor="#888"
+                />
+                <View style={styles.editActions}>
+                  <TouchableOpacity onPress={saveEdit} style={styles.doneButton}>
+                    <Text style={styles.doneButtonText}>Done</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             ) : (
-              <TouchableOpacity onPress={() => startEditing('bio', profileData.bio)}>
-                <Text style={styles.editLink}>Edit</Text>
+              <TouchableOpacity onPress={() => {
+                setEditingField('bio');
+                setTempValue(profileData.bio ?? '');
+              }}>
+                <Text style={[styles.bioText, !profileData.bio && styles.placeholderText]}>
+                  {profileData.bio || "Tell people about yourself"}
+                </Text>
               </TouchableOpacity>
             )}
           </View>
-          {editingField === 'bio' ? (
-            <TextInput
-              style={styles.textInput}
-              value={tempValue}
-              onChangeText={setTempValue}
-              multiline
-              autoFocus
-              placeholder="Tell people about yourself"
-              placeholderTextColor="#888"
-            />
-          ) : (
-            <Text style={[styles.bioText, !profileData.bio && styles.placeholderText]}>
-              {profileData.bio || "Tell people about yourself"}
-            </Text>
-          )}
         </LinearGradient>
 
         {/* Details Section */}
@@ -557,7 +555,37 @@ export default function EditProfile() {
             <Text style={styles.sectionTitle}>Profile Details</Text>
           </View>
           
-          {detailFields.map(renderDetailField)}
+          {detailFields.map(field => (
+  <View key={field.key} style={styles.detailRow}>
+    <Text style={styles.detailLabel}>{field.label}</Text>
+    {editingField === field.key ? (
+      <View style={styles.editContainer}>
+        <TextInput
+          style={styles.textInput}
+          value={tempValue}
+          onChangeText={setTempValue}
+          autoFocus
+          placeholder={field.placeholder}
+          placeholderTextColor="#888"
+        />
+        <View style={styles.editActions}>
+          <TouchableOpacity onPress={saveEdit} style={styles.doneButton}>
+            <Text style={styles.doneButtonText}>Done</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    ) : (
+      <TouchableOpacity onPress={() => {
+        setEditingField(field.key);
+        setTempValue(field.value);
+      }}>
+        <Text style={[styles.detailText, !field.value && styles.placeholderText]}>
+          {field.value || field.placeholder}
+        </Text>
+      </TouchableOpacity>
+    )}
+  </View>
+))}
         </LinearGradient>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -802,5 +830,26 @@ const styles = StyleSheet.create({
     color: "#888",
     marginRight: 16,
     fontFamily: 'sans-serif-medium'
+  },
+  doneButton: {
+    backgroundColor: '#1877f2',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  doneButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontFamily: 'sans-serif-medium'
+  },
+  detailLabel: {
+    fontSize: 15,
+    color: "#222",
+    fontWeight: "500",
+    fontFamily: 'sans-serif-medium',
+    marginRight: 12,
+    minWidth: 90,
   },
 });

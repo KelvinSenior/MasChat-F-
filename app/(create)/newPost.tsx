@@ -70,13 +70,12 @@ export default function NewPost() {
     }
     setIsLoading(true);
     try {
-      let postData: any = {
-        content: post,
+      await createPost({
         userId: user.id,
-      };
-      if (image) postData.imageUrl = image;
-      if (video) postData.videoUrl = video;
-      await createPost(postData);
+        content: post,
+        imageUrl: image,
+        videoUrl: video,
+      });
       router.back();
     } catch (error) {
       Alert.alert("Error", "Failed to create post. Please try again.");
