@@ -218,6 +218,8 @@ export default function Menu() {
                   router.push("/videos");
                 } else if (item.label === "Marketplace") {
                   router.push("/(tabs)/marketplace");
+                } else if (item.label === "Friends") {
+                  router.push("/friends/FriendRequestsScreen");
                 }
               }}
             >

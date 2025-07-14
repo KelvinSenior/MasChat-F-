@@ -42,7 +42,7 @@ export default function ChatScreen() {
     setIsLoading(true);
     try {
       const recipientId = recipient?.id || "1";
-      const res = await axios.get(`http://10.132.74.85:8080/api/messages/conversation/${recipientId}`);
+      const res = await axios.get(`http://192.168.255.125:8080/api/messages/conversation/${recipientId}`);
       
       if (res.data && Array.isArray(res.data)) {
         // Merge with pending messages and remove duplicates
@@ -98,7 +98,7 @@ export default function ChatScreen() {
 
     try {
       if (recipient?.id) {
-        const response = await axios.post('http://10.132.74.85:8080/api/messages', {
+        const response = await axios.post('http://192.168.255.125:8080/api/messages', {
           ...newMessage,
           isPending: undefined // Don't send this to backend
         });

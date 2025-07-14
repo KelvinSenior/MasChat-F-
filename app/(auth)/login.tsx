@@ -9,7 +9,7 @@ import * as Animatable from 'react-native-animatable';
 import Toast from 'react-native-toast-message';
 import { useAuth } from '../context/AuthContext';
 
-const BASE_URL = "http://10.132.74.85:8080/api";
+const BASE_URL = "http://192.168.255.125:8080/api";
 
 export default function Login() {
   const [username, setUsername] = useState("");

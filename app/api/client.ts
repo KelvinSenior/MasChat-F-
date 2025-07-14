@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
 // Use the same BASE_URL as your login screen
-const BASE_URL = "http://10.132.74.85:8080/api";
+const BASE_URL = "http://192.168.255.125:8080/api";
 
 const client = axios.create({
   baseURL: BASE_URL,

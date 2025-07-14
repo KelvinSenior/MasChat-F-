@@ -1,5 +1,5 @@
 import axios from "axios";
-const BASE_URL = "http://10.132.74.85:8080/api/posts";
+const BASE_URL = "http://192.168.255.125:8080/api/posts";
 
 export const createPost = async (data: any) => {
   const { userId, ...postData } = data;

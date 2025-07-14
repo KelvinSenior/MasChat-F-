@@ -152,7 +152,7 @@ export default function EditProfile() {
       } else {
         imageUrl = await uploadImage(manipResult.uri, field, user.id);
       }
-      const fullImageUrl = imageUrl.startsWith('http') ? imageUrl : `http://10.132.74.85:8080${imageUrl}`;
+      const fullImageUrl = imageUrl.startsWith('http') ? imageUrl : `http://192.168.255.125:8080${imageUrl}`;
 
       const updatePayload: any = field === 'avatar'
         ? { details: { ...profileData.details, avatar: fullImageUrl } }
