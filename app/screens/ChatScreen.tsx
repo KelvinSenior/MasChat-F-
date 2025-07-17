@@ -5,6 +5,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import client, { BASE_URL } from '../api/client';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 
 type Message = {
   id: string;
@@ -36,6 +38,7 @@ export default function ChatScreen() {
   const [isSending, setIsSending] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const pendingMessages = useRef<Message[]>([]);
+  const stompClient = useRef<any>(null);
 
   const loadMessages = async () => {
     if (isLoading || !currentUser?.id) return;
@@ -70,58 +73,60 @@ export default function ChatScreen() {
     // return () => clearInterval(pollInterval);
   }, [recipient?.id]);
 
+  useEffect(() => {
+    if (!currentUser?.id || !recipient?.id) return;
+    const socket = new SockJS('http://192.168.156.125:8080/ws-chat');
+    const client = new Client({
+      webSocketFactory: () => socket,
+      debug: str => console.log(str),
+      onConnect: () => {
+        client.subscribe(`/user/${currentUser.id}/queue/messages`, message => {
+          const msg = JSON.parse(message.body);
+          if (
+            (msg.senderId === currentUser.id && msg.recipientId === recipient.id) ||
+            (msg.senderId === recipient.id && msg.recipientId === currentUser.id)
+          ) {
+            setMessages(prev => [...prev, {
+              id: msg.timestamp || `${Date.now()}`,
+              sender: { id: msg.senderId },
+              recipient: { id: msg.recipientId },
+              content: msg.content,
+              sentAt: msg.timestamp,
+              time: new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            }]);
+          }
+        });
+      },
+    });
+    client.activate();
+    stompClient.current = client;
+    return () => { client.deactivate(); };
+  }, [currentUser?.id, recipient?.id]);
+
   const sendMessage = async () => {
     if (!text.trim() || isSending || !currentUser?.id) return;
     setIsSending(true);
-    const tempId = `temp-${Date.now()}`;
-    const newMessage = {
-      id: tempId,
-      sender: { id: currentUser.id },
-      recipient: { id: recipient?.id || "1" },
+    const msg = {
+      senderId: currentUser.id,
+      recipientId: recipient.id,
       content: text,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      sentAt: new Date().toISOString(),
-      isPending: true
+      timestamp: new Date().toISOString(),
     };
-    // Add to pending messages and update UI immediately
-    pendingMessages.current = [...pendingMessages.current, newMessage];
-    setMessages(prev => [...prev, newMessage]);
+    stompClient.current.publish({
+      destination: '/app/chat.send',
+      body: JSON.stringify(msg),
+    });
+    setMessages(prev => [...prev, {
+      id: msg.timestamp,
+      sender: { id: msg.senderId },
+      recipient: { id: msg.recipientId },
+      content: msg.content,
+      sentAt: msg.timestamp,
+      time: new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isPending: false,
+    }]);
     setText('');
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    }, 100);
-    try {
-      if (recipient?.id) {
-        const response = await client.post('/messages', {
-          ...newMessage,
-          isPending: undefined // Don't send this to backend
-        });
-        if (response.data) {
-          // Replace temp message with server-confirmed message
-          setMessages(prev => 
-            prev.map(msg => 
-              msg.id === tempId ? { 
-                ...response.data, 
-                time: newMessage.time,
-                sentAt: response.data.sentAt || newMessage.sentAt
-              } : msg
-            )
-          );
-          // Remove from pending
-          pendingMessages.current = pendingMessages.current.filter(msg => msg.id !== tempId);
-        }
-      }
-    } catch (err) {
-      console.log("Failed to send message:", err);
-      // Mark as failed but keep in UI
-      setMessages(prev => 
-        prev.map(msg => 
-          msg.id === tempId ? { ...msg, failed: true, isPending: false } : msg
-        )
-      );
-    } finally {
-      setIsSending(false);
-    }
+    setIsSending(false);
   };
 
   const renderMessage = ({ item }: { item: Message }) => (
@@ -189,7 +194,7 @@ export default function ChatScreen() {
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
       >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.replace('/screens/MessengerScreen')} style={styles.backButton}>
           <Ionicons name="arrow-back" size={26} color="#fff" />
         </TouchableOpacity>
         <TouchableOpacity 

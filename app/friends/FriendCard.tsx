@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 type Friend = {
   id: string;
@@ -16,8 +16,8 @@ export default function FriendCard({ friend }: Props) {
   return (
     <TouchableOpacity style={styles.card}>
       <View style={styles.cardContent}>
-        <Text style={styles.name}>{friend.fullName}</Text>
-        {/* Add other friend properties here as needed */}
+        <Image source={{ uri: friend.profilePicture }} style={styles.avatar} />
+        <Text style={styles.name}>{friend.fullName || friend.username}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -38,6 +38,13 @@ const styles = StyleSheet.create({
   cardContent: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    marginRight: 12,
+    backgroundColor: '#eee',
   },
   name: {
     fontSize: 16,

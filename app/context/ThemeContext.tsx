@@ -1,4 +1,4 @@
-// ThemeContext.tsx (no-op, for future use, but will not break anything)
+// Move this file to MasChat-main/context/ThemeContext.ts and update all imports accordingly.
 import React from "react";
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => children;

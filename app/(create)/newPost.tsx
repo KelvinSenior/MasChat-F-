@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { useAuth } from '../context/AuthContext';
 import { createPost } from '../lib/services/postService';
+import { uploadImage } from '../lib/services/userService';
 
 const options = [
   {
@@ -70,9 +71,13 @@ export default function NewPost() {
     }
     setIsLoading(true);
     try {
+      let imageUrl = null;
+      if (image) {
+        imageUrl = await uploadImage(image, 'profilePicture', user.id); // Use 'profilePicture' or add a new type for posts
+      }
       await createPost({
         content: post,
-        imageUrl: image,
+        imageUrl,
         videoUrl: video,
       }, user.id);
       router.back();

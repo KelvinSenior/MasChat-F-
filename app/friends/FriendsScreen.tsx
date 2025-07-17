@@ -1,10 +1,11 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Image } from 'react-native';
 import FriendCard from './FriendCard';
 import { useAuth } from '../context/AuthContext';
 import client, { BASE_URL } from '../api/client';
+import { useFocusEffect } from '@react-navigation/native';
 
 type Friend = {
   id: string;
@@ -20,8 +21,9 @@ export default function FriendsScreen() {
   const router = useRouter();
   const { user } = useAuth();
 
-  useEffect(() => {
+  const fetchFriends = () => {
     if (!user?.id) return;
+    setLoading(true);
     client.get(`/friends/list/${user.id}`)
       .then(res => res.data)
       .then((data: Friend[]) => {
@@ -32,7 +34,17 @@ export default function FriendsScreen() {
         console.error('Error fetching friends:', error);
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchFriends();
   }, [user?.id]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchFriends();
+    }, [user?.id])
+  );
 
   const filteredFriends = friends.filter(f => f.fullName?.toLowerCase().includes(search.toLowerCase()));
 
@@ -44,7 +56,10 @@ export default function FriendsScreen() {
       return <Text style={styles.emptyText}>No friends found</Text>;
     }
     return filteredFriends.map(friend => (
-      <FriendCard key={friend.id} friend={friend} />
+      <View key={friend.id} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+        <Image source={{ uri: friend.profilePicture }} style={{ width: 44, height: 44, borderRadius: 22, marginRight: 12, backgroundColor: '#eee' }} />
+        <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#222' }}>{friend.username}</Text>
+      </View>
     ));
   };
 
@@ -65,6 +80,15 @@ export default function FriendsScreen() {
         value={search}
         onChangeText={setSearch}
       />
+      {/* Tabs Row */}
+      <View style={styles.tabs}>
+        <TouchableOpacity style={styles.tabBtn} onPress={() => router.push('/friends/SuggestionsScreen')}>
+          <Text style={styles.tabText}>Suggestions</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.tabBtn} onPress={() => router.push('/friends/FriendRequestsScreen')}>
+          <Text style={styles.tabText}>Friend Requests</Text>
+        </TouchableOpacity>
+      </View>
       <Text style={styles.sectionTitle}>{friends.length} friends</Text>
       <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 80 }}>
         {renderContent()}

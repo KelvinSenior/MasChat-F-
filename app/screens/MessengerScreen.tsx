@@ -1,70 +1,23 @@
 import { FontAwesome, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { FlatList, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-
-type Story = {
-  id: string;
-  label: string;
-  icon?: React.ComponentProps<typeof Ionicons>["name"];
-  image?: string;
-  isCreate?: boolean;
-  online?: boolean;
-};
-
-const stories: Story[] = [
-  { id: "1", label: "Create story", icon: "add-circle", isCreate: true },
-  { id: "2", label: "Memories", image: "https://randomuser.me/api/portraits/men/1.jpg" },
-  { id: "3", label: "Yussif", image: "https://randomuser.me/api/portraits/men/2.jpg", online: true },
-  { id: "4", label: "Yvonne", image: "https://randomuser.me/api/portraits/women/3.jpg", online: true },
-  { id: "5", label: "Dolla", image: "https://randomuser.me/api/portraits/men/4.jpg", online: true },
-];
-
-const chats = [
-  {
-    id: "1",
-    name: "Albert Kusi",
-    message: "Hi",
-    date: "Jan 25",
-    image: "https://randomuser.me/api/portraits/men/5.jpg",
-    unread: true,
-  },
-  {
-    id: "2",
-    name: "Emmanuel Larbi",
-    message: "👍",
-    date: "Dec 22, 2024",
-    image: "https://randomuser.me/api/portraits/men/6.jpg",
-  },
-  {
-    id: "3",
-    name: "Preety Shy",
-    message: "Hello",
-    date: "Dec 20, 2024",
-    image: "https://randomuser.me/api/portraits/women/7.jpg",
-  },
-  {
-    id: "4",
-    name: "Sarfo Kelvin Senior",
-    message: "You: Has it come?",
-    date: "Dec 9, 2024",
-    image: "https://randomuser.me/api/portraits/men/8.jpg",
-    online: true,
-    time: "43m",
-  },
-  {
-    id: "5",
-    name: "Augustine Awelima",
-    message: "Messages and calls are se...",
-    date: "Oct 9, 2024",
-    image: "https://randomuser.me/api/portraits/men/9.jpg",
-  },
-];
+import { useAuth } from '../context/AuthContext';
+import client from '../api/client';
 
 export default function MessengerScreen() {
   const [search, setSearch] = useState("");
+  const [chats, setChats] = useState<any[]>([]);
   const router = useRouter();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (!user?.id) return;
+    client.get(`/messages/recent/${user.id}`)
+      .then(res => setChats(res.data))
+      .catch(console.error);
+  }, [user?.id]);
 
   return (
     <LinearGradient colors={['#f5f7fa', '#e4e8f0']} style={styles.container}>
@@ -118,98 +71,44 @@ export default function MessengerScreen() {
         />
       </View>
 
-      {/* Stories and Chats */}
-      <View style={{ flex: 1 }}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.storiesRow}
-          contentContainerStyle={{ alignItems: "center", paddingHorizontal: 12, paddingBottom: 80 }}
-        >
-          {stories.map((story) =>
-            story.isCreate ? (
-              <TouchableOpacity
-                key={story.id}
-                style={styles.storyItem}
-                activeOpacity={0.8}
-                onPress={() => router.push("/(create)/newStory")}
-              >
-                <LinearGradient
-                  colors={['#a18cd1', '#fbc2eb']}
-                  style={styles.createStoryCircle}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <Ionicons name={story.icon} size={28} color="white" />
-                </LinearGradient>
-                <Text style={styles.storyLabel}>{story.label}</Text>
-              </TouchableOpacity>
-            ) : (
-              <View key={story.id} style={styles.storyItem}>
-                <LinearGradient
-                  colors={['#ff9a9e', '#fad0c4']}
-                  style={styles.storyImageContainer}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <Image source={{ uri: story.image }} style={styles.storyImage} />
-                  {story.online && <View style={styles.onlineDot} />}
-                </LinearGradient>
-                <Text style={styles.storyLabel}>{story.label}</Text>
-              </View>
-            )
-          )}
-        </ScrollView>
-
-        <FlatList
-          data={chats}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.chatItem}
-              onPress={() => router.push({ pathname: "/screens/ChatScreen", params: { recipient: JSON.stringify(item) } })}
-            >
-              <View style={styles.chatImageContainer}>
-                <Image source={{ uri: item.image }} style={styles.chatImage} />
-                {item.online && <View style={styles.onlineDotChat} />}
-              </View>
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.chatName}>{item.name}</Text>
-                <Text style={styles.chatMessage} numberOfLines={1}>
-                  {item.message}
-                </Text>
-              </View>
-              <View style={{ alignItems: "flex-end" }}>
-                <Text style={styles.chatDate}>{item.date}</Text>
-                {item.time && (
-                  <View style={styles.timeBadge}>
-                    <Text style={styles.timeBadgeText}>{item.time}</Text>
-                  </View>
-                )}
-              </View>
-            </TouchableOpacity>
-          )}
-          ListFooterComponent={
-            <TouchableOpacity 
-              style={styles.marketplaceContainer}
-              onPress={() => router.push("/(tabs)/marketplace")}
-            >
-              <LinearGradient
-                colors={['#667eea', '#764ba2']}
-                style={styles.marketIconBg}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <MaterialCommunityIcons name="storefront-outline" size={24} color="white" />
-              </LinearGradient>
-              <Text style={styles.marketText}>Marketplace</Text>
-            </TouchableOpacity>
-          }
-          contentContainerStyle={{ paddingBottom: 80 }}
-        />
-      </View>
+      {/* Chats */}
+      <FlatList
+        data={chats.filter(chat => chat.username?.toLowerCase().includes(search.toLowerCase()))}
+        keyExtractor={item => item.id?.toString()}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.chatItem}
+            onPress={() => router.push({ pathname: "/screens/ChatScreen", params: { recipient: JSON.stringify(item) } })}
+          >
+            <View style={styles.chatImageContainer}>
+              <Image source={{ uri: item.profilePicture }} style={styles.chatImage} />
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.chatName}>{item.fullName || item.username}</Text>
+              <Text style={styles.chatMessage} numberOfLines={1}>{item.lastMessage}</Text>
+            </View>
+            <View style={{ alignItems: "flex-end" }}>
+              <Text style={styles.chatDate}>{formatDateTime(item.lastMessageTime)}</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+        contentContainerStyle={{ paddingBottom: 80 }}
+      />
     </LinearGradient>
   );
+}
+
+function formatDateTime(isoString: string) {
+  const date = new Date(isoString);
+  const now = new Date();
+  if (
+    date.getDate() === now.getDate() &&
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear()
+  ) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  return date.toLocaleDateString();
 }
 
 const styles = StyleSheet.create({

@@ -2,6 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import client, { BASE_URL } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 
 type Suggestion = {
   id: string;
@@ -12,9 +13,11 @@ type Suggestion = {
 
 export default function SuggestionCard({ suggestion }: { suggestion: Suggestion }): React.JSX.Element {
   const [added, setAdded] = useState(false);
+  const { user } = useAuth();
 
   const handleAdd = () => {
-    client.post('/users/request', { toUserId: suggestion.id })
+    if (!user?.id) return;
+    client.post(`/friends/request?senderId=${user.id}&recipientId=${suggestion.id}`)
       .then(() => setAdded(true))
       .catch(error => console.error('Error sending friend request:', error));
   };

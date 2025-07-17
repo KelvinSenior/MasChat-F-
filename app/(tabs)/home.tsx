@@ -56,11 +56,23 @@ const stories = [
 
 const DEFAULT_PROFILE_PHOTO = "https://i.imgur.com/6XbK6bE.jpg";
 
+type Post = {
+  id: string | number;
+  user?: {
+    profilePicture?: string;
+    fullName?: string;
+    username?: string;
+  };
+  content?: string;
+  imageUrl?: string;
+  createdAt?: string;
+};
+
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const [showAddMenu, setShowAddMenu] = useState(false);
-  const [posts, setPosts] = useState([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [commentPostId, setCommentPostId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -226,72 +238,39 @@ export default function HomeScreen() {
         </ScrollView>
 
         {/* Posts */}
-        <View style={styles.post}>
-          <View style={styles.postHeader}>
-            <Image
-              source={{ uri: user?.profilePicture ?? DEFAULT_PROFILE_PHOTO }}
-              style={styles.postAvatar}
-            />
-            <View style={styles.postUserInfo}>
-              <Text style={styles.postUserName}>{user?.fullName ?? 'User'}</Text>
-              <Text style={styles.postTime}>1d · <Feather name="globe" size={12} color={COLORS.lightText} /></Text>
+        {posts.map((post, idx) => (
+          <View key={post.id || idx} style={styles.post}>
+            <View style={styles.postHeader}>
+              <Image
+                source={{ uri: post.user?.profilePicture ?? DEFAULT_PROFILE_PHOTO }}
+                style={styles.postAvatar}
+              />
+              <View style={styles.postUserInfo}>
+                <Text style={styles.postUserName}>{post.user?.fullName ?? post.user?.username ?? 'User'}</Text>
+                <Text style={styles.postTime}>{formatPostTime(post.createdAt || '')}</Text>
+              </View>
+              <Feather name="more-horizontal" size={20} color={COLORS.lightText} />
             </View>
-            <Feather name="more-horizontal" size={20} color={COLORS.lightText} />
-          </View>
-          <Text style={styles.postText}>Check out this awesome place! The sunset views here are breathtaking.</Text>
-          <Image
-            source={{ uri: "https://images.unsplash.com/photo-1506744038136-46273834b3fb" }}
-            style={styles.postImage}
-          />
-          <View style={styles.postActions}>
-            <TouchableOpacity style={styles.postAction} onPress={() => handleLike(1)}>
-              <FontAwesome name="thumbs-up" size={18} color={COLORS.lightText} />
-              <Text style={styles.postActionText}>Like</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.postAction} onPress={() => setCommentPostId(1)}>
-              <Ionicons name="chatbubble-outline" size={18} color={COLORS.lightText} />
-              <Text style={styles.postActionText}>Comment</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.postAction}>
-              <Ionicons name="share-social-outline" size={18} color={COLORS.lightText} />
-              <Text style={styles.postActionText}>Share</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Second Post */}
-        <View style={styles.post}>
-          <View style={styles.postHeader}>
-            <Image
-              source={{ uri: "https://randomuser.me/api/portraits/women/44.jpg" }}
-              style={styles.postAvatar}
-            />
-            <View style={styles.postUserInfo}>
-              <Text style={styles.postUserName}>Sarah Johnson</Text>
-              <Text style={styles.postTime}>3h · <Feather name="globe" size={12} color={COLORS.lightText} /></Text>
+            <Text style={styles.postText}>{post.content}</Text>
+            {post.imageUrl && (
+              <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
+            )}
+            <View style={styles.postActions}>
+              <TouchableOpacity style={styles.postAction} onPress={() => handleLike(post.id)}>
+                <FontAwesome name="thumbs-up" size={18} color={COLORS.lightText} />
+                <Text style={styles.postActionText}>Like</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.postAction} onPress={() => setCommentPostId(Number(post.id))}>
+                <Ionicons name="chatbubble-outline" size={18} color={COLORS.lightText} />
+                <Text style={styles.postActionText}>Comment</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.postAction}>
+                <Ionicons name="share-social-outline" size={18} color={COLORS.lightText} />
+                <Text style={styles.postActionText}>Share</Text>
+              </TouchableOpacity>
             </View>
-            <Feather name="more-horizontal" size={20} color={COLORS.lightText} />
           </View>
-          <Text style={styles.postText}>Just finished this amazing book! Highly recommend for personal development.</Text>
-          <Image
-            source={{ uri: "https://images.unsplash.com/photo-1544947950-fa07a98d237f" }}
-            style={styles.postImage}
-          />
-          <View style={styles.postActions}>
-            <TouchableOpacity style={styles.postAction} onPress={() => handleLike(2)}>
-              <FontAwesome name="thumbs-up" size={18} color={COLORS.lightText} />
-              <Text style={styles.postActionText}>Like</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.postAction} onPress={() => setCommentPostId(2)}>
-              <Ionicons name="chatbubble-outline" size={18} color={COLORS.lightText} />
-              <Text style={styles.postActionText}>Comment</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.postAction}>
-              <Ionicons name="share-social-outline" size={18} color={COLORS.lightText} />
-              <Text style={styles.postActionText}>Share</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        ))}
       </ScrollView>
 
       {/* Comment Dialog */}
@@ -305,6 +284,20 @@ export default function HomeScreen() {
       )}
     </View>
   );
+}
+
+function formatPostTime(isoString: string) {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  const now = new Date();
+  if (
+    date.getDate() === now.getDate() &&
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear()
+  ) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  return date.toLocaleDateString();
 }
 
 const styles = StyleSheet.create({

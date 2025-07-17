@@ -11,18 +11,29 @@ type User = {
   profilePicture?: string;
 };
 
-interface Props {
-  request: User;
+interface FriendRequest {
+  id: string;
+  sender: User;
+  receiver: User;
+  status: string;
 }
 
-export default function FriendRequestCard({ request }: Props) {
+interface Props {
+  request: FriendRequest;
+  onAccepted?: () => void;
+}
+
+export default function FriendRequestCard({ request, onAccepted }: Props) {
   const [accepted, setAccepted] = useState(false);
   const [deleted, setDeleted] = useState(false);
   const { user } = useAuth();
 
   const handleAccept = () => {
-    client.post('/users/accept', { fromUserId: request.id })
-      .then(() => setAccepted(true))
+    client.post(`/friends/accept?requestId=${request.id}`)
+      .then(() => {
+        setAccepted(true);
+        if (onAccepted) onAccepted();
+      })
       .catch(error => console.error('Error accepting friend request:', error));
   };
 
@@ -38,9 +49,9 @@ export default function FriendRequestCard({ request }: Props) {
 
   return (
     <LinearGradient colors={['#fff', '#f8f9fa']} style={styles.card}>
-      <Image source={{ uri: request.profilePicture }} style={styles.avatar} />
+      <Image source={{ uri: request.sender.profilePicture }} style={styles.avatar} />
       <View style={{ flex: 1 }}>
-        <Text style={styles.name}>{request.fullName || request.username}</Text>
+        <Text style={styles.name}>{request.sender.fullName || request.sender.username}</Text>
       </View>
       <TouchableOpacity style={styles.confirmBtn} onPress={handleAccept}>
         <Text style={styles.confirmText}>Confirm</Text>

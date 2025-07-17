@@ -5,6 +5,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View
 import FriendRequestCard from './FriendRequestCard';
 import { useAuth } from '../context/AuthContext';
 import client, { BASE_URL } from '../api/client';
+import { useFocusEffect } from '@react-navigation/native';
 
 type User = {
   id: string;
@@ -27,8 +28,9 @@ export default function FriendRequestsScreen() {
   const router = useRouter();
   const { user } = useAuth();
 
-  useEffect(() => {
+  const fetchRequests = () => {
     if (!user?.id) return;
+    setLoading(true);
     client.get(`/friends/requests/${user.id}`)
       .then(res => res.data)
       .then((data: FriendRequest[]) => {
@@ -39,7 +41,17 @@ export default function FriendRequestsScreen() {
         console.error('Error fetching friend requests:', error);
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchRequests();
   }, [user?.id]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchRequests();
+    }, [user?.id])
+  );
 
   let content;
   if (loading) {
@@ -47,7 +59,7 @@ export default function FriendRequestsScreen() {
   } else if (requests.length === 0) {
     content = <Text style={styles.emptyText}>No friend requests</Text>;
   } else {
-    content = requests.map(req => <FriendRequestCard key={req.id} request={req.sender} />);
+    content = requests.map(req => <FriendRequestCard key={req.id} request={req} onAccepted={fetchRequests} />);
   }
 
   return (
@@ -59,14 +71,6 @@ export default function FriendRequestsScreen() {
         <Text style={styles.title}>Friends</Text>
         <TouchableOpacity style={styles.searchBtn}>
           <Text style={styles.searchIcon}>🔍</Text>
-        </TouchableOpacity>
-      </View>
-      <View style={styles.tabsRow}>
-        <TouchableOpacity style={styles.tabBtn} onPress={() => router.push('/friends/SuggestionsScreen')}>
-          <Text style={styles.tabText}>Suggestions</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.tabBtn, styles.tabBtnActive]} onPress={() => {}}>
-          <Text style={styles.tabTextActive}>Your friends</Text>
         </TouchableOpacity>
       </View>
       <Text style={styles.sectionTitle}>Friend requests</Text>
