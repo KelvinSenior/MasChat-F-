@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -8,8 +7,7 @@ import { Image, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View }
 import * as Animatable from 'react-native-animatable';
 import Toast from 'react-native-toast-message';
 import { useAuth } from '../context/AuthContext';
-
-const BASE_URL = "http://192.168.255.125:8080/api";
+import client, { BASE_URL, testConnection } from '../api/client';
 
 export default function Signup() {
   const [username, setUsername] = useState("");
@@ -95,8 +93,8 @@ export default function Signup() {
 
     setLoading(true);
     try {
-      const response = await axios.post(
-        `${BASE_URL}/auth/register`,
+      const response = await client.post(
+        `/auth/register`,
         { 
           username: username.trim(), 
           email: email.trim(), 
@@ -124,7 +122,7 @@ export default function Signup() {
 
         await signIn(token, user);
         await AsyncStorage.setItem('userToken', token);
-        await AsyncStorage.setItem('userId', userId.toString());
+        await AsyncStorage.setItem('user', JSON.stringify(user));
         await AsyncStorage.setItem('username', responseUsername);
         
         Toast.show({
@@ -140,30 +138,24 @@ export default function Signup() {
       } else {
         throw new Error('Unexpected response format from server');
       }
-    } catch (error) {
+    } catch (error: any) {
       let errorMessage = 'Signup failed. Please try again.';
       
-      if (axios.isAxiosError(error)) {
-        // Handle Axios errors
-        if (error.response) {
-          // The request was made and the server responded with a status code
-          if (error.response.data?.error) {
-            errorMessage = error.response.data.error;
-          } else if (error.response.status === 400) {
-            errorMessage = 'Validation error. Please check your inputs.';
-          } else if (error.response.status === 409) {
-            errorMessage = 'Username or email already exists.';
-          }
-        } else if (error.request) {
-          // The request was made but no response was received
-          errorMessage = 'No response from server. Please try again.';
-        } else {
-          // Something happened in setting up the request
-          errorMessage = 'Request setup error. Please try again.';
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        if (error.response.data?.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.response.status === 400) {
+          errorMessage = 'Validation error. Please check your inputs.';
+        } else if (error.response.status === 409) {
+          errorMessage = 'Username or email already exists.';
         }
-      } else if (error instanceof Error) {
-        // Generic error
-        errorMessage = error.message;
+      } else if (error.request) {
+        // The request was made but no response was received
+        errorMessage = 'No response from server. Please try again.';
+      } else {
+        // Something happened in setting up the request
+        errorMessage = 'Request setup error. Please try again.';
       }
       
       Toast.show({
@@ -181,7 +173,7 @@ export default function Signup() {
 
   const testConnection = async () => {
     try {
-      const response = await axios.get(`${BASE_URL}/auth/test`, { timeout: 3000 });
+      const response = await client.get(`/auth/test`, { timeout: 3000 });
       return response.status === 200;
     } catch (error) {
       return false;

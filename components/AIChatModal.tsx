@@ -40,31 +40,57 @@ export default function AIChatModal({ visible, onClose }: AIChatModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const handleSend = () => {
+  const HUGGINGFACE_API_URL = 'https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill';
+
+  const fetchAIResponse = async (userMessage: string): Promise<string | null> => {
+    try {
+      const response = await fetch(HUGGINGFACE_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // No API key needed for public inference endpoint (may be rate-limited)
+        },
+        body: JSON.stringify({ inputs: userMessage })
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      if (data && data.generated_text) return data.generated_text;
+      if (Array.isArray(data) && data[0]?.generated_text) return data[0].generated_text;
+      return null;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const handleSend = async () => {
     if (!inputText.trim()) return;
-    
     const newMessage: Message = {
       id: Date.now().toString(),
       text: inputText,
       isUser: true,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
-    
     setMessages(prev => [...prev, newMessage]);
     setInputText('');
     setIsLoading(true);
-    
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse: Message = {
-        id: Date.now().toString(),
-        text: `I understand you're asking about "${inputText}". As your AI assistant, I can help with account questions, privacy settings, and connecting with friends.`,
-        isUser: false,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      setMessages(prev => [...prev, aiResponse]);
-      setIsLoading(false);
-    }, 1500);
+    // Try real AI API first
+    let aiText: string | null = null;
+    try {
+      aiText = await fetchAIResponse(inputText);
+    } catch (e) {
+      aiText = null;
+    }
+    if (!aiText) {
+      aiText = `I understand you're asking about "${inputText}". As your AI assistant, I can help with account questions, privacy settings, and connecting with friends.`;
+    }
+    const aiResponse: Message = {
+      id: Date.now().toString(),
+      text: aiText,
+      isUser: false,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    setMessages(prev => [...prev, aiResponse]);
+    setIsLoading(false);
   };
 
   useEffect(() => {

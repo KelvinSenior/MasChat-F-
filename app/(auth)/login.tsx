@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -8,8 +7,7 @@ import { Image, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View }
 import * as Animatable from 'react-native-animatable';
 import Toast from 'react-native-toast-message';
 import { useAuth } from '../context/AuthContext';
-
-const BASE_URL = "http://192.168.255.125:8080/api";
+import client, { BASE_URL, testConnection } from '../api/client';
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -66,8 +64,8 @@ export default function Login() {
 
     setLoading(true);
     try {
-      const response = await axios.post(
-        `${BASE_URL}/auth/login`,
+      const response = await client.post(
+        `/auth/login`,
         { username: username.trim(), password },
         { headers: { 'Content-Type': 'application/json' }, timeout: 10000 }
       );
@@ -78,6 +76,7 @@ export default function Login() {
         
         await signIn(token, user);
         await AsyncStorage.setItem('userToken', token);
+        await AsyncStorage.setItem('user', JSON.stringify(user));
         await AsyncStorage.setItem('username', username.trim());
         
         Toast.show({
@@ -90,10 +89,12 @@ export default function Login() {
         });
         router.replace('/(tabs)/home');
       }
-    } catch (error) {
+    } catch (error: any) {
       let errorMessage = 'Login failed. Please try again.';
-      if (axios.isAxiosError(error)) {
-        errorMessage = error.response?.data?.message || error.message;
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
       }
       Toast.show({
         type: 'error',
@@ -110,7 +111,7 @@ export default function Login() {
 
   const testConnection = async () => {
     try {
-      await axios.get(`${BASE_URL}/auth/test`, { timeout: 3000 });
+      await client.get(`/auth/test`, { timeout: 3000 });
       return true;
     } catch (error) {
       return false;
@@ -168,16 +169,14 @@ export default function Login() {
         </View>
         {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
 
-        <TouchableOpacity 
-          style={[styles.button, loading && styles.disabledButton]} 
+        <TouchableOpacity
+          style={[styles.button, loading && styles.disabledButton]}
           onPress={handleLogin}
           disabled={loading}
         >
           <LinearGradient
-            colors={['#1877f2', '#0a5bc4']}
+            colors={loading ? ['#ccc', '#ccc'] : ['#1877f2', '#1877f2']}
             style={styles.buttonGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
           >
             <Text style={styles.buttonText}>
               {loading ? 'Logging in...' : 'Log In'}
@@ -196,10 +195,18 @@ export default function Login() {
         </View>
         
         <TouchableOpacity
-          style={styles.createButton}
+          style={[styles.createButton, loading && styles.disabledButton]}
           onPress={() => router.push("/(auth)/signup")}
+          disabled={loading}
         >
-          <Text style={styles.createButtonText}>Create New Account</Text>
+          <LinearGradient
+            colors={loading ? ['#ccc', '#ccc'] : ['#fff', '#fff']}
+            style={styles.createButtonGradient}
+          >
+            <Text style={styles.createButtonText}>
+              {loading ? 'Creating...' : 'Create New Account'}
+            </Text>
+          </LinearGradient>
         </TouchableOpacity>
       </Animatable.View>
       <Toast />
@@ -317,6 +324,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#1877f2",
+  },
+  createButtonGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   createButtonText: {
     color: "#1877f2",

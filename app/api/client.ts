@@ -2,20 +2,29 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
 // Use the same BASE_URL as your login screen
-const BASE_URL = "http://192.168.255.125:8080/api";
+export const BASE_URL = "http://192.168.156.125:8080/api";
 
 const client = axios.create({
   baseURL: BASE_URL,
-  timeout: 8000,
 });
 
-client.interceptors.request.use(async (config) => {
-  const token = await AsyncStorage.getItem('userToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+// Add request interceptor to automatically add Authorization header
+client.interceptors.request.use(
+  async (config) => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    } catch (error) {
+      console.error('Error getting token:', error);
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
   }
-  return config;
-});
+);
 
 // Utility function to test backend connection
 export const testConnection = async () => {

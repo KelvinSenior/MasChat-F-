@@ -7,6 +7,16 @@ import CommentDialog from "../components/CommentDialog";
 import { useAuth } from '../context/AuthContext';
 import { getPosts, likePost, unlikePost } from "../lib/services/postService";
 
+// Color Palette
+const COLORS = {
+  primary: '#0A2463',  // Deep Blue
+  accent: '#FF7F11',   // Vibrant Orange
+  background: '#F5F7FA',
+  white: '#FFFFFF',
+  text: '#333333',
+  lightText: '#888888',
+};
+
 const stories = [
   {
     id: "create",
@@ -62,39 +72,33 @@ export default function HomeScreen() {
     setPosts(data.reverse());
   };
 
-  const handleLike = async (postId: number) => {
+  const handleLike = async (postId: number|string) => {
     if (!user) return;
-    await likePost(postId, user.id);
+    await likePost(Number(postId), Number(user.id));
     fetchPosts();
   };
 
-  const handleUnlike = async (postId: number) => {
+  const handleUnlike = async (postId: number|string) => {
     if (!user) return;
-    await unlikePost(postId, user.id);
+    await unlikePost(Number(postId), Number(user.id));
     fetchPosts();
   };
 
   if (!user) {
-    return <View style={{flex:1,justifyContent:'center',alignItems:'center'}}><Text>User not found</Text></View>;
+    return <View style={styles.loadingContainer}><Text>User not found</Text></View>;
   }
 
   return (
-    <LinearGradient 
-      colors={['#f5f7fa', '#e4e8f0']} 
-      style={styles.container}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-    >
+    <View style={styles.container}>
       {/* Header */}
       <LinearGradient
-        colors={['#1877f2', '#0a5bc4']}
+        colors={[COLORS.primary, '#1A4B8C']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
       >
         <Text style={styles.logo}>
-          Mas
-          <Text style={styles.logoChat}>Chat</Text>
+          Mas<Text style={{ color: COLORS.accent }}>Chat</Text>
         </Text>
         <View style={styles.headerIcons}>
           <TouchableOpacity
@@ -106,8 +110,8 @@ export default function HomeScreen() {
           <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('../screens/SearchScreen')}>
             <Ionicons name="search" size={24} color="white" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push("../screens/MessengerScreen")}>
-            <Ionicons name="chatbubble-ellipses" size={28} color="white" />
+          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('../screens/MessengerScreen')}>
+            <Ionicons name="chatbubble-ellipses" size={24} color="white" />
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -124,12 +128,7 @@ export default function HomeScreen() {
           activeOpacity={1}
           onPressOut={() => setShowAddMenu(false)}
         >
-          <LinearGradient 
-            colors={['#fff', '#f5f7fa']} 
-            style={styles.addMenuBox}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
+          <View style={styles.addMenuBox}>
             <TouchableOpacity
               style={styles.addMenuItem}
               onPress={() => {
@@ -137,14 +136,9 @@ export default function HomeScreen() {
                 router.push("/(create)/newPost");
               }}
             >
-              <LinearGradient 
-                colors={['#4facfe', '#00f2fe']} 
-                style={styles.menuIconBg}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
+              <View style={[styles.menuIconBg, { backgroundColor: COLORS.primary }]}> 
                 <Ionicons name="create-outline" size={22} color="white" />
-              </LinearGradient>
+              </View>
               <Text style={styles.addMenuText}>Post</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -154,14 +148,9 @@ export default function HomeScreen() {
                 router.push("/(create)/newStory");
               }}
             >
-              <LinearGradient 
-                colors={['#667eea', '#764ba2']} 
-                style={styles.menuIconBg}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
+              <View style={[styles.menuIconBg, { backgroundColor: COLORS.accent }]}> 
                 <Ionicons name="images-outline" size={22} color="white" />
-              </LinearGradient>
+              </View>
               <Text style={styles.addMenuText}>Story</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -171,15 +160,10 @@ export default function HomeScreen() {
                 router.push("/(create)/newReel");
               }}
             >
-              <LinearGradient 
-                colors={['#f093fb', '#f5576c']} 
-                style={styles.menuIconBg}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
+              <View style={[styles.menuIconBg, { backgroundColor: '#A259E6' }]}> 
                 <Ionicons name="film-outline" size={22} color="white" />
-              </LinearGradient>
-              <Text style={styles.addMenuText}>Reel</Text>
+              </View>
+              <Text style={styles.addMenuText}>Reels</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.addMenuItem}
@@ -188,29 +172,19 @@ export default function HomeScreen() {
                 router.push("/(create)/LiveScreen");
               }}
             >
-              <LinearGradient 
-                colors={['#43e97b', '#38f9d7']} 
-                style={styles.menuIconBg}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <Ionicons name="videocam-outline" size={22} color="white" />
-              </LinearGradient>
+              <View style={[styles.menuIconBg, { backgroundColor: '#0A2463' }]}> 
+                <Ionicons name="radio-outline" size={22} color="white" />
+              </View>
               <Text style={styles.addMenuText}>Live</Text>
             </TouchableOpacity>
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       </Modal>
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* What's on your mind */}
-        <LinearGradient
-          colors={['#fff', '#f8f9fa']}
-          style={styles.statusContainer}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
+        {/* Status Update */}
+        <View style={styles.statusContainer}>
+          <TouchableOpacity onPress={() => router.push('/profile')}>
             <Image
               source={{ uri: user?.profilePicture ?? DEFAULT_PROFILE_PHOTO }}
               style={styles.avatar}
@@ -219,185 +193,108 @@ export default function HomeScreen() {
           <TextInput
             style={styles.statusInput}
             placeholder="What's on your mind?"
-            placeholderTextColor="#888"
+            placeholderTextColor={COLORS.lightText}
           />
-          <TouchableOpacity onPress={() => router.push("/(create)/newPost")}>
-            <LinearGradient 
-              colors={['#4facfe', '#00f2fe']} 
-              style={styles.photoBtn}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <MaterialIcons name="photo-library" size={24} color="white" />
-            </LinearGradient>
+          <TouchableOpacity style={styles.photoBtn} onPress={() => router.push('/(create)/newPost')}>
+            <Ionicons name="image" size={24} color={COLORS.accent} />
           </TouchableOpacity>
-        </LinearGradient>
+        </View>
 
         {/* Stories */}
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
-          style={styles.storiesRow}
-          contentContainerStyle={styles.storiesContent}
-        >
-          {stories.map((story) =>
-            story.isCreate ? (
-              <TouchableOpacity 
-                key={story.id} 
-                style={styles.storyItem}
-                onPress={() => router.push("/(create)/newStory")}
-              >
-                <LinearGradient
-                  colors={['#a18cd1', '#fbc2eb']}
-                  style={styles.createStoryCircle}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <Ionicons name={story.icon as any} size={36} color="white" />
-                </LinearGradient>
-                <Text style={styles.storyLabel}>{story.label}</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity key={story.id} style={styles.storyItem}>
-                <LinearGradient
-                  colors={['#ff9a9e', '#fad0c4']}
-                  style={styles.storyImageContainer}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.storiesContainer}>
+          {stories.map((story) => (
+            <TouchableOpacity key={story.id} style={styles.storyItem} onPress={() => {
+              if (story.isCreate) {
+                router.push('/(create)/newStory');
+              } else {
+                router.push('/profile');
+              }
+            }}>
+              {story.isCreate ? (
+                <View style={[styles.storyImageContainer, { backgroundColor: COLORS.primary }]}>
+                  <Ionicons name={story.icon as any} size={28} color="white" />
+                </View>
+              ) : (
+                <View style={styles.storyImageContainer}>
                   <Image source={{ uri: story.image }} style={styles.storyImage} />
                   {story.online && <View style={styles.onlineDot} />}
-                </LinearGradient>
-                <Text style={styles.storyLabel}>{story.label}</Text>
-              </TouchableOpacity>
-            )
-          )}
+                </View>
+              )}
+              <Text style={styles.storyLabel}>{story.label}</Text>
+            </TouchableOpacity>
+          ))}
         </ScrollView>
 
-        {/* Feed */}
-        <View style={styles.feed}>
-          <View style={styles.feedHeader}>
-            <View style={styles.feedAvatarContainer}>
-              <Image
-                source={{ uri: user?.profilePicture ?? DEFAULT_PROFILE_PHOTO }}
-                style={styles.feedAvatar}
-              />
+        {/* Posts */}
+        <View style={styles.post}>
+          <View style={styles.postHeader}>
+            <Image
+              source={{ uri: user?.profilePicture ?? DEFAULT_PROFILE_PHOTO }}
+              style={styles.postAvatar}
+            />
+            <View style={styles.postUserInfo}>
+              <Text style={styles.postUserName}>{user?.fullName ?? 'User'}</Text>
+              <Text style={styles.postTime}>1d · <Feather name="globe" size={12} color={COLORS.lightText} /></Text>
             </View>
-            <View>
-              <Text style={styles.feedName}>{user?.fullName ?? 'User'}</Text>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Text style={styles.feedTime}>1d</Text>
-                <Feather name="globe" size={12} color="#888" style={{ marginLeft: 4 }} />
-              </View>
-            </View>
-            <Feather name="more-horizontal" size={20} color="#888" style={{ marginLeft: "auto" }} />
+            <Feather name="more-horizontal" size={20} color={COLORS.lightText} />
           </View>
-          <Text style={styles.feedText}>Check out this awesome place! The sunset views here are absolutely breathtaking and worth the hike.</Text>
+          <Text style={styles.postText}>Check out this awesome place! The sunset views here are breathtaking.</Text>
           <Image
-            source={{
-              uri: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80",
-            }}
-            style={styles.feedImage}
+            source={{ uri: "https://images.unsplash.com/photo-1506744038136-46273834b3fb" }}
+            style={styles.postImage}
           />
-          <View style={styles.feedActions}>
-            <TouchableOpacity style={styles.actionBtn}>
-              <LinearGradient 
-                colors={['#4facfe', '#00f2fe']} 
-                style={styles.actionIconBg}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <FontAwesome name="thumbs-up" size={16} color="white" />
-              </LinearGradient>
-              <Text style={styles.actionText}>Like</Text>
+          <View style={styles.postActions}>
+            <TouchableOpacity style={styles.postAction} onPress={() => handleLike(1)}>
+              <FontAwesome name="thumbs-up" size={18} color={COLORS.lightText} />
+              <Text style={styles.postActionText}>Like</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionBtn}>
-              <LinearGradient 
-                colors={['#667eea', '#764ba2']} 
-                style={styles.actionIconBg}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <Ionicons name="chatbubble" size={16} color="white" />
-              </LinearGradient>
-              <Text style={styles.actionText}>Comment</Text>
+            <TouchableOpacity style={styles.postAction} onPress={() => setCommentPostId(1)}>
+              <Ionicons name="chatbubble-outline" size={18} color={COLORS.lightText} />
+              <Text style={styles.postActionText}>Comment</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionBtn}>
-              <LinearGradient 
-                colors={['#f093fb', '#f5576c']} 
-                style={styles.actionIconBg}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <Ionicons name="arrow-redo" size={16} color="white" />
-              </LinearGradient>
-              <Text style={styles.actionText}>Share</Text>
+            <TouchableOpacity style={styles.postAction}>
+              <Ionicons name="share-social-outline" size={18} color={COLORS.lightText} />
+              <Text style={styles.postActionText}>Share</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Additional sample post */}
-        <View style={styles.feed}>
-          <View style={styles.feedHeader}>
-            <View style={styles.feedAvatarContainer}>
-              <Image
-                source={{ uri: "https://randomuser.me/api/portraits/women/44.jpg" }}
-                style={styles.feedAvatar}
-              />
+        {/* Second Post */}
+        <View style={styles.post}>
+          <View style={styles.postHeader}>
+            <Image
+              source={{ uri: "https://randomuser.me/api/portraits/women/44.jpg" }}
+              style={styles.postAvatar}
+            />
+            <View style={styles.postUserInfo}>
+              <Text style={styles.postUserName}>Sarah Johnson</Text>
+              <Text style={styles.postTime}>3h · <Feather name="globe" size={12} color={COLORS.lightText} /></Text>
             </View>
-            <View>
-              <Text style={styles.feedName}>Sarah Johnson</Text>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Text style={styles.feedTime}>3h</Text>
-                <Feather name="globe" size={12} color="#888" style={{ marginLeft: 4 }} />
-              </View>
-            </View>
-            <Feather name="more-horizontal" size={20} color="#888" style={{ marginLeft: "auto" }} />
+            <Feather name="more-horizontal" size={20} color={COLORS.lightText} />
           </View>
-          <Text style={styles.feedText}>Just finished this amazing book! Highly recommend to anyone interested in personal development.</Text>
+          <Text style={styles.postText}>Just finished this amazing book! Highly recommend for personal development.</Text>
           <Image
-            source={{
-              uri: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&w=800&q=80",
-            }}
-            style={styles.feedImage}
+            source={{ uri: "https://images.unsplash.com/photo-1544947950-fa07a98d237f" }}
+            style={styles.postImage}
           />
-          <View style={styles.feedActions}>
-            <TouchableOpacity style={styles.actionBtn}>
-              <LinearGradient 
-                colors={['#4facfe', '#00f2fe']} 
-                style={styles.actionIconBg}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <FontAwesome name="thumbs-up" size={16} color="white" />
-              </LinearGradient>
-              <Text style={styles.actionText}>Like</Text>
+          <View style={styles.postActions}>
+            <TouchableOpacity style={styles.postAction} onPress={() => handleLike(2)}>
+              <FontAwesome name="thumbs-up" size={18} color={COLORS.lightText} />
+              <Text style={styles.postActionText}>Like</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionBtn}>
-              <LinearGradient 
-                colors={['#667eea', '#764ba2']} 
-                style={styles.actionIconBg}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <Ionicons name="chatbubble" size={16} color="white" />
-              </LinearGradient>
-              <Text style={styles.actionText}>Comment</Text>
+            <TouchableOpacity style={styles.postAction} onPress={() => setCommentPostId(2)}>
+              <Ionicons name="chatbubble-outline" size={18} color={COLORS.lightText} />
+              <Text style={styles.postActionText}>Comment</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionBtn}>
-              <LinearGradient 
-                colors={['#f093fb', '#f5576c']} 
-                style={styles.actionIconBg}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <Ionicons name="arrow-redo" size={16} color="white" />
-              </LinearGradient>
-              <Text style={styles.actionText}>Share</Text>
+            <TouchableOpacity style={styles.postAction}>
+              <Ionicons name="share-social-outline" size={18} color={COLORS.lightText} />
+              <Text style={styles.postActionText}>Share</Text>
             </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
+
+      {/* Comment Dialog */}
       {commentPostId && (
         <CommentDialog
           postId={commentPostId}
@@ -406,266 +303,205 @@ export default function HomeScreen() {
           onComment={fetchPosts}
         />
       )}
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingTop: 50,
     paddingHorizontal: 16,
     paddingBottom: 12,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowRadius: 4,
     elevation: 5,
   },
   logo: {
-    fontSize: 28,
-    fontWeight: "bold",
-    fontFamily: "sans-serif",
-    letterSpacing: 1,
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
     flex: 1,
-    color: "white",
-    textShadowColor: 'rgba(0,0,0,0.1)',
-    textShadowOffset: {width: 1, height: 1},
-    textShadowRadius: 2
-  },
-  logoChat: {
-    color: "#ffd700",
   },
   headerIcons: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    gap: 12,
   },
   iconBtn: {
-    backgroundColor: "rgba(255,255,255,0.2)",
-    borderRadius: 20,
-    padding: 6,
-    marginLeft: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scroll: {
     flex: 1,
-    paddingTop: 8,
   },
   statusContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    marginHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
     padding: 12,
-    borderRadius: 16,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    marginBottom: 8,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    marginRight: 10,
-    borderWidth: 2,
-    borderColor: '#1877f2'
-  },
-  statusInput: {
-    flex: 1,
-    backgroundColor: "#f0f2f5",
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    marginRight: 10,
-    color: "#222",
-    height: 40,
-    fontFamily: 'sans-serif-medium'
-  },
-  photoBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center'
+    marginRight: 10,
+    borderWidth: 2,
+    borderColor: COLORS.accent,
   },
-  storiesRow: {
+  statusInput: {
+    flex: 1,
+    backgroundColor: '#F0F2F5',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    height: 40,
+    fontSize: 15,
+    color: COLORS.text,
+  },
+  photoBtn: {
+    marginLeft: 10,
+  },
+  storiesContainer: {
     paddingVertical: 12,
     paddingLeft: 12,
-    marginBottom: 12,
-  },
-  storiesContent: {
-    paddingRight: 12
+    backgroundColor: COLORS.white,
+    marginBottom: 8,
   },
   storyItem: {
-    alignItems: "center",
-    marginRight: 12,
-    width: 80
+    alignItems: 'center',
+    marginRight: 16,
+    width: 80,
   },
   storyImageContainer: {
     width: 72,
     height: 72,
-    borderRadius: 16,
-    marginBottom: 6,
+    borderRadius: 36,
+    borderWidth: 2,
+    borderColor: COLORS.accent,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 2
+    marginBottom: 6,
+    overflow: 'hidden',
   },
   storyImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: "white",
-  },
-  createStoryCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 6,
   },
   storyLabel: {
     fontSize: 12,
-    color: "#222",
-    textAlign: "center",
-    marginTop: 2,
-    fontFamily: 'sans-serif-medium'
+    color: COLORS.text,
   },
   onlineDot: {
-    position: "absolute",
-    bottom: 4,
-    right: 4,
+    position: 'absolute',
+    bottom: 6,
+    right: 6,
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: "#4cd137",
+    backgroundColor: '#4CD137',
     borderWidth: 2,
-    borderColor: "#fff",
+    borderColor: COLORS.white,
   },
-  feed: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    marginHorizontal: 12,
-    marginVertical: 8,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+  post: {
+    backgroundColor: COLORS.white,
+    marginBottom: 8,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#eee',
   },
-  feedHeader: {
-    flexDirection: "row",
-    alignItems: "center",
+  postHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
     marginBottom: 12,
   },
-  feedAvatarContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    marginRight: 10,
-    backgroundColor: '#f0f2f5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden'
-  },
-  feedAvatar: {
+  postAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
+    marginRight: 10,
   },
-  feedName: {
-    fontWeight: "bold",
+  postUserInfo: {
+    flex: 1,
+  },
+  postUserName: {
+    fontWeight: 'bold',
+    color: COLORS.text,
     fontSize: 16,
-    color: "#222",
-    fontFamily: 'sans-serif-medium'
   },
-  feedTime: {
-    color: "#888",
+  postTime: {
+    color: COLORS.lightText,
     fontSize: 13,
-    fontFamily: 'sans-serif'
   },
-  feedText: {
+  postText: {
     fontSize: 15,
-    color: "#222",
-    marginBottom: 12,
+    color: COLORS.text,
     lineHeight: 20,
-    fontFamily: 'sans-serif'
-  },
-  feedImage: {
-    width: "100%",
-    height: 240,
-    borderRadius: 12,
+    paddingHorizontal: 16,
     marginBottom: 12,
-    backgroundColor: "#eee",
   },
-  feedActions: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    borderTopWidth: 1,
-    borderTopColor: "#e4e6eb",
+  postImage: {
+    width: '100%',
+    aspectRatio: 1, // Square format
+    marginBottom: 12,
+  },
+  postActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
     paddingTop: 12,
-    marginTop: 8,
+    borderTopWidth: 1,
+    borderColor: '#eee',
+    marginHorizontal: 16,
   },
-  actionBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-  },
-  actionIconBg: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
+  postAction: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 6
+    paddingVertical: 4,
+    paddingHorizontal: 12,
   },
-  actionText: {
-    color: "#666",
-    fontWeight: "500",
+  postActionText: {
+    marginLeft: 6,
+    color: COLORS.lightText,
     fontSize: 14,
-    fontFamily: 'sans-serif-medium'
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.2)",
-    justifyContent: "flex-start",
-    alignItems: "flex-end",
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
   },
   addMenuBox: {
     marginTop: 60,
     marginRight: 18,
-    borderRadius: 16,
+    borderRadius: 12,
+    backgroundColor: COLORS.white,
     paddingVertical: 8,
     width: 200,
     elevation: 8,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOpacity: 0.15,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
   },
   addMenuItem: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 18,
   },
@@ -675,76 +511,11 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12
+    marginRight: 12,
   },
   addMenuText: {
     fontSize: 16,
-    color: "#222",
-    fontWeight: "500",
-    fontFamily: 'sans-serif-medium'
-  },
-  postCard: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    marginBottom: 16,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  userName: {
-    fontWeight: "bold",
-    fontSize: 16,
-    color: "#222",
-    fontFamily: 'sans-serif-medium'
-  },
-  content: {
-    fontSize: 14,
-    color: "#333",
-    marginBottom: 12,
-    lineHeight: 18,
-    fontFamily: 'sans-serif'
-  },
-  postImage: {
-    width: "100%",
-    height: 200,
-    borderRadius: 12,
-    marginBottom: 12,
-    backgroundColor: "#eee",
-  },
-  postVideo: {
-    width: "100%",
-    height: 200,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  actionsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    borderTopWidth: 1,
-    borderTopColor: "#e4e6eb",
-    paddingTop: 12,
-  },
-  commentButton: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  commentIcon: {
-    marginRight: 4,
-  },
-  commentCount: {
-    fontSize: 14,
-    color: "#666",
-    fontFamily: 'sans-serif-medium'
+    color: COLORS.text,
+    fontWeight: '500',
   },
 });

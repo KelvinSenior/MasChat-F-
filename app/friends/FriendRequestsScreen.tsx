@@ -3,27 +3,43 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import FriendRequestCard from './FriendRequestCard';
+import { useAuth } from '../context/AuthContext';
+import client, { BASE_URL } from '../api/client';
+
+type User = {
+  id: string;
+  username: string;
+  fullName?: string;
+  profilePicture?: string;
+};
 
 type FriendRequest = {
-  _id: string;
-  fullName: string;
-  profilePicture: string;
-  mutualFriends: number;
+  id: string;
+  sender: User;
+  recipient: User;
+  status: string;
+  createdAt: string;
 };
 
 export default function FriendRequestsScreen() {
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { user } = useAuth();
 
   useEffect(() => {
-    fetch('http://localhost:8080/users/requests')
-      .then(res => res.json())
+    if (!user?.id) return;
+    client.get(`/friends/requests/${user.id}`)
+      .then(res => res.data)
       .then((data: FriendRequest[]) => {
         setRequests(data);
         setLoading(false);
+      })
+      .catch(error => {
+        console.error('Error fetching friend requests:', error);
+        setLoading(false);
       });
-  }, []);
+  }, [user?.id]);
 
   let content;
   if (loading) {
@@ -31,7 +47,7 @@ export default function FriendRequestsScreen() {
   } else if (requests.length === 0) {
     content = <Text style={styles.emptyText}>No friend requests</Text>;
   } else {
-    content = requests.map(req => <FriendRequestCard key={req._id} request={req} />);
+    content = requests.map(req => <FriendRequestCard key={req.id} request={req.sender} />);
   }
 
   return (
@@ -54,7 +70,7 @@ export default function FriendRequestsScreen() {
         </TouchableOpacity>
       </View>
       <Text style={styles.sectionTitle}>Friend requests</Text>
-      <ScrollView style={styles.scroll}>
+      <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 80 }}>
         {content}
       </ScrollView>
     </LinearGradient>

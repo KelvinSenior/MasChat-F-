@@ -77,12 +77,12 @@ export default function MessengerScreen() {
       >
         <Text style={styles.headerTitle}>Messenger</Text>
         <View style={styles.headerIcons}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.headerIconBtn}
             onPress={() => router.push("/(create)/newMessage")}
           >
-            <LinearGradient 
-              colors={['#4facfe', '#00f2fe']} 
+            <LinearGradient
+              colors={['#a18cd1', '#fbc2eb']}
               style={styles.iconBtnGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -94,13 +94,13 @@ export default function MessengerScreen() {
             style={styles.headerIconBtn}
             onPress={() => router.push("/(tabs)/home")}
           >
-            <LinearGradient 
-              colors={['#667eea', '#764ba2']} 
+            <LinearGradient
+              colors={['#1877f2', '#0a5bc4']}
               style={styles.iconBtnGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              <FontAwesome name="home" size={20} color="white" />
+              <Ionicons name="home" size={20} color="white" />
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -124,7 +124,7 @@ export default function MessengerScreen() {
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.storiesRow}
-          contentContainerStyle={{ alignItems: "center", paddingHorizontal: 12 }}
+          contentContainerStyle={{ alignItems: "center", paddingHorizontal: 12, paddingBottom: 80 }}
         >
           {stories.map((story) =>
             story.isCreate ? (
@@ -205,6 +205,7 @@ export default function MessengerScreen() {
               <Text style={styles.marketText}>Marketplace</Text>
             </TouchableOpacity>
           }
+          contentContainerStyle={{ paddingBottom: 80 }}
         />
       </View>
     </LinearGradient>

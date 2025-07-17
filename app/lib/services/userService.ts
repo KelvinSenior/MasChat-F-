@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const BASE_URL = "http://192.168.255.125:8080/api";
+import client, { BASE_URL } from '../../api/client';
 
 export type UserDetails = {
   profileType?: string;
@@ -36,7 +34,7 @@ export type UserProfile = {
  */
 export const getUserProfile = async (userId: string): Promise<UserProfile> => {
   try {
-    const response = await axios.get(`${BASE_URL}/users/${userId}`);
+    const response = await client.get(`/users/${userId}`);
     console.log("Fetched user profile:", response.data);
     return response.data;
   } catch (error: any) {
@@ -53,7 +51,7 @@ export const updateProfile = async (
   profileData: Partial<UserProfile>
 ): Promise<UserProfile> => {
   try {
-    const response = await axios.put(`${BASE_URL}/users/${userId}/profile`, profileData);
+    const response = await client.put(`/users/${userId}/profile`, profileData);
     console.log("Updated user profile:", response.data);
     return response.data;
   } catch (error: any) {
@@ -87,8 +85,8 @@ export const uploadImage = async (
     endpoint = `/users/${userId}/avatar/picture${showAvatar !== undefined ? `?showAvatar=${showAvatar}` : ''}`;
   }
 
-  const response = await axios.post(
-    `${BASE_URL}${endpoint}`,
+  const response = await client.post(
+    endpoint,
     formData,
     { headers: { 'Content-Type': 'multipart/form-data' } }
   );

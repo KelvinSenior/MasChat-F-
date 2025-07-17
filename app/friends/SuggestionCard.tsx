@@ -1,31 +1,29 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import client, { BASE_URL } from '../api/client';
 
-interface Suggestion {
-  _id: string;
-  profilePicture: string;
-  fullName: string;
-  mutualFriends: number;
-}
+type Suggestion = {
+  id: string;
+  username: string;
+  fullName?: string;
+  profilePicture?: string;
+};
 
 export default function SuggestionCard({ suggestion }: { suggestion: Suggestion }): React.JSX.Element {
   const [added, setAdded] = useState(false);
 
   const handleAdd = () => {
-    fetch('http://localhost:8080/users/request', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ toUserId: suggestion._id })
-    }).then(() => setAdded(true));
+    client.post('/users/request', { toUserId: suggestion.id })
+      .then(() => setAdded(true))
+      .catch(error => console.error('Error sending friend request:', error));
   };
 
   return (
     <LinearGradient colors={['#fff', '#f8f9fa']} style={styles.card}>
       <Image source={{ uri: suggestion.profilePicture }} style={styles.avatar} />
       <View style={{ flex: 1 }}>
-        <Text style={styles.name}>{suggestion.fullName}</Text>
-        <Text style={styles.mutual}>{suggestion.mutualFriends} mutual friends</Text>
+        <Text style={styles.name}>{suggestion.fullName || suggestion.username}</Text>
       </View>
       {added ? (
         <Text style={styles.addedText}>Request Sent</Text>

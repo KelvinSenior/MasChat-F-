@@ -21,6 +21,8 @@ import {
 } from "react-native";
 import { useAuth } from '../context/AuthContext';
 import { getUserProfile, updateProfile, uploadImage, UserProfile } from '../lib/services/userService';
+import ModernButton from '../../components/ModernButton';
+import client, { BASE_URL } from '../api/client';
 
 const DEFAULT_PROFILE_PIC = "https://randomuser.me/api/portraits/men/1.jpg";
 const DEFAULT_COVER_PHOTO = "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80";
@@ -152,7 +154,7 @@ export default function EditProfile() {
       } else {
         imageUrl = await uploadImage(manipResult.uri, field, user.id);
       }
-      const fullImageUrl = imageUrl.startsWith('http') ? imageUrl : `http://192.168.255.125:8080${imageUrl}`;
+      const fullImageUrl = imageUrl.startsWith('http') ? imageUrl : `${BASE_URL}${imageUrl}`;
 
       const updatePayload: any = field === 'avatar'
         ? { details: { ...profileData.details, avatar: fullImageUrl } }
@@ -328,7 +330,7 @@ export default function EditProfile() {
     >
       <ScrollView
         style={styles.container}
-        contentContainerStyle={keyboardVisible ? styles.scrollViewContentKeyboardOpen : styles.scrollViewContent}
+        contentContainerStyle={{ ...(keyboardVisible ? styles.scrollViewContentKeyboardOpen : styles.scrollViewContent), paddingBottom: 80 }}
         keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
@@ -342,13 +344,12 @@ export default function EditProfile() {
             <Ionicons name="arrow-back" size={24} color="white" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Edit Profile</Text>
-          <TouchableOpacity onPress={handleSave} disabled={loading}>
-            {loading ? (
-              <ActivityIndicator size="small" color="white" />
-            ) : (
-              <Text style={styles.saveButton}>Save</Text>
-            )}
-          </TouchableOpacity>
+          <ModernButton
+            title="Save"
+            onPress={handleSave}
+            loading={loading}
+            disabled={loading}
+          />
         </LinearGradient>
 
         {/* Profile Picture */}

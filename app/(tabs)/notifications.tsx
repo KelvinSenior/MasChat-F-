@@ -105,7 +105,7 @@ export default function Notifications() {
         </TouchableOpacity>
       </LinearGradient>
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
         <Text style={styles.sectionLabel}>New</Text>
         {notifications.map((item) => (
           <View key={item.id} style={styles.card}>

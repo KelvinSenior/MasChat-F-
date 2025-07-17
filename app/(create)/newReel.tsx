@@ -24,25 +24,25 @@ export default function NewReel() {
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.optionsRow}
-        contentContainerStyle={{ paddingHorizontal: 10 }}
+        contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 80 }}
       >
-        <TouchableOpacity style={styles.option}>
+        <TouchableOpacity style={styles.option} onPress={() => router.push('/screens/ComingSoon')}>
           <Ionicons name="camera-outline" size={28} color="#222" />
           <Text style={styles.optionText}>Camera</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.option}>
+        <TouchableOpacity style={styles.option} onPress={() => router.push('/screens/ComingSoon')}>
           <Ionicons name="musical-notes-outline" size={28} color="#222" />
           <Text style={styles.optionText}>Music</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.option}>
+        <TouchableOpacity style={styles.option} onPress={() => router.push('/screens/ComingSoon')}>
           <MaterialIcons name="filter-none" size={28} color="#222" />
           <Text style={styles.optionText}>Templates</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.option}>
+        <TouchableOpacity style={styles.option} onPress={() => router.push('/screens/ComingSoon')}>
           <Ionicons name="play-circle-outline" size={28} color="#222" />
           <Text style={styles.optionText}>Your content</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.option}>
+        <TouchableOpacity style={styles.option} onPress={() => router.push('/screens/ComingSoon')}>
           <FontAwesome5 name="bookmark" size={24} color="#222" />
           <Text style={styles.optionText}>Saved</Text>
         </TouchableOpacity>

@@ -123,7 +123,7 @@ export default function Videos() {
       </LinearGradient>
 
       {/* Video Feed */}
-      <ScrollView style={styles.feedScroll} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.feedScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
         {videoFeed.map((item) => (
           <View style={styles.feed} key={item.id}>
             <View style={styles.feedHeader}>

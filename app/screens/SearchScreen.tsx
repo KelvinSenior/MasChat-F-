@@ -3,6 +3,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import ModernButton from '../../components/ModernButton';
+import client, { BASE_URL } from '../api/client';
 
 const RECENTS = [
   { 
@@ -23,7 +25,7 @@ const RECENTS = [
   { 
     id: "3", 
     label: "Birthdays", 
-    icon: "cake", 
+    icon: "happy", 
     color: "#10b981",
     type: "event"
   },
@@ -52,7 +54,28 @@ const SUGGESTIONS = [
 
 export default function SearchScreen() {
   const [query, setQuery] = useState("");
+  const [results, setResults] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  React.useEffect(() => {
+    if (query.trim().length === 0) {
+      setResults([]);
+      return;
+    }
+    setLoading(true);
+    const timeout = setTimeout(async () => {
+      try {
+        const res = await client.get(`/users/search?query=${encodeURIComponent(query)}`);
+        setResults(res.data);
+      } catch (e) {
+        setResults([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [query]);
 
   return (
     <LinearGradient colors={['#f5f7fa', '#e4e8f0']} style={styles.container}>
@@ -115,6 +138,7 @@ export default function SearchScreen() {
               />
             </TouchableOpacity>
           )}
+          contentContainerStyle={{ paddingBottom: 80 }}
         />
       </View>
 
@@ -132,8 +156,34 @@ export default function SearchScreen() {
               <Text style={styles.suggestionLabel}>{item.label}</Text>
             </TouchableOpacity>
           )}
+          contentContainerStyle={{ paddingBottom: 80 }}
         />
       </View>
+
+      {/* User Search Results */}
+      {query.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Users</Text>
+          {loading ? (
+            <Text style={{padding: 16}}>Searching...</Text>
+          ) : results.length === 0 ? (
+            <Text style={{padding: 16}}>No users found.</Text>
+          ) : (
+            <FlatList
+              data={results}
+              keyExtractor={item => item.id?.toString() || item.username}
+              renderItem={({ item }) => (
+                <TouchableOpacity style={styles.item} onPress={() => router.push({ pathname: '/(tabs)/profile', params: { user: JSON.stringify(item) } })}>
+                  <Image source={{ uri: item.profilePicture || 'https://i.imgur.com/6XbK6bE.jpg' }} style={styles.itemImage} />
+                  <Text style={styles.itemLabel}>{item.fullName || item.username}</Text>
+                  <Ionicons name="chevron-forward" size={20} color="#888" style={{ marginLeft: "auto" }} />
+                </TouchableOpacity>
+              )}
+              contentContainerStyle={{ paddingBottom: 80 }}
+            />
+          )}
+        </View>
+      )}
 
       {/* Quick Actions */}
       <View style={styles.quickActions}>

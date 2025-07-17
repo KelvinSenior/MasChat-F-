@@ -3,27 +3,35 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import SuggestionCard from './SuggestionCard';
+import { useAuth } from '../context/AuthContext';
+import client, { BASE_URL } from '../api/client';
 
 type Suggestion = {
-  _id: string;
-  fullName: string;
-  profilePicture: string;
-  mutualFriends: number;
+  id: string;
+  username: string;
+  fullName?: string;
+  profilePicture?: string;
 };
 
 export default function SuggestionsScreen() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { user } = useAuth();
 
   useEffect(() => {
-    fetch('http://localhost:8080/users/suggestions')
-      .then(res => res.json())
+    if (!user?.id) return;
+    client.get(`/friends/suggestions/${user.id}`)
+      .then(res => res.data)
       .then((data: Suggestion[]) => {
         setSuggestions(data);
         setLoading(false);
+      })
+      .catch(error => {
+        console.error('Error fetching suggestions:', error);
+        setLoading(false);
       });
-  }, []);
+  }, [user?.id]);
 
   return (
     <LinearGradient colors={['#f5f7fa', '#e4e8f0']} style={styles.container}>
@@ -37,10 +45,10 @@ export default function SuggestionsScreen() {
         </TouchableOpacity>
       </View>
       <Text style={styles.sectionTitle}>People you may know</Text>
-      <ScrollView style={styles.scroll}>
+      <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 80 }}>
         {loading ? <ActivityIndicator size="large" color="#1877f2" /> :
           suggestions.length === 0 ? <Text style={styles.emptyText}>No suggestions</Text> :
-          suggestions.map(sug => <SuggestionCard key={sug._id} suggestion={sug} />)
+          suggestions.map(sug => <SuggestionCard key={sug.id} suggestion={sug} />)
         }
       </ScrollView>
     </LinearGradient>

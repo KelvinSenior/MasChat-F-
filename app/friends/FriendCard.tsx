@@ -2,9 +2,10 @@ import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 type Friend = {
-  _id: string;
-  fullName: string;
-  // add other properties if needed
+  id: string;
+  username: string;
+  fullName?: string;
+  profilePicture?: string;
 };
 
 type Props = {
@@ -56,7 +57,7 @@ export function FriendList({ filteredFriends, loading }: { filteredFriends: Frie
     }
     return filteredFriends.map(friend => (
       <FriendCard
-        key={friend._id}
+        key={friend.id}
         friend={friend}
       />
     ));

@@ -9,62 +9,37 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
+  Pressable
 } from "react-native";
 import { useAuth } from '../context/AuthContext';
 
+// Color Palette
+const COLORS = {
+  primary: '#0A2463',  // Deep Blue
+  accent: '#FF7F11',   // Vibrant Orange
+  background: '#F5F7FA',
+  white: '#FFFFFF',
+  text: '#333333',
+  lightText: '#888888',
+};
+
 const shortcuts = [
-  {
-    name: "Preety Shy",
-    avatar: "https://randomuser.me/api/portraits/men/31.jpg",
-  },
-  {
-    name: "Sarfo Kelvin Senior",
-    avatar: "https://randomuser.me/api/portraits/men/32.jpg",
-  },
+  { name: "Preety Shy", avatar: "https://randomuser.me/api/portraits/men/31.jpg" },
+  { name: "Sarfo Kelvin", avatar: "https://randomuser.me/api/portraits/men/32.jpg" },
 ];
 
 const menuOptions = [
-  {
-    label: "Friends",
-    icon: <MaterialIcons name="people" size={24} color="#1877f2" />,
-  },
-  {
-    label: "Professional dashboard",
-    icon: <MaterialCommunityIcons name="view-dashboard" size={24} color="#1877f2" />,
-  },
-  {
-    label: "Memories",
-    icon: <MaterialIcons name="history" size={24} color="#1877f2" />,
-  },
-  {
-    label: "Feeds",
-    icon: <MaterialCommunityIcons name="rss" size={24} color="#1877f2" />,
-  },
-  {
-    label: "Groups",
-    icon: <FontAwesome5 name="users" size={24} color="#1877f2" />,
-  },
-  {
-    label: "Marketplace",
-    icon: <FontAwesome5 name="store" size={24} color="#1877f2" />,
-  },
-  {
-    label: "Reels",
-    icon: <Entypo name="video" size={24} color="#1877f2" />,
-  },
-  {
-    label: "Saved",
-    icon: <MaterialIcons name="bookmark" size={24} color="#a259e6" />,
-  },
-  { label: "Support", icon: <Ionicons name="heart-outline" size={26} color="#2196f3" /> },
-  { label: "Ad Center", icon: <MaterialCommunityIcons name="bullhorn-outline" size={26} color="#2196f3" /> },
-  { label: "Pages", icon: <MaterialCommunityIcons name="flag-outline" size={26} color="#f59e42" /> },
-  { label: "Events", icon: <MaterialCommunityIcons name="calendar-star" size={26} color="#ef4444" /> },
-  { label: "Games", icon: <MaterialCommunityIcons name="gamepad-variant-outline" size={26} color="#2196f3" /> },
-  { label: "Finds", icon: <MaterialCommunityIcons name="tag-heart-outline" size={26} color="#ef4444" /> },
-  { label: "Avatars", icon: <MaterialCommunityIcons name="emoticon-outline" size={26} color="#2196f3" /> },
-  { label: "Messenger Kids", icon: <MaterialCommunityIcons name="message-bulleted" size={26} color="#22d3ee" /> },
+  { label: "Friends", icon: <MaterialIcons name="people" size={24} color={COLORS.primary} /> },
+  { label: "Dashboard", icon: <MaterialCommunityIcons name="view-dashboard" size={24} color={COLORS.primary} /> },
+  { label: "Memories", icon: <MaterialIcons name="history" size={24} color={COLORS.primary} /> },
+  { label: "Feeds", icon: <MaterialCommunityIcons name="rss" size={24} color={COLORS.primary} /> },
+  { label: "Groups", icon: <FontAwesome5 name="users" size={24} color={COLORS.primary} /> },
+  { label: "Marketplace", icon: <FontAwesome5 name="store" size={24} color={COLORS.primary} /> },
+  { label: "Reels", icon: <Entypo name="video" size={24} color={COLORS.primary} /> },
+  { label: "Saved", icon: <MaterialIcons name="bookmark" size={24} color="#A259E6" /> },
+  { label: "Support", icon: <Ionicons name="heart-outline" size={26} color="#2196F3" /> },
+  { label: "Ad Center", icon: <MaterialCommunityIcons name="bullhorn-outline" size={26} color="#2196F3" /> },
 ];
 
 export default function Menu() {
@@ -73,466 +48,267 @@ export default function Menu() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      setLoading(false);
-    }
+    if (user) setLoading(false);
   }, [user]);
 
   if (loading || !user) {
     return (
-      <LinearGradient colors={['#f5f7fa', '#e4e8f0']} style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1877f2" />
-      </LinearGradient>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
     );
   }
 
   return (
-    <LinearGradient colors={['#f5f7fa', '#e4e8f0']} style={styles.container}>
+    <View style={styles.container}>
       {/* Header */}
       <LinearGradient
-        colors={['#1877f2', '#0a5bc4']}
+        colors={[COLORS.primary, '#1A4B8C']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
       >
         <Text style={styles.headerTitle}>Menu</Text>
         <View style={styles.headerIcons}>
-          <TouchableOpacity onPress={() => router.push('/screens/SettingsScreen')} style={styles.iconBtn}>
-            <LinearGradient 
-              colors={['#4facfe', '#00f2fe']} 
-              style={styles.iconBtnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Ionicons name="settings-sharp" size={20} color="white" />
-            </LinearGradient>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/screens/SettingsScreen')}>
+            <Ionicons name="settings-sharp" size={20} color="white" />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push('/screens/SearchScreen')} style={styles.iconBtn}>
-            <LinearGradient 
-              colors={['#667eea', '#764ba2']} 
-              style={styles.iconBtnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Ionicons name="search" size={20} color="white" />
-            </LinearGradient>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/screens/SearchScreen')}>
+            <Ionicons name="search" size={20} color="white" />
           </TouchableOpacity>
         </View>
       </LinearGradient>
 
-      <ScrollView
-        style={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
-      >
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
         {/* Profile Card */}
-        <TouchableOpacity
-          onPress={() => router.push("/(tabs)/profile")}
-          style={styles.profileCard}
-        >
-          <LinearGradient
-            colors={['#a18cd1', '#fbc2eb']}
-            style={styles.profileAvatarBg}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Image 
-              source={{ uri: user.profilePicture || "https://i.imgur.com/6XbK6bE.jpg" }} 
-              style={styles.profileAvatar} 
-            />
-          </LinearGradient>
-          <Text style={styles.profileName}>{user.fullName || 'User'}</Text>
-          <View style={styles.profileBadgeWrap}>
-            <Image source={{ uri: shortcuts[1].avatar }} style={styles.profileBadgeAvatar} />
-            <LinearGradient 
-              colors={['#ff416c', '#ff4b2b']} 
-              style={styles.badgeCircle}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Text style={styles.badgeText}>{user.details?.followerCount || 0}+</Text>
-            </LinearGradient>
+        <TouchableOpacity style={styles.profileCard} onPress={() => router.push("/profile")}>
+          <Image 
+            source={{ uri: user.profilePicture || "https://i.imgur.com/6XbK6bE.jpg" }} 
+            style={styles.profileAvatar} 
+          />
+          <View style={styles.profileInfo}>
+            <Text style={styles.profileName}>{user.fullName || 'User'}</Text>
+            <Text style={styles.profileSubtext}>View your profile</Text>
+          </View>
+          <View style={styles.followerBadge}>
+            <Text style={styles.followerText}>{user.details?.followerCount || 0}+</Text>
           </View>
         </TouchableOpacity>
-        
+
         {/* Shortcuts */}
-        <Text style={styles.sectionLabel}>Your shortcuts</Text>
-        <View style={styles.shortcutsRow}>
+        <Text style={styles.sectionTitle}>Your Shortcuts</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.shortcutsContainer}>
           {shortcuts.map((item) => (
             <TouchableOpacity key={item.name} style={styles.shortcutItem}>
-              <LinearGradient
-                colors={['#4facfe', '#00f2fe']}
-                style={styles.shortcutAvatarBg}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <Image source={{ uri: item.avatar }} style={styles.shortcutAvatar} />
-              </LinearGradient>
+              <Image source={{ uri: item.avatar }} style={styles.shortcutAvatar} />
               <Text style={styles.shortcutName}>{item.name}</Text>
             </TouchableOpacity>
           ))}
-        </View>
-        
-        {/* Meta AI Promo */}
-        <LinearGradient
-          colors={['#fff', '#f8f9fa']}
-          style={styles.metaCard}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <View style={styles.metaRow}>
-            <LinearGradient 
-              colors={['#a259e6', '#8a2be2']} 
-              style={styles.metaIconWrap}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Ionicons name="aperture-outline" size={24} color="white" />
-            </LinearGradient>
-            <TouchableOpacity>
-              <Ionicons name="close" size={20} color="#888" />
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.metaTitle}>See what others are doing on the Meta AI app</Text>
-          <Text style={styles.metaDesc}>Get inspired by how others are editing images and getting creative.</Text>
-          <TouchableOpacity style={styles.metaBtn}>
-            <LinearGradient 
-              colors={['#4facfe', '#00f2fe']} 
-              style={styles.metaBtnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Text style={styles.metaBtnText}>Download</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </LinearGradient>
-        
-        {/* Menu Options Grid */}
+        </ScrollView>
+
+        {/* Menu Grid */}
         <View style={styles.menuGrid}>
           {menuOptions.map((item) => (
             <TouchableOpacity
               key={item.label}
-              style={styles.menuOption}
+              style={styles.menuItem}
               onPress={() => {
-                if (item.label === "Reels") {
-                  router.push("/videos");
-                } else if (item.label === "Marketplace") {
-                  router.push("/(tabs)/marketplace");
-                } else if (item.label === "Friends") {
-                  router.push("/friends/FriendRequestsScreen");
-                }
+                if (item.label === 'Friends') router.push('/friends/FriendsScreen');
+                else if (item.label === 'Marketplace') router.push('/(tabs)/marketplace');
+                else if (item.label === 'Reels') router.push('/(create)/newReel');
+                else if (item.label === 'Dashboard' || item.label === 'Memories' || item.label === 'Feeds' || item.label === 'Groups' || item.label === 'Saved' || item.label === 'Support' || item.label === 'Ad Center') router.push('/screens/ComingSoon');
               }}
             >
-              <LinearGradient 
-                colors={['#f5f7fa', '#e4e8f0']} 
-                style={styles.menuIconBg}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
+              <View style={styles.menuIcon}>
                 {item.icon}
-              </LinearGradient>
+              </View>
               <Text style={styles.menuLabel}>{item.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
-        
+
         {/* Logout Button */}
-        <TouchableOpacity
-          style={styles.logoutBtn}
-          onPress={() => router.replace("/(auth)/login")}
+        <TouchableOpacity 
+          style={styles.logoutButton}
+          onPress={() => router.replace("/login")}
         >
-          <LinearGradient 
-            colors={['#ff416c', '#ff4b2b']} 
-            style={styles.logoutBtnGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Ionicons name="log-out-outline" size={20} color="white" />
-            <Text style={styles.logoutText}>Logout</Text>
-          </LinearGradient>
+          <Ionicons name="log-out-outline" size={20} color="white" />
+          <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: COLORS.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: COLORS.background,
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingTop: 50,
     paddingHorizontal: 16,
     paddingBottom: 12,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowRadius: 4,
     elevation: 5,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "white",
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
     flex: 1,
-    fontFamily: 'sans-serif-medium',
-    textShadowColor: 'rgba(0,0,0,0.1)',
-    textShadowOffset: {width: 1, height: 1},
-    textShadowRadius: 2
   },
   headerIcons: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    gap: 12,
   },
   iconBtn: {
-    borderRadius: 18,
-    overflow: 'hidden',
-    marginLeft: 10
-  },
-  iconBtnGradient: {
     width: 36,
     height: 36,
     borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   scroll: {
     flex: 1,
     paddingTop: 8,
   },
   profileCard: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
     padding: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    margin: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 6,
+    shadowRadius: 4,
     elevation: 3,
   },
-  profileAvatarBg: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
   profileAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    borderWidth: 2,
-    borderColor: 'white'
-  },
-  profileName: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#222",
-    flex: 1,
-    fontFamily: 'sans-serif-medium'
-  },
-  profileBadgeWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    position: "relative",
-  },
-  profileBadgeAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 2,
-    borderColor: "#fff",
-    marginRight: -10,
-    zIndex: 2,
-  },
-  badgeCircle: {
-    borderRadius: 12,
-    width: 28,
-    height: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 2,
-    zIndex: 1,
-  },
-  badgeText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 13,
-    fontFamily: 'sans-serif-medium'
-  },
-  sectionLabel: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#222",
-    marginLeft: 16,
-    marginTop: 8,
-    marginBottom: 12,
-    fontFamily: 'sans-serif-medium'
-  },
-  shortcutsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginLeft: 16,
-    marginBottom: 16,
-  },
-  shortcutItem: {
-    alignItems: "center",
-    marginRight: 20,
-  },
-  shortcutAvatarBg: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.accent,
+  },
+  profileInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  profileName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  profileSubtext: {
+    fontSize: 14,
+    color: COLORS.lightText,
+    marginTop: 4,
+  },
+  followerBadge: {
+    backgroundColor: COLORS.accent,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  followerText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginLeft: 16,
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  shortcutsContainer: {
+    paddingLeft: 16,
+    marginBottom: 16,
+  },
+  shortcutItem: {
     alignItems: 'center',
-    marginBottom: 8,
-    overflow: 'hidden'
+    marginRight: 20,
+    width: 80,
   },
   shortcutAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     borderWidth: 2,
-    borderColor: 'white'
+    borderColor: COLORS.accent,
+    marginBottom: 8,
   },
   shortcutName: {
     fontSize: 14,
-    color: "#222",
-    maxWidth: 80,
-    textAlign: "center",
-    fontFamily: 'sans-serif-medium'
-  },
-  metaCard: {
-    borderRadius: 16,
-    padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  metaRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  metaIconWrap: {
-    borderRadius: 12,
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  metaTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#222",
-    marginBottom: 6,
-    fontFamily: 'sans-serif-medium'
-  },
-  metaDesc: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 16,
-    lineHeight: 20,
-    fontFamily: 'sans-serif'
-  },
-  metaBtn: {
-    borderRadius: 10,
-    overflow: 'hidden'
-  },
-  metaBtnGradient: {
-    paddingVertical: 12,
-    alignItems: "center",
-    justifyContent: 'center'
-  },
-  metaBtnText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 16,
-    fontFamily: 'sans-serif-medium'
+    color: COLORS.text,
+    textAlign: 'center',
   },
   menuGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    marginHorizontal: 16,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 20,
   },
-  menuOption: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    width: "48%",
+  menuItem: {
+    width: '48%',
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 16,
-    paddingVertical: 16,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
-  menuIconBg: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+  menuIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F0F2F5',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8
+    marginRight: 12,
   },
   menuLabel: {
-    fontSize: 15,
-    color: "#222",
-    textAlign: 'center',
-    paddingHorizontal: 8,
-    fontFamily: 'sans-serif-medium'
+    fontSize: 16,
+    color: COLORS.text,
+    fontWeight: '500',
   },
-  logoutBtn: {
-    borderRadius: 14,
-    overflow: 'hidden',
-    marginTop: 24,
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.accent,
+    borderRadius: 12,
+    padding: 16,
     marginHorizontal: 16,
-  },
-  logoutBtnGradient: {
-    paddingVertical: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    marginBottom: 20,
   },
   logoutText: {
-    color: "#fff",
-    fontWeight: "bold",
+    color: 'white',
+    fontWeight: 'bold',
     fontSize: 16,
     marginLeft: 10,
-    fontFamily: 'sans-serif-medium'
   },
 });

@@ -1,8 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import React, { createContext, useContext, useEffect, useState } from 'react';
-
-const BASE_URL = "http://192.168.255.125:8080/api";
+import client, { BASE_URL } from '../api/client';
 
 type UserDetails = {
   profileType?: string;
@@ -119,17 +118,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshUser = async () => {
     try {
       if (!token || !user?.id) return;
-      const response = await fetch(`${BASE_URL}/users/${user.id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        const errorData = await response.text();
-        console.error('Failed to refresh user data:', errorData);
-        throw new Error('Failed to refresh user data');
-      }
-      const userData = await response.json();
+      const response = await client.get(`/users/${user.id}`);
+      const userData = response.data;
       await AsyncStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
     } catch (error) {

@@ -3,11 +3,14 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import FriendCard from './FriendCard';
+import { useAuth } from '../context/AuthContext';
+import client, { BASE_URL } from '../api/client';
 
 type Friend = {
-  _id: string;
-  fullName: string;
-  // add other properties if needed
+  id: string;
+  username: string;
+  fullName?: string;
+  profilePicture?: string;
 };
 
 export default function FriendsScreen() {
@@ -15,17 +18,23 @@ export default function FriendsScreen() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const router = useRouter();
+  const { user } = useAuth();
 
   useEffect(() => {
-    fetch('http://localhost:8080/users/friends')
-      .then(res => res.json())
+    if (!user?.id) return;
+    client.get(`/friends/list/${user.id}`)
+      .then(res => res.data)
       .then((data: Friend[]) => {
         setFriends(data);
         setLoading(false);
+      })
+      .catch(error => {
+        console.error('Error fetching friends:', error);
+        setLoading(false);
       });
-  }, []);
+  }, [user?.id]);
 
-  const filteredFriends = friends.filter(f => f.fullName.toLowerCase().includes(search.toLowerCase()));
+  const filteredFriends = friends.filter(f => f.fullName?.toLowerCase().includes(search.toLowerCase()));
 
   const renderContent = () => {
     if (loading) {
@@ -35,7 +44,7 @@ export default function FriendsScreen() {
       return <Text style={styles.emptyText}>No friends found</Text>;
     }
     return filteredFriends.map(friend => (
-      <FriendCard key={friend._id} friend={friend} />
+      <FriendCard key={friend.id} friend={friend} />
     ));
   };
 
@@ -57,7 +66,7 @@ export default function FriendsScreen() {
         onChangeText={setSearch}
       />
       <Text style={styles.sectionTitle}>{friends.length} friends</Text>
-      <ScrollView style={styles.scroll}>
+      <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 80 }}>
         {renderContent()}
       </ScrollView>
     </LinearGradient>

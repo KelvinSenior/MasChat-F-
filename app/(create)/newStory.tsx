@@ -15,10 +15,10 @@ export default function NewStory() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Create story</Text>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <TouchableOpacity style={{ marginRight: 18 }}>
-            <Ionicons name="camera-outline" size={24} color="#222" />
+          <TouchableOpacity style={{ marginRight: 18 }} onPress={() => router.push('/screens/ComingSoon')}>
+            <Ionicons name="camera-outline" size={28} color="#222" />
           </TouchableOpacity>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/screens/ComingSoon')}>
             <Ionicons name="person-circle-outline" size={24} color="#222" />
           </TouchableOpacity>
         </View>
@@ -29,21 +29,21 @@ export default function NewStory() {
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.storyOptionsRow}
-        contentContainerStyle={{ paddingHorizontal: 10 }}
+        contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 80 }}
       >
-        <TouchableOpacity style={styles.storyOption}>
+        <TouchableOpacity style={styles.storyOption} onPress={() => router.push('/screens/ComingSoon')}>
           <Ionicons name="musical-notes-outline" size={28} color="#222" />
           <Text style={styles.storyOptionText}>Music</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.storyOption}>
+        <TouchableOpacity style={styles.storyOption} onPress={() => router.push('/screens/ComingSoon')}>
           <MaterialIcons name="text-fields" size={28} color="#222" />
           <Text style={styles.storyOptionText}>Text</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.storyOption}>
+        <TouchableOpacity style={styles.storyOption} onPress={() => router.push('/screens/ComingSoon')}>
           <Entypo name="infinity" size={28} color="#222" />
           <Text style={styles.storyOptionText}>Boomerang</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.storyOption}>
+        <TouchableOpacity style={styles.storyOption} onPress={() => router.push('/screens/ComingSoon')}>
           <Ionicons name="sparkles-outline" size={28} color="#222" />
           <Text style={styles.storyOptionText}>AI image</Text>
         </TouchableOpacity>
@@ -62,13 +62,13 @@ export default function NewStory() {
         <Text style={styles.manageText}>
           You ve allowed access to select photos. You can add more or allow access to all photos.
         </Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push('/screens/ComingSoon')}>
           <Text style={styles.manageLink}>Manage</Text>
         </TouchableOpacity>
       </View>
 
       {/* See All Photos */}
-      <TouchableOpacity style={styles.seeAllPhotosBtn}>
+      <TouchableOpacity style={styles.seeAllPhotosBtn} onPress={() => router.push('/screens/ComingSoon')}>
         <Ionicons name="image-outline" size={32} color="#1877f2" />
         <Text style={styles.seeAllPhotosText}>See all photos</Text>
       </TouchableOpacity>

@@ -71,11 +71,10 @@ export default function NewPost() {
     setIsLoading(true);
     try {
       await createPost({
-        userId: user.id,
         content: post,
         imageUrl: image,
         videoUrl: video,
-      });
+      }, user.id);
       router.back();
     } catch (error) {
       Alert.alert("Error", "Failed to create post. Please try again.");
@@ -162,6 +161,18 @@ export default function NewPost() {
             <Text style={styles.optionLabel}>{opt.label}</Text>
           </TouchableOpacity>
         ))}
+        <TouchableOpacity style={styles.option} onPress={() => router.push('/screens/ComingSoon')}>
+          <Ionicons name="image-outline" size={28} color="#222" />
+          <Text style={styles.optionText}>Add Photo</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.option} onPress={() => router.push('/screens/ComingSoon')}>
+          <Ionicons name="videocam-outline" size={28} color="#222" />
+          <Text style={styles.optionText}>Add Video</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.option} onPress={() => router.push('/screens/ComingSoon')}>
+          <Ionicons name="location-outline" size={28} color="#222" />
+          <Text style={styles.optionText}>Add Location</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -310,6 +321,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   optionLabel: {
+    fontSize: 16,
+    color: "#222",
+    marginLeft: 16,
+  },
+  option: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+  },
+  optionText: {
     fontSize: 16,
     color: "#222",
     marginLeft: 16,

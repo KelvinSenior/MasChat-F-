@@ -20,8 +20,11 @@ export default function LiveScreen() {
     return (
       <View style={styles.centered}>
         <Text style={styles.message}>We need your permission to show the camera</Text>
-        <TouchableOpacity onPress={requestPermission} style={styles.permissionButton}>
-          <Text style={styles.permissionButtonText}>Grant Permission</Text>
+        <TouchableOpacity
+          style={styles.permissionButton}
+          onPress={() => router.push('/screens/ComingSoon')}
+        >
+          <Text style={styles.permissionButtonText}>Go Live (Coming Soon)</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           onPress={() => router.back()} 

@@ -1,36 +1,37 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../context/AuthContext';
+import client, { BASE_URL } from '../api/client';
 
-type FriendRequest = {
-  _id: string;
-  fullName: string;
-  profilePicture: string;
-  mutualFriends: number;
+type User = {
+  id: string;
+  username: string;
+  fullName?: string;
+  profilePicture?: string;
 };
 
 interface Props {
-  request: FriendRequest;
+  request: User;
 }
 
 export default function FriendRequestCard({ request }: Props) {
   const [accepted, setAccepted] = useState(false);
   const [deleted, setDeleted] = useState(false);
+  const { user } = useAuth();
 
   const handleAccept = () => {
-    fetch('http://localhost:8080/users/accept', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fromUserId: request._id })
-    }).then(() => setAccepted(true));
+    client.post('/users/accept', { fromUserId: request.id })
+      .then(() => setAccepted(true))
+      .catch(error => console.error('Error accepting friend request:', error));
   };
 
   const handleDelete = () => {
-    fetch('http://localhost:8080/users/request', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fromUserId: request._id, toUserId: /* current user id here */ '' })
-    }).then(() => setDeleted(true));
+    client.delete('/users/request', { 
+      data: { fromUserId: request.id, toUserId: user?.id }
+    })
+      .then(() => setDeleted(true))
+      .catch(error => console.error('Error deleting friend request:', error));
   };
 
   if (accepted || deleted) return null;
@@ -39,8 +40,7 @@ export default function FriendRequestCard({ request }: Props) {
     <LinearGradient colors={['#fff', '#f8f9fa']} style={styles.card}>
       <Image source={{ uri: request.profilePicture }} style={styles.avatar} />
       <View style={{ flex: 1 }}>
-        <Text style={styles.name}>{request.fullName}</Text>
-        <Text style={styles.mutual}>{request.mutualFriends} mutual friends</Text>
+        <Text style={styles.name}>{request.fullName || request.username}</Text>
       </View>
       <TouchableOpacity style={styles.confirmBtn} onPress={handleAccept}>
         <Text style={styles.confirmText}>Confirm</Text>

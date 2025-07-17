@@ -1,9 +1,10 @@
 import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
-import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../context/AuthContext';
+import client, { BASE_URL } from '../api/client';
 
 type Message = {
   id: string;
@@ -20,6 +21,7 @@ type Message = {
 export default function ChatScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { user: currentUser } = useAuth();
   const recipient = params.recipient ? JSON.parse(params.recipient as string) : {
     username: "Unknown",
     image: "https://randomuser.me/api/portraits/men/5.jpg",
@@ -27,7 +29,6 @@ export default function ChatScreen() {
     name: "Test User"
   };
   
-  const currentUser = { id: '37' }; // Replace with actual user ID from context/auth
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState('');
   const [inputHeight, setInputHeight] = useState(44);
@@ -37,20 +38,17 @@ export default function ChatScreen() {
   const pendingMessages = useRef<Message[]>([]);
 
   const loadMessages = async () => {
-    if (isLoading) return;
-    
+    if (isLoading || !currentUser?.id) return;
     setIsLoading(true);
     try {
       const recipientId = recipient?.id || "1";
-      const res = await axios.get(`http://192.168.255.125:8080/api/messages/conversation/${recipientId}`);
-      
+      const res = await client.get(`/messages/conversation/${recipientId}`);
       if (res.data && Array.isArray(res.data)) {
         // Merge with pending messages and remove duplicates
         const allMessages = [...res.data, ...pendingMessages.current];
         const uniqueMessages = allMessages.filter(
           (msg, index, self) => index === self.findIndex(m => m.id === msg.id)
         );
-        
         setMessages(uniqueMessages.sort((a, b) => 
           new Date(a.sentAt || 0).getTime() - new Date(b.sentAt || 0).getTime()
         ));
@@ -73,8 +71,7 @@ export default function ChatScreen() {
   }, [recipient?.id]);
 
   const sendMessage = async () => {
-    if (!text.trim() || isSending) return;
-    
+    if (!text.trim() || isSending || !currentUser?.id) return;
     setIsSending(true);
     const tempId = `temp-${Date.now()}`;
     const newMessage = {
@@ -86,23 +83,19 @@ export default function ChatScreen() {
       sentAt: new Date().toISOString(),
       isPending: true
     };
-    
     // Add to pending messages and update UI immediately
     pendingMessages.current = [...pendingMessages.current, newMessage];
     setMessages(prev => [...prev, newMessage]);
     setText('');
-    
     setTimeout(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
     }, 100);
-
     try {
       if (recipient?.id) {
-        const response = await axios.post('http://192.168.255.125:8080/api/messages', {
+        const response = await client.post('/messages', {
           ...newMessage,
           isPending: undefined // Don't send this to backend
         });
-        
         if (response.data) {
           // Replace temp message with server-confirmed message
           setMessages(prev => 
@@ -114,7 +107,6 @@ export default function ChatScreen() {
               } : msg
             )
           );
-          
           // Remove from pending
           pendingMessages.current = pendingMessages.current.filter(msg => msg.id !== tempId);
         }
@@ -135,9 +127,9 @@ export default function ChatScreen() {
   const renderMessage = ({ item }: { item: Message }) => (
     <View style={[
       styles.messageRow,
-      item.sender.id === currentUser.id ? styles.rowRight : styles.rowLeft
+      item.sender.id === currentUser?.id ? styles.rowRight : styles.rowLeft
     ]}>
-      {item.sender.id !== currentUser.id && (
+      {item.sender.id !== currentUser?.id && (
         <Image 
           source={{ uri: recipient?.image || "https://randomuser.me/api/portraits/men/5.jpg" }} 
           style={styles.bubbleProfilePic} 
@@ -145,7 +137,7 @@ export default function ChatScreen() {
       )}
       <LinearGradient
         colors={
-          item.sender.id === currentUser.id 
+          item.sender.id === currentUser?.id 
             ? ['#1877f2', '#0a5bc4'] 
             : ['#f0f2f5', '#e4e6eb']
         }
@@ -153,7 +145,7 @@ export default function ChatScreen() {
         end={{ x: 1, y: 1 }}
         style={[
           styles.messageBubble,
-          item.sender.id === currentUser.id ? styles.sent : styles.received,
+          item.sender.id === currentUser?.id ? styles.sent : styles.received,
           item.failed && styles.failedMessage,
           item.isPending && styles.pendingMessage
         ]}
@@ -161,7 +153,7 @@ export default function ChatScreen() {
         {item.content && (
           <Text style={[
             styles.messageText,
-            item.sender.id === currentUser.id ? styles.sentText : styles.receivedText
+            item.sender.id === currentUser?.id ? styles.sentText : styles.receivedText
           ]}>
             {item.content}
           </Text>
@@ -171,7 +163,7 @@ export default function ChatScreen() {
           {item.time && (
             <Text style={[
               styles.timeText,
-              item.sender.id === currentUser.id ? styles.sentTime : styles.receivedTime
+              item.sender.id === currentUser?.id ? styles.sentTime : styles.receivedTime
             ]}>
               {item.time}
             </Text>
@@ -179,8 +171,8 @@ export default function ChatScreen() {
           {item.failed ? (
             <Ionicons name="warning" size={16} color="#ff4444" style={styles.statusIcon} />
           ) : item.isPending ? (
-            <ActivityIndicator size="small" color={item.sender.id === currentUser.id ? "#fff" : "#888"} style={styles.statusIcon} />
-          ) : item.sender.id === currentUser.id ? (
+            <ActivityIndicator size="small" color={item.sender.id === currentUser?.id ? "#fff" : "#888"} style={styles.statusIcon} />
+          ) : item.sender.id === currentUser?.id ? (
             <Ionicons name="checkmark-done" size={16} color="#fff" style={styles.statusIcon} />
           ) : null}
         </View>
@@ -202,7 +194,7 @@ export default function ChatScreen() {
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.profileContainer}
-          onPress={() => router.push({ pathname: "/screens/ProfileScreen", params: { user: JSON.stringify(recipient) } })}
+          onPress={() => router.push({ pathname: "/(tabs)/profile", params: { user: JSON.stringify(recipient) } })}
         >
           <Image 
             source={{ uri: recipient?.image || "https://randomuser.me/api/portraits/men/5.jpg" }} 
@@ -234,7 +226,7 @@ export default function ChatScreen() {
           data={messages}
           renderItem={renderMessage}
           keyExtractor={item => item.id}
-          contentContainerStyle={styles.messagesContainer}
+          contentContainerStyle={{ paddingBottom: 80 }}
           showsVerticalScrollIndicator={false}
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
           ListEmptyComponent={

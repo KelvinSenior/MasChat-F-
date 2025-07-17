@@ -104,7 +104,7 @@ export default function Marketplace() {
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tabs}
+          contentContainerStyle={{ paddingBottom: 80 }}
         >
           <TouchableOpacity style={styles.tab}>
             <Text style={styles.tabText}>Sell</Text>
@@ -133,7 +133,7 @@ export default function Marketplace() {
         data={products}
         keyExtractor={(item) => item.id}
         numColumns={2}
-        contentContainerStyle={styles.productGrid}
+        contentContainerStyle={{ paddingBottom: 80 }}
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.card}>
             <Image source={{ uri: item.image }} style={styles.cardImage} />

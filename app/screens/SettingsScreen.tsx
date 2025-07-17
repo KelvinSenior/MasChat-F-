@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useTheme } from '../../constants/ThemeContext';
 
 const settingsOptions = [
   {
@@ -41,6 +42,7 @@ const settingsOptions = [
 export default function SettingsScreen() {
   const [search, setSearch] = useState("");
   const router = useRouter();
+  const { theme, toggleTheme } = useTheme();
 
   // Filter options based on search
   const filteredOptions = settingsOptions.map(section => ({
@@ -84,7 +86,7 @@ export default function SettingsScreen() {
 
       {/* Settings List */}
       <ScrollView 
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={{ paddingBottom: 80 }}
         showsVerticalScrollIndicator={false}
       >
         {filteredOptions.map((section, sectionIndex) => (
@@ -94,11 +96,10 @@ export default function SettingsScreen() {
               {section.data.map((option, index) => (
                 <React.Fragment key={option.label}>
                   <TouchableOpacity style={styles.optionRow}>
-                    <View style={[styles.iconContainer, { backgroundColor: `${option.color}20` }]}>
+                    <View style={[styles.iconContainer, { backgroundColor: option.color }]}>
                       {option.icon}
                     </View>
                     <Text style={styles.optionLabel}>{option.label}</Text>
-                    <Ionicons name="chevron-forward" size={20} color="#888" />
                   </TouchableOpacity>
                   {index < section.data.length - 1 && <View style={styles.optionDivider} />}
                 </React.Fragment>
@@ -112,30 +113,35 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Account</Text>
           <View style={styles.sectionContainer}>
             <TouchableOpacity style={styles.optionRow}>
-              <View style={[styles.iconContainer, { backgroundColor: '#e3f2fd' }]}>
-                <Ionicons name="person-outline" size={22} color="#1976d2" />
+              <View style={[styles.iconContainer, { backgroundColor: '#1877f2' }]}>
+                <Ionicons name="person-outline" size={22} color="#fff" />
               </View>
               <Text style={styles.optionLabel}>Personal Information</Text>
-              <Ionicons name="chevron-forward" size={20} color="#888" />
             </TouchableOpacity>
             <View style={styles.optionDivider} />
             <TouchableOpacity style={styles.optionRow}>
-              <View style={[styles.iconContainer, { backgroundColor: '#fff8e1' }]}>
-                <Ionicons name="shield-outline" size={22} color="#ffa000" />
+              <View style={[styles.iconContainer, { backgroundColor: '#1877f2' }]}>
+                <Ionicons name="shield-outline" size={22} color="#fff" />
               </View>
               <Text style={styles.optionLabel}>Security</Text>
-              <Ionicons name="chevron-forward" size={20} color="#888" />
             </TouchableOpacity>
             <View style={styles.optionDivider} />
             <TouchableOpacity style={styles.optionRow}>
-              <View style={[styles.iconContainer, { backgroundColor: '#e8f5e9' }]}>
-                <Ionicons name="log-out-outline" size={22} color="#388e3c" />
+              <View style={[styles.iconContainer, { backgroundColor: '#ec407a' }]}>
+                <Ionicons name="log-out" size={22} color="#fff" />
               </View>
-              <Text style={[styles.optionLabel, { color: '#d32f2f' }]}>Log Out</Text>
-              <Ionicons name="chevron-forward" size={20} color="#888" />
+              <Text style={styles.optionLabel}>Log Out</Text>
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Dark Mode Toggle */}
+        <TouchableOpacity style={styles.optionRow} onPress={toggleTheme}>
+          <View style={[styles.iconContainer, { backgroundColor: '#333' }]}> 
+            <Ionicons name={theme === 'light' ? 'moon' : 'sunny'} size={22} color="#fff" />
+          </View>
+          <Text style={styles.optionLabel}>{theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}</Text>
+        </TouchableOpacity>
       </ScrollView>
     </LinearGradient>
   );
