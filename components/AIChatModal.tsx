@@ -199,45 +199,44 @@ export default function AIChatModal({ visible, onClose }: AIChatModalProps) {
                 </View>
               )}
             </ScrollView>
-          </KeyboardAvoidingView>
-
-          {/* Input Area */}
-          <View style={styles.inputContainer}>
-            <View style={styles.inputWrapper}>
-              <TouchableOpacity style={styles.attachmentButton}>
-                <MaterialCommunityIcons name="attachment" size={24} color="#1877f2" />
-              </TouchableOpacity>
-              <TextInput
-                style={styles.input}
-                value={inputText}
-                onChangeText={setInputText}
-                placeholder="Message MasChat AI..."
-                placeholderTextColor="#888"
-                multiline
-                onSubmitEditing={handleSend}
-                editable={!isLoading}
-              />
-              <TouchableOpacity
-                style={[
-                  styles.sendButton,
-                  !inputText.trim() && styles.sendButtonDisabled,
-                  isLoading && styles.sendButtonLoading
-                ]}
-                onPress={handleSend}
-                disabled={!inputText.trim() || isLoading}
-              >
-                {isLoading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Ionicons 
-                    name="send" 
-                    size={20} 
-                    color={inputText.trim() ? "#fff" : "#aaa"} 
-                  />
-                )}
-              </TouchableOpacity>
+            {/* Input Area moved here */}
+            <View style={styles.inputContainer}>
+              <View style={styles.inputWrapper}>
+                <TouchableOpacity style={styles.attachmentButton}>
+                  <MaterialCommunityIcons name="attachment" size={24} color="#1877f2" />
+                </TouchableOpacity>
+                <TextInput
+                  style={styles.input}
+                  value={inputText}
+                  onChangeText={setInputText}
+                  placeholder="Message MasChat AI..."
+                  placeholderTextColor="#888"
+                  multiline
+                  onSubmitEditing={handleSend}
+                  editable={!isLoading}
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.sendButton,
+                    !inputText.trim() && styles.sendButtonDisabled,
+                    isLoading && styles.sendButtonLoading
+                  ]}
+                  onPress={handleSend}
+                  disabled={!inputText.trim() || isLoading}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Ionicons 
+                      name="send" 
+                      size={20} 
+                      color={inputText.trim() ? "#fff" : "#aaa"} 
+                    />
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </LinearGradient>
       </SafeAreaView>
     </Modal>
