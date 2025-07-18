@@ -9,12 +9,22 @@ import Toast from 'react-native-toast-message';
 import { useAuth } from '../context/AuthContext';
 import client, { BASE_URL, testConnection } from '../api/client';
 
+// Color Palette (matching home screen)
+const COLORS = {
+  primary: '#0A2463',  // Deep Blue
+  accent: '#FF7F11',   // Vibrant Orange
+  background: '#F5F7FA',
+  white: '#FFFFFF',
+  text: '#333333',
+  lightText: '#888888',
+};
+
 export default function Signup() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [fullName, setFullName] = useState(""); // Added fullName field
+  const [fullName, setFullName] = useState("");
   const [errors, setErrors] = useState({
     username: '',
     email: '',
@@ -107,16 +117,13 @@ export default function Signup() {
         }
       );
 
-      // Check for successful response structure
       if (response.data && response.data.token && response.data.userId) {
         const { token, userId, username: responseUsername } = response.data;
         
-        // Create user object with minimal required fields
         const user = {
           id: userId,
           username: responseUsername,
           token: token,
-          // Add other fields that might be returned
           ...(response.data.user || {})
         };
 
@@ -142,7 +149,6 @@ export default function Signup() {
       let errorMessage = 'Signup failed. Please try again.';
       
       if (error.response) {
-        // The request was made and the server responded with a status code
         if (error.response.data?.error) {
           errorMessage = error.response.data.error;
         } else if (error.response.status === 400) {
@@ -151,10 +157,8 @@ export default function Signup() {
           errorMessage = 'Username or email already exists.';
         }
       } else if (error.request) {
-        // The request was made but no response was received
         errorMessage = 'No response from server. Please try again.';
       } else {
-        // Something happened in setting up the request
         errorMessage = 'Request setup error. Please try again.';
       }
       
@@ -185,159 +189,161 @@ export default function Signup() {
   }, []);
 
   return (
-    <LinearGradient colors={['#f5f7fa', '#e4e8f0']} style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f5f7fa" />
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
       
-      <Animatable.View animation="fadeInDown" duration={1000} style={styles.header}>
-        <Image
-          source={require("../../assets/GROUP 88-MasChat.png")}
-          style={styles.logo}
-        />
-        <Text style={styles.title}>Create Account</Text>
-        <Text style={styles.subtitle}>Join the MasChat community</Text>
-      </Animatable.View>
+      {/* Header matching home screen */}
+      <LinearGradient
+        colors={[COLORS.primary, '#1A4B8C']}
+        style={styles.header}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+      >
+        <Text style={styles.logo}>
+          Mas<Text style={{ color: COLORS.accent }}>Chat</Text>
+        </Text>
+      </LinearGradient>
 
-      <Animatable.View animation="fadeInUp" duration={1000} style={styles.form}>
-        {/* Full Name Input */}
-        <View style={styles.inputContainer}>
-          <Ionicons name="person-circle-outline" size={20} color="#888" style={styles.inputIcon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Full Name (Optional)"
-            placeholderTextColor="#888"
-            value={fullName}
-            onChangeText={setFullName}
-            autoCapitalize="words"
-          />
-        </View>
-        {errors.fullName && <Text style={styles.errorText}>{errors.fullName}</Text>}
+      <Animatable.View animation="fadeInUp" duration={1000} style={styles.content}>
+        <View style={styles.formContainer}>
+          <Text style={styles.title}>Create Account</Text>
+          <Text style={styles.subtitle}>Join the MasChat community</Text>
 
-        {/* Username Input */}
-        <View style={styles.inputContainer}>
-          <Ionicons name="person-outline" size={20} color="#888" style={styles.inputIcon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Username"
-            placeholderTextColor="#888"
-            value={username}
-            onChangeText={setUsername}
-            autoCapitalize="none"
-          />
-        </View>
-        {errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
+          {/* Full Name Input */}
+          <View style={styles.inputContainer}>
+            <Ionicons name="person-circle-outline" size={20} color={COLORS.lightText} style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Full Name (Optional)"
+              placeholderTextColor={COLORS.lightText}
+              value={fullName}
+              onChangeText={setFullName}
+              autoCapitalize="words"
+            />
+          </View>
+          {errors.fullName && <Text style={styles.errorText}>{errors.fullName}</Text>}
 
-        {/* Email Input */}
-        <View style={styles.inputContainer}>
-          <Ionicons name="mail-outline" size={20} color="#888" style={styles.inputIcon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor="#888"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-          />
-        </View>
-        {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+          {/* Username Input */}
+          <View style={styles.inputContainer}>
+            <Ionicons name="person-outline" size={20} color={COLORS.lightText} style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Username"
+              placeholderTextColor={COLORS.lightText}
+              value={username}
+              onChangeText={setUsername}
+              autoCapitalize="none"
+            />
+          </View>
+          {errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
 
-        {/* Password Input */}
-        <View style={styles.inputContainer}>
-          <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="#888"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-        </View>
-        {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+          {/* Email Input */}
+          <View style={styles.inputContainer}>
+            <Ionicons name="mail-outline" size={20} color={COLORS.lightText} style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              placeholderTextColor={COLORS.lightText}
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+          </View>
+          {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
 
-        {/* Confirm Password Input */}
-        <View style={styles.inputContainer}>
-          <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Confirm Password"
-            placeholderTextColor="#888"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-          />
-        </View>
-        {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
+          {/* Password Input */}
+          <View style={styles.inputContainer}>
+            <Ionicons name="lock-closed-outline" size={20} color={COLORS.lightText} style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              placeholderTextColor={COLORS.lightText}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+          </View>
+          {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
 
-        <TouchableOpacity 
-          style={[styles.button, loading && styles.disabledButton]} 
-          onPress={handleSignup}
-          disabled={loading}
-        >
-          <LinearGradient
-            colors={['#4facfe', '#00f2fe']}
-            style={styles.buttonGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
+          {/* Confirm Password Input */}
+          <View style={styles.inputContainer}>
+            <Ionicons name="lock-closed-outline" size={20} color={COLORS.lightText} style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Confirm Password"
+              placeholderTextColor={COLORS.lightText}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+            />
+          </View>
+          {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
+
+          <TouchableOpacity 
+            style={[styles.button, loading && styles.disabledButton]} 
+            onPress={handleSignup}
+            disabled={loading}
           >
-            <Text style={styles.buttonText}>
-              {loading ? 'Creating account...' : 'Sign Up'}
-            </Text>
-          </LinearGradient>
-        </TouchableOpacity>
-        
-        <View style={styles.dividerContainer}>
-          <View style={styles.divider} />
-          <Text style={styles.or}>OR</Text>
-          <View style={styles.divider} />
+            <LinearGradient
+              colors={loading ? ['#ccc', '#ccc'] : [COLORS.accent, '#FF9E40']}
+              style={styles.buttonGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Text style={styles.buttonText}>
+                {loading ? 'Creating account...' : 'Sign Up'}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+          
+          <View style={styles.dividerContainer}>
+            <View style={styles.divider} />
+            <Text style={styles.or}>OR</Text>
+            <View style={styles.divider} />
+          </View>
+          
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={() => router.push("/(auth)/login")}
+          >
+            <Text style={styles.loginButtonText}>Already have an account? Log In</Text>
+          </TouchableOpacity>
         </View>
-        
-        <TouchableOpacity
-          style={styles.loginButton}
-          onPress={() => router.push("/(auth)/login")}
-        >
-          <Text style={styles.loginButtonText}>Already have an account? Log In</Text>
-        </TouchableOpacity>
       </Animatable.View>
       <Toast />
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 24,
+    backgroundColor: COLORS.background,
   },
   header: {
-    alignItems: "center",
-    marginBottom: 24,
-    paddingTop: 40,
+    paddingTop: 50,
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
   },
   logo: {
-    width: 120,
-    height: 120,
-    resizeMode: "contain",
-    marginBottom: 8,
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
   },
-  title: {
-    color: "#1877f2",
-    fontSize: 28,
-    fontWeight: "bold",
-    marginTop: 4,
-    fontFamily: 'sans-serif-medium',
-    textShadowColor: 'rgba(0,0,0,0.1)',
-    textShadowOffset: {width: 1, height: 1},
-    textShadowRadius: 2
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
   },
-  subtitle: {
-    color: "#666",
-    fontSize: 16,
-    marginTop: 2,
-    fontFamily: 'sans-serif'
-  },
-  form: {
-    backgroundColor: "#fff",
+  formContainer: {
+    backgroundColor: COLORS.white,
     borderRadius: 16,
     padding: 24,
     shadowColor: "#000",
@@ -346,10 +352,23 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
+  title: {
+    color: COLORS.primary,
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  subtitle: {
+    color: COLORS.lightText,
+    fontSize: 16,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f0f2f5",
+    backgroundColor: '#F0F2F5',
     borderRadius: 12,
     paddingHorizontal: 16,
     marginBottom: 8,
@@ -360,13 +379,13 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    color: "#222",
+    color: COLORS.text,
     fontSize: 16,
-    fontFamily: 'sans-serif'
   },
   button: {
     borderRadius: 12,
     overflow: 'hidden',
+    marginTop: 16,
     marginBottom: 16,
     height: 50,
   },
@@ -379,10 +398,9 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   buttonText: {
-    color: "#fff",
-    fontSize: 18,
+    color: COLORS.white,
+    fontSize: 16,
     fontWeight: "bold",
-    fontFamily: 'sans-serif-medium'
   },
   dividerContainer: {
     flexDirection: "row",
@@ -395,30 +413,27 @@ const styles = StyleSheet.create({
     backgroundColor: "#e4e6eb",
   },
   or: {
-    color: "#888",
+    color: COLORS.lightText,
     marginHorizontal: 10,
     fontWeight: "bold",
-    fontFamily: 'sans-serif-medium'
+    fontSize: 14,
   },
   loginButton: {
-    backgroundColor: "#fff",
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#1877f2",
+    borderColor: COLORS.primary,
   },
   loginButtonText: {
-    color: "#1877f2",
+    color: COLORS.primary,
     fontSize: 16,
     fontWeight: "bold",
-    fontFamily: 'sans-serif-medium'
   },
   errorText: {
     color: "#f02849",
     fontSize: 13,
     marginBottom: 12,
     marginLeft: 12,
-    fontFamily: 'sans-serif'
   },
 });

@@ -18,17 +18,13 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <SafeAreaProvider>
         <GestureHandlerRootView style={{ flex: 1 }}>
-          <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: 'white' }}>
             <FloatingAIButton onPress={() => setShowChat(true)} />
             <AuthProvider>
               <Slot />
             </AuthProvider>
-          </SafeAreaView>
           <AIChatModal visible={showChat} onClose={() => setShowChat(false)} />
         </GestureHandlerRootView>
-      </SafeAreaProvider>
     </ThemeProvider>
   );
 }

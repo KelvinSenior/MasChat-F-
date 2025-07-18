@@ -12,6 +12,16 @@ import {
   View,
 } from "react-native";
 
+// Color Palette (matching home screen)
+const COLORS = {
+  primary: '#0A2463',  // Deep Blue
+  accent: '#FF7F11',   // Vibrant Orange
+  background: '#F5F7FA',
+  white: '#FFFFFF',
+  text: '#333333',
+  lightText: '#888888',
+};
+
 const products = [
   {
     id: "1",
@@ -55,56 +65,44 @@ export default function Marketplace() {
   const router = useRouter();
 
   return (
-    <LinearGradient colors={['#f5f7fa', '#e4e8f0']} style={styles.container}>
+    <View style={styles.container}>
       {/* Header */}
       <LinearGradient
-        colors={['#1877f2', '#0a5bc4']}
+        colors={[COLORS.primary, '#1A4B8C']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
       >
-        <Text style={styles.headerTitle}>Marketplace</Text>
+        <Text style={styles.logo}>
+          Mas<Text style={{ color: COLORS.accent }}>Chat</Text>
+        </Text>
         <View style={styles.headerIcons}>
           <TouchableOpacity 
             onPress={() => router.push("/profile")}
             style={styles.iconBtn}
           >
-            <LinearGradient 
-              colors={['#4facfe', '#00f2fe']} 
-              style={styles.iconBtnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Ionicons name="person" size={20} color="white" />
-            </LinearGradient>
+            <Ionicons name="person" size={24} color="white" />
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.searchBtn}
+            style={styles.iconBtn}
             onPress={() => router.push("/screens/SearchScreen")}
           >
-            <LinearGradient 
-              colors={['#667eea', '#764ba2']} 
-              style={styles.searchBtnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Ionicons name="search" size={20} color="white" />
-            </LinearGradient>
+            <Ionicons name="search" size={24} color="white" />
           </TouchableOpacity>
         </View>
       </LinearGradient>
 
+      {/* Marketplace Title */}
+      <View style={styles.marketplaceHeader}>
+        <Text style={styles.marketplaceTitle}>Marketplace</Text>
+      </View>
+
       {/* Tabs */}
-      <LinearGradient
-        colors={['#fff', '#f8f9fa']}
-        style={styles.tabsContainer}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
+      <View style={styles.tabsContainer}>
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 80 }}
+          contentContainerStyle={styles.tabsContent}
         >
           <TouchableOpacity style={styles.tab}>
             <Text style={styles.tabText}>Sell</Text>
@@ -116,14 +114,13 @@ export default function Marketplace() {
             <Text style={styles.tabText}>Categories</Text>
           </TouchableOpacity>
         </ScrollView>
-      </LinearGradient>
+      </View>
 
       {/* Location */}
       <View style={styles.locationRow}>
-        {/* eslint-disable-next-line react/no-unescaped-entities */}
         <Text style={styles.sectionTitle}>Today's picks</Text>
         <View style={styles.locationInfo}>
-          <MaterialIcons name="location-pin" size={18} color="#1877f2" />
+          <MaterialIcons name="location-pin" size={18} color={COLORS.primary} />
           <Text style={styles.locationText}>Accra, Ghana · 5 km</Text>
         </View>
       </View>
@@ -133,7 +130,7 @@ export default function Marketplace() {
         data={products}
         keyExtractor={(item) => item.id}
         numColumns={2}
-        contentContainerStyle={{ paddingBottom: 80 }}
+        contentContainerStyle={styles.productGrid}
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.card}>
             <Image source={{ uri: item.image }} style={styles.cardImage} />
@@ -149,13 +146,14 @@ export default function Marketplace() {
           </TouchableOpacity>
         )}
       />
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: "row",
@@ -164,68 +162,48 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingHorizontal: 16,
     paddingBottom: 12,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowRadius: 4,
     elevation: 5,
   },
-  headerTitle: {
+  logo: {
     fontSize: 24,
-    fontWeight: "bold",
-    color: "white",
-    fontFamily: 'sans-serif-medium',
-    textShadowColor: 'rgba(0,0,0,0.1)',
-    textShadowOffset: {width: 1, height: 1},
-    textShadowRadius: 2
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  marketplaceHeader: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  marketplaceTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: COLORS.text,
   },
   headerIcons: {
     flexDirection: "row",
-    alignItems: "center",
+    gap: 12,
   },
   iconBtn: {
-    borderRadius: 18,
-    overflow: 'hidden',
-    marginRight: 12,
-  },
-  iconBtnGradient: {
     width: 36,
     height: 36,
     borderRadius: 18,
     justifyContent: 'center',
-    alignItems: 'center'
-  },
-  searchBtn: {
-    borderRadius: 18,
-    overflow: 'hidden',
-  },
-  searchBtnGradient: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   tabsContainer: {
-    paddingVertical: 8,
+    backgroundColor: COLORS.white,
     borderBottomWidth: 1,
-    borderBottomColor: "#e4e6eb",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    borderBottomColor: '#eee',
   },
-  tabs: {
+  tabsContent: {
     paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   tab: {
     paddingVertical: 8,
@@ -235,22 +213,20 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 16,
-    color: "#666",
+    color: COLORS.lightText,
     fontWeight: "500",
-    fontFamily: 'sans-serif-medium'
   },
   activeTab: {
-    backgroundColor: "#e7f0fd",
+    backgroundColor: '#e7f0fd',
     borderRadius: 20,
     marginRight: 8,
   },
   activeTabText: {
     fontSize: 16,
-    color: "#1877f2",
+    color: COLORS.primary,
     fontWeight: "bold",
     paddingVertical: 8,
     paddingHorizontal: 20,
-    fontFamily: 'sans-serif-medium'
   },
   locationRow: {
     flexDirection: "row",
@@ -258,22 +234,22 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     marginVertical: 12,
+    backgroundColor: COLORS.white,
+    paddingVertical: 8,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#222",
-    fontFamily: 'sans-serif-medium'
+    color: COLORS.text,
   },
   locationInfo: {
     flexDirection: "row",
     alignItems: "center",
   },
   locationText: {
-    color: "#1877f2",
+    color: COLORS.primary,
     fontSize: 14,
     marginLeft: 4,
-    fontFamily: 'sans-serif'
   },
   productGrid: {
     paddingHorizontal: 8,
@@ -282,7 +258,7 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     margin: 8,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.white,
     borderRadius: 12,
     overflow: "hidden",
     shadowColor: "#000",
@@ -307,16 +283,14 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   cardPrice: {
-    color: "#fff",
+    color: COLORS.white,
     fontSize: 16,
     fontWeight: "bold",
-    fontFamily: 'sans-serif-medium'
   },
   cardTitle: {
     fontSize: 15,
     fontWeight: "500",
-    color: "#222",
+    color: COLORS.text,
     padding: 12,
-    fontFamily: 'sans-serif-medium'
   },
 });

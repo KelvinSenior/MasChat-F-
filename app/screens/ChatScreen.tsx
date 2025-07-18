@@ -2,7 +2,7 @@ import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { StatusBar, ActivityIndicator, FlatList, Image, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import client, { BASE_URL } from '../api/client';
 import { Client } from '@stomp/stompjs';
@@ -75,7 +75,7 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (!currentUser?.id || !recipient?.id) return;
-    const socket = new SockJS('http://192.168.156.125:8080/ws-chat');
+    const socket = new SockJS('http://10.132.74.85:8080/ws-chat');
     const client = new Client({
       webSocketFactory: () => socket,
       debug: str => console.log(str),
@@ -187,10 +187,11 @@ export default function ChatScreen() {
 
   return (
     <LinearGradient colors={['#f5f7fa', '#e4e8f0']} style={styles.container}>
+      <StatusBar backgroundColor="#1877f2" barStyle="light-content" translucent />
       {/* Header */}
       <LinearGradient
         colors={['#1877f2', '#0a5bc4']}
-        style={styles.header}
+        style={[styles.header, { paddingTop: Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 0) + 10 }]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
       >
@@ -300,7 +301,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 48,
+    // paddingTop handled inline
     paddingBottom: 12,
     paddingHorizontal: 12,
     borderBottomLeftRadius: 16,

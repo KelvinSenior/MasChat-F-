@@ -11,6 +11,16 @@ import {
   View,
 } from "react-native";
 
+// Color Palette (matching home screen)
+const COLORS = {
+  primary: '#0A2463',  // Deep Blue
+  accent: '#FF7F11',   // Vibrant Orange
+  background: '#F5F7FA',
+  white: '#FFFFFF',
+  text: '#333333',
+  lightText: '#888888',
+};
+
 const notifications = [
   {
     id: 1,
@@ -81,51 +91,41 @@ export default function Notifications() {
   const router = useRouter();
 
   return (
-    <LinearGradient colors={['#f5f7fa', '#e4e8f0']} style={styles.container}>
+    <View style={styles.container}>
       {/* Header */}
       <LinearGradient
-        colors={['#1877f2', '#0a5bc4']}
+        colors={[COLORS.primary, '#1A4B8C']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
       >
-        <Text style={styles.headerTitle}>Notifications</Text>
+        <Text style={styles.logo}>
+          Mas<Text style={{ color: COLORS.accent }}>Chat</Text>
+        </Text>
         <TouchableOpacity
           onPress={() => router.push("../screens/SearchScreen")}
           style={styles.iconBtn}
         >
-          <LinearGradient 
-            colors={['#4facfe', '#00f2fe']} 
-            style={styles.iconBtnGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Ionicons name="search" size={20} color="white" />
-          </LinearGradient>
+          <Ionicons name="search" size={24} color="white" />
         </TouchableOpacity>
       </LinearGradient>
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
+      {/* Notifications Title */}
+      <View style={styles.notificationsHeader}>
+        <Text style={styles.notificationsTitle}>Notifications</Text>
+      </View>
+
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <Text style={styles.sectionLabel}>New</Text>
         {notifications.map((item) => (
           <View key={item.id} style={styles.card}>
             <View style={styles.row}>
               {item.isReport ? (
-                <LinearGradient
-                  colors={['#4facfe', '#00f2fe']}
-                  style={styles.reportIconWrap}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
+                <View style={[styles.avatarContainer, { backgroundColor: COLORS.primary }]}>
                   <FontAwesome name="flag" size={20} color="white" />
-                </LinearGradient>
+                </View>
               ) : (
-                <LinearGradient
-                  colors={['#a18cd1', '#fbc2eb']}
-                  style={styles.avatarContainer}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
+                <View style={styles.avatarContainer}>
                   <Image
                     source={
                       typeof item.avatar === "string"
@@ -134,7 +134,7 @@ export default function Notifications() {
                     }
                     style={styles.avatar}
                   />
-                </LinearGradient>
+                </View>
               )}
               <View style={{ flex: 1 }}>
                 <Text style={styles.messageText}>
@@ -149,7 +149,7 @@ export default function Notifications() {
                 {item.time && <Text style={styles.time}>{item.time}</Text>}
               </View>
               <TouchableOpacity>
-                <Ionicons name="ellipsis-horizontal" size={20} color="#888" />
+                <Ionicons name="ellipsis-horizontal" size={20} color={COLORS.lightText} />
               </TouchableOpacity>
             </View>
             {item.actions && (
@@ -157,27 +157,17 @@ export default function Notifications() {
                 {item.actions.map((action) => (
                   <TouchableOpacity
                     key={action}
-                    style={styles.actionBtn}
+                    style={[
+                      styles.actionBtn,
+                      (action === "Confirm" || action === "Remix") ? styles.primaryAction : styles.secondaryAction
+                    ]}
                   >
-                    <LinearGradient
-                      colors={
-                        action === "Confirm" || action === "Remix" 
-                          ? ['#4facfe', '#00f2fe'] 
-                          : ['#e4e6eb', '#d8dadf']
-                      }
-                      style={styles.actionBtnGradient}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                    >
-                      <Text style={[
-                        styles.actionText,
-                        action === "Confirm" || action === "Remix"
-                          ? styles.primaryText
-                          : styles.secondaryText
-                      ]}>
-                        {action}
-                      </Text>
-                    </LinearGradient>
+                    <Text style={[
+                      styles.actionText,
+                      (action === "Confirm" || action === "Remix") ? styles.primaryText : styles.secondaryText
+                    ]}>
+                      {action}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -185,68 +175,69 @@ export default function Notifications() {
           </View>
         ))}
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingTop: 50,
     paddingHorizontal: 16,
     paddingBottom: 12,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowRadius: 4,
     elevation: 5,
   },
-  headerTitle: {
+  logo: {
     fontSize: 24,
-    fontWeight: "bold",
-    color: "white",
-    flex: 1,
-    fontFamily: 'sans-serif-medium',
-    textShadowColor: 'rgba(0,0,0,0.1)',
-    textShadowOffset: {width: 1, height: 1},
-    textShadowRadius: 2
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  notificationsHeader: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  notificationsTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: COLORS.text,
   },
   iconBtn: {
-    borderRadius: 18,
-    overflow: 'hidden',
-  },
-  iconBtnGradient: {
     width: 36,
     height: 36,
     borderRadius: 18,
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   scroll: {
     flex: 1,
-    paddingTop: 8,
+  },
+  scrollContent: {
+    paddingBottom: 80,
   },
   sectionLabel: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#222",
+    color: COLORS.text,
     marginTop: 16,
     marginBottom: 12,
     marginLeft: 16,
-    fontFamily: 'sans-serif-medium'
   },
   card: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
     marginHorizontal: 16,
     marginBottom: 12,
     padding: 16,
@@ -270,46 +261,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
-    padding: 2
+    backgroundColor: '#e4e6eb',
+    overflow: 'hidden',
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 2,
-    borderColor: 'white'
-  },
-  reportIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
+    width: '100%',
+    height: '100%',
   },
   messageText: {
     fontSize: 15,
-    color: "#222",
+    color: COLORS.text,
     marginBottom: 4,
     lineHeight: 20,
-    fontFamily: 'sans-serif'
   },
   bold: {
     fontWeight: "bold",
-    color: "#222",
-    fontFamily: 'sans-serif-medium'
+    color: COLORS.text,
   },
   mutual: {
     fontSize: 13,
-    color: "#666",
+    color: COLORS.lightText,
     marginBottom: 4,
-    fontFamily: 'sans-serif'
   },
   time: {
     fontSize: 12,
-    color: "#888",
+    color: COLORS.lightText,
     marginTop: 4,
-    fontFamily: 'sans-serif'
   },
   actionsRow: {
     flexDirection: "row",
@@ -318,24 +295,24 @@ const styles = StyleSheet.create({
     gap: 8
   },
   actionBtn: {
-    borderRadius: 8,
-    overflow: 'hidden'
-  },
-  actionBtnGradient: {
+    borderRadius: 6,
     paddingVertical: 8,
     paddingHorizontal: 16,
-    justifyContent: 'center',
-    alignItems: 'center'
+  },
+  primaryAction: {
+    backgroundColor: COLORS.primary,
+  },
+  secondaryAction: {
+    backgroundColor: '#e4e6eb',
   },
   actionText: {
     fontSize: 15,
     fontWeight: "bold",
-    fontFamily: 'sans-serif-medium'
   },
   primaryText: {
-    color: "#fff",
+    color: COLORS.white,
   },
   secondaryText: {
-    color: "#222",
+    color: COLORS.text,
   },
 });

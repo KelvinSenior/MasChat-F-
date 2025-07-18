@@ -9,6 +9,16 @@ import Toast from 'react-native-toast-message';
 import { useAuth } from '../context/AuthContext';
 import client, { BASE_URL, testConnection } from '../api/client';
 
+// Color Palette (matching home screen)
+const COLORS = {
+  primary: '#0A2463',  // Deep Blue
+  accent: '#FF7F11',   // Vibrant Orange
+  background: '#F5F7FA',
+  white: '#FFFFFF',
+  text: '#333333',
+  lightText: '#888888',
+};
+
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -121,133 +131,139 @@ export default function Login() {
   useEffect(() => { testConnection(); }, []);
 
   return (
-    <LinearGradient colors={['#f5f7fa', '#e4e8f0']} style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f5f7fa" />
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
       
-      <Animatable.View animation="fadeInDown" duration={1000} style={styles.header}>
-        <Image
-          source={require("../../assets/GROUP 88-MasChat.png")}
-          style={styles.logo}
-        />
-        <Text style={styles.title}>Welcome Back!</Text>
-        <Text style={styles.subtitle}>Connect, chat, and share with MasChat</Text>
-      </Animatable.View>
+      {/* Header matching home screen */}
+      <LinearGradient
+        colors={[COLORS.primary, '#1A4B8C']}
+        style={styles.header}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+      >
+        <Text style={styles.logo}>
+          Mas<Text style={{ color: COLORS.accent }}>Chat</Text>
+        </Text>
+      </LinearGradient>
 
-      <Animatable.View animation="fadeInUp" duration={1000} style={styles.form}>
-        {/* Username Input */}
-        <View style={styles.inputContainer}>
-          <Ionicons name="person-outline" size={20} color="#888" style={styles.inputIcon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Username"
-            placeholderTextColor="#888"
-            value={username}
-            onChangeText={setUsername}
-            autoCapitalize="none"
-          />
-        </View>
-        {errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
+      <Animatable.View animation="fadeInUp" duration={1000} style={styles.content}>
+        <View style={styles.formContainer}>
+          <Text style={styles.title}>Welcome Back!</Text>
+          <Text style={styles.subtitle}>Connect, chat, and share with MasChat</Text>
 
-        {/* Password Input */}
-        <View style={styles.inputContainer}>
-          <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="#888"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry={!showPassword}
-          />
-          <TouchableOpacity onPress={() => setShowPassword((prev) => !prev)}>
-            <Ionicons
-              name={showPassword ? "eye-off-outline" : "eye-outline"}
-              size={22}
-              color="#888"
+          {/* Username Input */}
+          <View style={styles.inputContainer}>
+            <Ionicons name="person-outline" size={20} color={COLORS.lightText} style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Username"
+              placeholderTextColor={COLORS.lightText}
+              value={username}
+              onChangeText={setUsername}
+              autoCapitalize="none"
             />
+          </View>
+          {errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
+
+          {/* Password Input */}
+          <View style={styles.inputContainer}>
+            <Ionicons name="lock-closed-outline" size={20} color={COLORS.lightText} style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              placeholderTextColor={COLORS.lightText}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity onPress={() => setShowPassword((prev) => !prev)}>
+              <Ionicons
+                name={showPassword ? "eye-off-outline" : "eye-outline"}
+                size={22}
+                color={COLORS.lightText}
+              />
+            </TouchableOpacity>
+          </View>
+          {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+
+          <TouchableOpacity
+            style={[styles.button, loading && styles.disabledButton]}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            <LinearGradient
+              colors={loading ? ['#ccc', '#ccc'] : [COLORS.primary, '#1A4B8C']}
+              style={styles.buttonGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Text style={styles.buttonText}>
+                {loading ? 'Logging in...' : 'Log In'}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+          
+          <TouchableOpacity>
+            <Text style={styles.forgot}>Forgot Password?</Text>
+          </TouchableOpacity>
+          
+          <View style={styles.dividerContainer}>
+            <View style={styles.divider} />
+            <Text style={styles.or}>OR</Text>
+            <View style={styles.divider} />
+          </View>
+          
+          <TouchableOpacity
+            style={[styles.createButton, loading && styles.disabledButton]}
+            onPress={() => router.push("/(auth)/signup")}
+            disabled={loading}
+          >
+            <LinearGradient
+              colors={loading ? ['#ccc', '#ccc'] : [COLORS.accent, '#FF9E40']}
+              style={styles.createButtonGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Text style={styles.createButtonText}>
+                {loading ? 'Creating...' : 'Create New Account'}
+              </Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
-        {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-
-        <TouchableOpacity
-          style={[styles.button, loading && styles.disabledButton]}
-          onPress={handleLogin}
-          disabled={loading}
-        >
-          <LinearGradient
-            colors={loading ? ['#ccc', '#ccc'] : ['#1877f2', '#1877f2']}
-            style={styles.buttonGradient}
-          >
-            <Text style={styles.buttonText}>
-              {loading ? 'Logging in...' : 'Log In'}
-            </Text>
-          </LinearGradient>
-        </TouchableOpacity>
-        
-        <TouchableOpacity>
-          <Text style={styles.forgot}>Forgot Password?</Text>
-        </TouchableOpacity>
-        
-        <View style={styles.dividerContainer}>
-          <View style={styles.divider} />
-          <Text style={styles.or}>OR</Text>
-          <View style={styles.divider} />
-        </View>
-        
-        <TouchableOpacity
-          style={[styles.createButton, loading && styles.disabledButton]}
-          onPress={() => router.push("/(auth)/signup")}
-          disabled={loading}
-        >
-          <LinearGradient
-            colors={loading ? ['#ccc', '#ccc'] : ['#fff', '#fff']}
-            style={styles.createButtonGradient}
-          >
-            <Text style={styles.createButtonText}>
-              {loading ? 'Creating...' : 'Create New Account'}
-            </Text>
-          </LinearGradient>
-        </TouchableOpacity>
       </Animatable.View>
       <Toast />
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 24,
+    backgroundColor: COLORS.background,
   },
   header: {
-    alignItems: "center",
-    marginBottom: 24,
-    paddingTop: 40,
+    paddingTop: 50,
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
   },
   logo: {
-    width: 120,
-    height: 120,
-    resizeMode: "contain",
-    marginBottom: 8,
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
   },
-  title: {
-    color: "#1877f2",
-    fontSize: 28,
-    fontWeight: "bold",
-    marginTop: 4,
-    fontFamily: 'sans-serif-medium',
-    textShadowColor: 'rgba(0,0,0,0.1)',
-    textShadowOffset: {width: 1, height: 1},
-    textShadowRadius: 2
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
   },
-  subtitle: {
-    color: "#666",
-    fontSize: 16,
-    marginTop: 2,
-    fontFamily: 'sans-serif'
-  },
-  form: {
-    backgroundColor: "#fff",
+  formContainer: {
+    backgroundColor: COLORS.white,
     borderRadius: 16,
     padding: 24,
     shadowColor: "#000",
@@ -256,10 +272,23 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
+  title: {
+    color: COLORS.primary,
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  subtitle: {
+    color: COLORS.lightText,
+    fontSize: 16,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f0f2f5",
+    backgroundColor: '#F0F2F5',
     borderRadius: 12,
     paddingHorizontal: 16,
     marginBottom: 8,
@@ -270,13 +299,13 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    color: "#222",
+    color: COLORS.text,
     fontSize: 16,
-    fontFamily: 'sans-serif'
   },
   button: {
     borderRadius: 12,
     overflow: 'hidden',
+    marginTop: 16,
     marginBottom: 16,
     height: 50,
   },
@@ -289,17 +318,15 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   buttonText: {
-    color: "#fff",
-    fontSize: 18,
+    color: COLORS.white,
+    fontSize: 16,
     fontWeight: "bold",
-    fontFamily: 'sans-serif-medium'
   },
   forgot: {
-    color: "#1877f2",
+    color: COLORS.primary,
     textAlign: "center",
     marginBottom: 16,
-    fontSize: 15,
-    fontFamily: 'sans-serif-medium'
+    fontSize: 14,
   },
   dividerContainer: {
     flexDirection: "row",
@@ -312,18 +339,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#e4e6eb",
   },
   or: {
-    color: "#888",
+    color: COLORS.lightText,
     marginHorizontal: 10,
     fontWeight: "bold",
-    fontFamily: 'sans-serif-medium'
+    fontSize: 14,
   },
   createButton: {
-    backgroundColor: "#fff",
     borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#1877f2",
+    overflow: 'hidden',
+    height: 50,
   },
   createButtonGradient: {
     flex: 1,
@@ -331,16 +355,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   createButtonText: {
-    color: "#1877f2",
+    color: COLORS.white,
     fontSize: 16,
     fontWeight: "bold",
-    fontFamily: 'sans-serif-medium'
   },
   errorText: {
     color: "#f02849",
     fontSize: 13,
     marginBottom: 12,
     marginLeft: 12,
-    fontFamily: 'sans-serif'
   },
 });

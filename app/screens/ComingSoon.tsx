@@ -1,12 +1,13 @@
 import React from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, StatusBar, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 
 export default function ComingSoon() {
   const router = useRouter();
   return (
-    <LinearGradient colors={['#f5f7fa', '#e4e8f0']} style={styles.container}>
+    <LinearGradient colors={['#f5f7fa', '#e4e8f0']} style={[styles.container, { paddingTop: Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 0) }] }>
+      <StatusBar backgroundColor="#f5f7fa" barStyle="dark-content" translucent />
       <View style={styles.content}>
         <Text style={styles.title}>🚀 Coming Soon 🚀</Text>
         <Text style={styles.subtitle}>This feature is coming soon. Stay tuned for updates!</Text>

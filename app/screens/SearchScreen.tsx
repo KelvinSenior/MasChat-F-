@@ -2,9 +2,18 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import ModernButton from '../../components/ModernButton';
+import { FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View, StatusBar, Platform } from "react-native";
 import client, { BASE_URL } from '../api/client';
+
+// Color Palette (matching home screen)
+const COLORS = {
+  primary: '#0A2463',  // Deep Blue
+  accent: '#FF7F11',   // Vibrant Orange
+  background: '#F5F7FA',
+  white: '#FFFFFF',
+  text: '#333333',
+  lightText: '#888888',
+};
 
 const RECENTS = [
   { 
@@ -56,6 +65,7 @@ export default function SearchScreen() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const router = useRouter();
 
   React.useEffect(() => {
@@ -77,149 +87,173 @@ export default function SearchScreen() {
     return () => clearTimeout(timeout);
   }, [query]);
 
+  const handleSearchPress = () => {
+    setIsSearchFocused(true);
+  };
+
+  const handleSearchBlur = () => {
+    setIsSearchFocused(false);
+  };
+
   return (
-    <LinearGradient colors={['#f5f7fa', '#e4e8f0']} style={styles.container}>
+    <View style={styles.container}>
+      <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" translucent />
       {/* Header */}
       <LinearGradient
-        colors={['#1877f2', '#0a5bc4']}
-        style={styles.header}
+        colors={[COLORS.primary, '#1A4B8C']}
+        style={[styles.header, { paddingTop: Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 0) + 10 }]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
       >
         <TouchableOpacity onPress={() => router.back()} style={styles.headerIcon}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+          <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         <View style={styles.searchContainer}>
-          <View style={styles.inputWrapper}>
-            <Ionicons name="search" size={20} color="#888" style={styles.searchIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Search with Meta AI"
-              placeholderTextColor="#888"
-              value={query}
-              onChangeText={setQuery}
-              autoFocus
-            />
-            {query.length > 0 && (
-              <TouchableOpacity onPress={() => setQuery("")}>
-                <Ionicons name="close-circle" size={20} color="#888" />
-              </TouchableOpacity>
-            )}
-          </View>
+          <TouchableOpacity 
+            style={styles.inputWrapper}
+            activeOpacity={1}
+          >
+            <Ionicons name="search" size={20} color={COLORS.lightText} style={styles.searchIcon} />
+            <Text style={styles.searchPlaceholder}>Search with Meta AI</Text>
+          </TouchableOpacity>
+          {isSearchFocused && (
+            <View style={styles.searchInputContainer}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search with Meta AI"
+                placeholderTextColor={COLORS.lightText}
+                value={query}
+                onChangeText={setQuery}
+                autoFocus
+                onBlur={handleSearchBlur}
+              />
+              {query.length > 0 && (
+                <TouchableOpacity onPress={() => setQuery("")}> 
+                  <Ionicons name="close-circle" size={20} color={COLORS.lightText} />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
         </View>
       </LinearGradient>
 
       {/* Recent Searches */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent searches</Text>
-          <TouchableOpacity>
-            <Text style={styles.seeAll}>Edit</Text>
-          </TouchableOpacity>
-        </View>
-        <FlatList
-          data={RECENTS}
-          keyExtractor={item => item.id}
-          renderItem={({ item }) => (
-            <TouchableOpacity style={styles.item}>
-              {item.type === "user" ? (
-                <Image source={{ uri: item.image }} style={styles.itemImage} />
-              ) : (
-                <View style={[styles.iconContainer, { backgroundColor: `${item.color}20` }]}>
-                  <Ionicons name={item.icon as any} size={22} color={item.color} />
-                </View>
-              )}
-              <Text style={styles.itemLabel}>{item.label}</Text>
-              <Ionicons 
-                name="ellipsis-horizontal" 
-                size={20} 
-                color="#888" 
-                style={{ marginLeft: "auto" }} 
-              />
+      {!isSearchFocused && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recent searches</Text>
+            <TouchableOpacity>
+              <Text style={styles.seeAll}>Edit</Text>
             </TouchableOpacity>
-          )}
-          contentContainerStyle={{ paddingBottom: 80 }}
-        />
-      </View>
+          </View>
+          <FlatList
+            data={RECENTS}
+            keyExtractor={item => item.id}
+            renderItem={({ item }) => (
+              <TouchableOpacity style={styles.item}>
+                {item.type === "user" ? (
+                  <Image source={{ uri: item.image }} style={styles.itemImage} />
+                ) : (
+                  <View style={[styles.iconContainer, { backgroundColor: `${item.color}20` }]}>
+                    <Ionicons name={item.icon as any} size={22} color={item.color} />
+                  </View>
+                )}
+                <Text style={styles.itemLabel}>{item.label}</Text>
+                <Ionicons 
+                  name="ellipsis-horizontal" 
+                  size={20} 
+                  color={COLORS.lightText} 
+                  style={{ marginLeft: "auto" }} 
+                />
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      )}
 
       {/* Suggestions */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Suggestions</Text>
-        <FlatList
-          data={SUGGESTIONS}
-          keyExtractor={item => item.id}
-          renderItem={({ item }) => (
-            <TouchableOpacity style={styles.suggestionItem}>
-              <View style={styles.suggestionIcon}>
-                <Ionicons name={item.icon as any} size={20} color="#1877f2" />
-              </View>
-              <Text style={styles.suggestionLabel}>{item.label}</Text>
-            </TouchableOpacity>
-          )}
-          contentContainerStyle={{ paddingBottom: 80 }}
-        />
-      </View>
+      {!isSearchFocused && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Suggestions</Text>
+          <FlatList
+            data={SUGGESTIONS}
+            keyExtractor={item => item.id}
+            renderItem={({ item }) => (
+              <TouchableOpacity style={styles.suggestionItem}>
+                <View style={styles.suggestionIcon}>
+                  <Ionicons name={item.icon as any} size={20} color={COLORS.primary} />
+                </View>
+                <Text style={styles.suggestionLabel}>{item.label}</Text>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      )}
 
       {/* User Search Results */}
-      {query.length > 0 && (
+      {isSearchFocused && query.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Users</Text>
           {loading ? (
-            <Text style={{padding: 16}}>Searching...</Text>
+            <Text style={styles.loadingText}>Searching...</Text>
           ) : results.length === 0 ? (
-            <Text style={{padding: 16}}>No users found.</Text>
+            <Text style={styles.noResultsText}>No users found.</Text>
           ) : (
             <FlatList
               data={results}
               keyExtractor={item => item.id?.toString() || item.username}
               renderItem={({ item }) => (
-                <TouchableOpacity style={styles.item} onPress={() => router.push({ pathname: '/(tabs)/profile', params: { user: JSON.stringify(item) } })}>
-                  <Image source={{ uri: item.profilePicture || 'https://i.imgur.com/6XbK6bE.jpg' }} style={styles.itemImage} />
+                <TouchableOpacity 
+                  style={styles.item} 
+                  onPress={() => router.push({ pathname: '/(tabs)/profile', params: { user: JSON.stringify(item) } })}
+                >
+                  <Image 
+                    source={{ uri: item.profilePicture || 'https://i.imgur.com/6XbK6bE.jpg' }} 
+                    style={styles.itemImage} 
+                  />
                   <Text style={styles.itemLabel}>{item.fullName || item.username}</Text>
-                  <Ionicons name="chevron-forward" size={20} color="#888" style={{ marginLeft: "auto" }} />
+                  <Ionicons name="chevron-forward" size={20} color={COLORS.lightText} style={{ marginLeft: "auto" }} />
                 </TouchableOpacity>
               )}
-              contentContainerStyle={{ paddingBottom: 80 }}
             />
           )}
         </View>
       )}
 
       {/* Quick Actions */}
-      <View style={styles.quickActions}>
-        <TouchableOpacity style={styles.quickAction}>
-          <MaterialCommunityIcons name="qrcode-scan" size={24} color="#1877f2" />
-          <Text style={styles.quickActionText}>Scan QR code</Text>
-        </TouchableOpacity>
-        <View style={styles.quickActionDivider} />
-        <TouchableOpacity style={styles.quickAction}>
-          <Ionicons name="person-add" size={24} color="#1877f2" />
-          <Text style={styles.quickActionText}>Add friends</Text>
-        </TouchableOpacity>
-      </View>
-    </LinearGradient>
+      {!isSearchFocused && (
+        <View style={styles.quickActions}>
+          <TouchableOpacity style={styles.quickAction}>
+            <MaterialCommunityIcons name="qrcode-scan" size={24} color={COLORS.primary} />
+            <Text style={styles.quickActionText}>Scan QR code</Text>
+          </TouchableOpacity>
+          <View style={styles.quickActionDivider} />
+          <TouchableOpacity style={styles.quickAction}>
+            <Ionicons name="person-add" size={24} color={COLORS.primary} />
+            <Text style={styles.quickActionText}>Add friends</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { 
     flex: 1,
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingTop: 48,
-    paddingBottom: 12,
+    justifyContent: "space-between",
+    // paddingTop handled inline
     paddingHorizontal: 16,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    paddingBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowRadius: 4,
     elevation: 5,
   },
   headerIcon: { 
@@ -228,11 +262,12 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     flex: 1,
+    position: 'relative',
   },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.white,
     borderRadius: 20,
     paddingHorizontal: 14,
     height: 40,
@@ -240,14 +275,31 @@ const styles = StyleSheet.create({
   searchIcon: {
     marginRight: 8,
   },
-  input: { 
+  searchPlaceholder: {
+    flex: 1,
+    fontSize: 16,
+    color: COLORS.lightText,
+  },
+  searchInputContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.white,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    height: 40,
+    zIndex: 10,
+  },
+  searchInput: { 
     flex: 1, 
     fontSize: 16, 
-    color: "#222",
-    fontFamily: 'sans-serif'
+    color: COLORS.text,
   },
   section: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.white,
     borderRadius: 12,
     marginHorizontal: 16,
     marginTop: 16,
@@ -258,8 +310,8 @@ const styles = StyleSheet.create({
       height: 1,
     },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowRadius: 8,
+    elevation: 3,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -273,13 +325,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#222",
-    fontFamily: 'sans-serif-medium'
+    color: COLORS.text,
   },
   seeAll: { 
-    color: "#1877f2", 
+    color: COLORS.primary, 
     fontSize: 14,
-    fontFamily: 'sans-serif-medium'
   },
   item: {
     flexDirection: "row",
@@ -304,8 +354,7 @@ const styles = StyleSheet.create({
   itemLabel: {
     flex: 1,
     fontSize: 16,
-    color: "#222",
-    fontFamily: 'sans-serif'
+    color: COLORS.text,
   },
   suggestionItem: {
     flexDirection: "row",
@@ -317,20 +366,19 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#e7f3ff",
+    backgroundColor: '#e7f3ff',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   suggestionLabel: {
     fontSize: 16,
-    color: "#222",
-    fontFamily: 'sans-serif'
+    color: COLORS.text,
   },
   quickActions: {
     flexDirection: "row",
     justifyContent: "space-around",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.white,
     borderRadius: 12,
     margin: 16,
     paddingVertical: 12,
@@ -340,8 +388,8 @@ const styles = StyleSheet.create({
       height: 1,
     },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowRadius: 8,
+    elevation: 3,
   },
   quickAction: {
     alignItems: "center",
@@ -349,12 +397,19 @@ const styles = StyleSheet.create({
   },
   quickActionText: {
     fontSize: 12,
-    color: "#1877f2",
+    color: COLORS.primary,
     marginTop: 4,
-    fontFamily: 'sans-serif-medium'
   },
   quickActionDivider: {
     width: 1,
     backgroundColor: "#e4e6eb",
+  },
+  loadingText: {
+    padding: 16,
+    color: COLORS.text,
+  },
+  noResultsText: {
+    padding: 16,
+    color: COLORS.lightText,
   },
 });
