@@ -44,7 +44,13 @@ export default function LiveScreen() {
     <View style={styles.container}>
       <CameraView style={styles.camera} facing={facing}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity onPress={() => {
+            if (router.canGoBack?.()) {
+              router.back();
+            } else {
+              router.replace('/(tabs)/home');
+            }
+          }}>
             <Ionicons name="close" size={28} color="white" />
           </TouchableOpacity>
           

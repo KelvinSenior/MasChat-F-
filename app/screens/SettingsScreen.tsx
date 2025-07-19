@@ -72,7 +72,13 @@ export default function SettingsScreen() {
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
       >
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerIcon}>
+        <TouchableOpacity onPress={() => {
+          if (router.canGoBack?.()) {
+            router.back();
+          } else {
+            router.replace('/(tabs)/home');
+          }
+        }} style={styles.headerIcon}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Settings & Privacy</Text>

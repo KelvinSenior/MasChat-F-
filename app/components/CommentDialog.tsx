@@ -2,7 +2,14 @@ import React, { useState } from "react";
 import { Modal, View, TextInput, TouchableOpacity, Text, StyleSheet } from "react-native";
 import { addComment } from "../lib/services/postService";
 
-export default function CommentDialog({ postId, userId, onClose, onComment }) {
+interface CommentDialogProps {
+  postId: string;
+  userId: string;
+  onClose: () => void;
+  onComment: () => void;
+}
+
+export default function CommentDialog({ postId, userId, onClose, onComment }: CommentDialogProps) {
   const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(false);
 

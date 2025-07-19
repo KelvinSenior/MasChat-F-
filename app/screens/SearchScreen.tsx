@@ -1,99 +1,97 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
-import { FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View, StatusBar, Platform } from "react-native";
-import client, { BASE_URL } from '../api/client';
+import React, { useState, useEffect } from "react";
+import { FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View, StatusBar, Platform, ActivityIndicator, ScrollView } from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import client from '../api/client';
 
-// Color Palette (matching home screen)
 const COLORS = {
-  primary: '#0A2463',  // Deep Blue
-  accent: '#FF7F11',   // Vibrant Orange
+  primary: '#0A2463',
+  accent: '#FF7F11',
   background: '#F5F7FA',
   white: '#FFFFFF',
   text: '#333333',
   lightText: '#888888',
 };
 
-const RECENTS = [
-  { 
-    id: "1", 
-    label: "Akanakoji Kyojiro", 
-    icon: "time-outline", 
-    color: "#888",
-    image: "https://randomuser.me/api/portraits/men/32.jpg",
-    type: "user"
-  },
-  { 
-    id: "2", 
-    label: "Friends", 
-    icon: "people", 
-    color: "#3b82f6",
-    type: "group"
-  },
-  { 
-    id: "3", 
-    label: "Birthdays", 
-    icon: "happy", 
-    color: "#10b981",
-    type: "event"
-  },
-  { 
-    id: "4", 
-    label: "Marketplace", 
-    icon: "storefront", 
-    color: "#f59e0b",
-    type: "marketplace"
-  },
-  { 
-    id: "5", 
-    label: "Memories", 
-    icon: "time", 
-    color: "#8b5cf6",
-    type: "memory"
-  },
+const FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'users', label: 'Users' },
+  { key: 'posts', label: 'Posts' },
+  { key: 'reels', label: 'Reels' },
 ];
 
 const SUGGESTIONS = [
-  { id: "s1", label: "People you may know", icon: "person-add" },
-  { id: "s2", label: "Popular posts", icon: "trending-up" },
-  { id: "s3", label: "Live videos", icon: "videocam" },
-  { id: "s4", label: "Gaming videos", icon: "game-controller" },
+  'Football', 'iPhone', 'Jobs', 'Fashion', 'Apartment', 'Music', 'Pets', 'Laptop', 'Car', 'Camera', 'Shoes', 'Books', 'Beauty', 'Bicycle', 'Services', 'Home',
 ];
 
 export default function SearchScreen() {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [posts, setPosts] = useState<any[]>([]);
+  const [reels, setReels] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [recent, setRecent] = useState<string[]>([]);
+  const [filter, setFilter] = useState('all');
   const router = useRouter();
 
-  React.useEffect(() => {
-    if (query.trim().length === 0) {
-      setResults([]);
-      return;
-    }
+  useEffect(() => {
+    loadRecent();
+  }, []);
+
+  const loadRecent = async () => {
+    const stored = await AsyncStorage.getItem('recentSearches');
+    if (stored) setRecent(JSON.parse(stored));
+  };
+
+  const saveRecent = async (q: string) => {
+    let updated = [q, ...recent.filter(r => r !== q)].slice(0, 8);
+    setRecent(updated);
+    await AsyncStorage.setItem('recentSearches', JSON.stringify(updated));
+  };
+
+  const clearRecent = async () => {
+    setRecent([]);
+    await AsyncStorage.removeItem('recentSearches');
+  };
+
+  const handleSearch = async (q?: string) => {
+    const searchTerm = typeof q === 'string' ? q : query;
+    if (!searchTerm.trim()) return;
     setLoading(true);
-    const timeout = setTimeout(async () => {
-      try {
-        const res = await client.get(`/users/search?query=${encodeURIComponent(query)}`);
-        setResults(res.data);
-      } catch (e) {
-        setResults([]);
-      } finally {
-        setLoading(false);
-      }
-    }, 300);
-    return () => clearTimeout(timeout);
-  }, [query]);
-
-  const handleSearchPress = () => {
-    setIsSearchFocused(true);
+    try {
+      const [userRes, postRes, reelRes] = await Promise.all([
+        client.get(`/users/search?query=${encodeURIComponent(searchTerm)}`),
+        client.get(`/posts/search?query=${encodeURIComponent(searchTerm)}`),
+        client.get(`/reels/search?query=${encodeURIComponent(searchTerm)}`),
+      ]);
+      setUsers(userRes.data);
+      setPosts(postRes.data);
+      setReels(reelRes.data);
+      await saveRecent(searchTerm);
+    } catch (e) {
+      setUsers([]); setPosts([]); setReels([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSearchBlur = () => {
-    setIsSearchFocused(false);
+  const handleResultPress = (type: string, item: any) => {
+    if (type === 'user') {
+      router.push({ pathname: '/screens/FriendsProfileScreen', params: { userId: item.id } });
+    } else if (type === 'post') {
+      router.push({ pathname: '/screens/PostViewerScreen', params: { postId: item.id } });
+    } else if (type === 'reel') {
+      router.push({ pathname: '/screens/ReelViewerScreen', params: { reelId: item.id } });
+    }
   };
+
+  // Filtered results
+  const showUsers = filter === 'all' || filter === 'users';
+  const showPosts = filter === 'all' || filter === 'posts';
+  const showReels = filter === 'all' || filter === 'reels';
 
   return (
     <View style={styles.container}>
@@ -105,311 +103,145 @@ export default function SearchScreen() {
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
       >
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerIcon}>
+        <TouchableOpacity onPress={() => {
+          if (router.canGoBack?.()) {
+            router.back();
+          } else {
+            router.replace('/(tabs)/home');
+          }
+        }} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <View style={styles.searchContainer}>
-          <TouchableOpacity 
-            style={styles.inputWrapper}
-            activeOpacity={1}
-          >
-            <Ionicons name="search" size={20} color={COLORS.lightText} style={styles.searchIcon} />
-            <Text style={styles.searchPlaceholder}>Search with Meta AI</Text>
-          </TouchableOpacity>
-          {isSearchFocused && (
-            <View style={styles.searchInputContainer}>
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search with Meta AI"
-                placeholderTextColor={COLORS.lightText}
-                value={query}
-                onChangeText={setQuery}
-                autoFocus
-                onBlur={handleSearchBlur}
-              />
-              {query.length > 0 && (
-                <TouchableOpacity onPress={() => setQuery("")}> 
-                  <Ionicons name="close-circle" size={20} color={COLORS.lightText} />
+        <Text style={styles.headerTitle}>Search</Text>
+      </LinearGradient>
+      {/* Search Bar */}
+      <View style={styles.searchBar}>
+        <Ionicons name="search" size={20} color={COLORS.lightText} style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search users, posts, reels..."
+          placeholderTextColor={COLORS.lightText}
+          value={query}
+          onChangeText={setQuery}
+          onFocus={() => setIsSearchFocused(true)}
+          onBlur={() => setIsSearchFocused(false)}
+          onSubmitEditing={() => handleSearch()}
+          returnKeyType="search"
+        />
+      </View>
+      {/* Suggestions & Recent */}
+      {isSearchFocused && !query.trim() && (
+        <ScrollView style={styles.suggestionsScroll}>
+          {recent.length > 0 && (
+            <View style={styles.suggestionSection}>
+              <View style={styles.suggestionHeader}>
+                <Text style={styles.suggestionTitle}>Recent Searches</Text>
+                <TouchableOpacity onPress={clearRecent}><Text style={styles.clearBtn}>Clear</Text></TouchableOpacity>
+              </View>
+              {recent.map((r, i) => (
+                <TouchableOpacity key={i} style={styles.suggestionRow} onPress={() => { setQuery(r); handleSearch(r); }}>
+                  <Ionicons name="time-outline" size={18} color={COLORS.lightText} style={{ marginRight: 8 }} />
+                  <Text style={styles.suggestionText}>{r}</Text>
                 </TouchableOpacity>
-              )}
+              ))}
             </View>
           )}
-        </View>
-      </LinearGradient>
-
-      {/* Recent Searches */}
-      {!isSearchFocused && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent searches</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAll}>Edit</Text>
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            data={RECENTS}
-            keyExtractor={item => item.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity style={styles.item}>
-                {item.type === "user" ? (
-                  <Image source={{ uri: item.image }} style={styles.itemImage} />
-                ) : (
-                  <View style={[styles.iconContainer, { backgroundColor: `${item.color}20` }]}>
-                    <Ionicons name={item.icon as any} size={22} color={item.color} />
-                  </View>
-                )}
-                <Text style={styles.itemLabel}>{item.label}</Text>
-                <Ionicons 
-                  name="ellipsis-horizontal" 
-                  size={20} 
-                  color={COLORS.lightText} 
-                  style={{ marginLeft: "auto" }} 
-                />
-              </TouchableOpacity>
-            )}
-          />
-        </View>
-      )}
-
-      {/* Suggestions */}
-      {!isSearchFocused && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Suggestions</Text>
-          <FlatList
-            data={SUGGESTIONS}
-            keyExtractor={item => item.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity style={styles.suggestionItem}>
-                <View style={styles.suggestionIcon}>
-                  <Ionicons name={item.icon as any} size={20} color={COLORS.primary} />
-                </View>
-                <Text style={styles.suggestionLabel}>{item.label}</Text>
-              </TouchableOpacity>
-            )}
-          />
-        </View>
-      )}
-
-      {/* User Search Results */}
-      {isSearchFocused && query.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Users</Text>
-          {loading ? (
-            <Text style={styles.loadingText}>Searching...</Text>
-          ) : results.length === 0 ? (
-            <Text style={styles.noResultsText}>No users found.</Text>
-          ) : (
-            <FlatList
-              data={results}
-              keyExtractor={item => item.id?.toString() || item.username}
-              renderItem={({ item }) => (
-                <TouchableOpacity 
-                  style={styles.item} 
-                  onPress={() => router.push({ pathname: '/(tabs)/profile', params: { user: JSON.stringify(item) } })}
-                >
-                  <Image 
-                    source={{ uri: item.profilePicture || 'https://i.imgur.com/6XbK6bE.jpg' }} 
-                    style={styles.itemImage} 
-                  />
-                  <Text style={styles.itemLabel}>{item.fullName || item.username}</Text>
-                  <Ionicons name="chevron-forward" size={20} color={COLORS.lightText} style={{ marginLeft: "auto" }} />
+          <View style={styles.suggestionSection}>
+            <Text style={styles.suggestionTitle}>Suggestions</Text>
+            <View style={styles.suggestionWrap}>
+              {SUGGESTIONS.map((s, i) => (
+                <TouchableOpacity key={i} style={styles.suggestionChip} onPress={() => { setQuery(s); handleSearch(s); }}>
+                  <Text style={styles.suggestionChipText}>{s}</Text>
                 </TouchableOpacity>
-              )}
-            />
-          )}
-        </View>
+              ))}
+            </View>
+          </View>
+        </ScrollView>
       )}
-
-      {/* Quick Actions */}
-      {!isSearchFocused && (
-        <View style={styles.quickActions}>
-          <TouchableOpacity style={styles.quickAction}>
-            <MaterialCommunityIcons name="qrcode-scan" size={24} color={COLORS.primary} />
-            <Text style={styles.quickActionText}>Scan QR code</Text>
+      {/* Filters */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersRow}>
+        {FILTERS.map(f => (
+          <TouchableOpacity key={f.key} style={[styles.filterChip, filter === f.key && styles.filterChipActive]} onPress={() => setFilter(f.key)}>
+            <Text style={[styles.filterText, filter === f.key && styles.filterTextActive]}>{f.label}</Text>
           </TouchableOpacity>
-          <View style={styles.quickActionDivider} />
-          <TouchableOpacity style={styles.quickAction}>
-            <Ionicons name="person-add" size={24} color={COLORS.primary} />
-            <Text style={styles.quickActionText}>Add friends</Text>
-          </TouchableOpacity>
-        </View>
+        ))}
+      </ScrollView>
+      {/* Results */}
+      {loading ? (
+        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 32 }} />
+      ) : (
+        <ScrollView style={styles.resultsScroll}>
+          {/* Users */}
+          {showUsers && users.length > 0 && <Text style={styles.sectionTitle}>Users</Text>}
+          {showUsers && users.map(user => (
+            <TouchableOpacity key={user.id} style={styles.resultRow} onPress={() => handleResultPress('user', user)}>
+              <Image source={{ uri: user.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} style={styles.avatar} />
+              <View>
+                <Text style={styles.resultTitle}>{user.fullName || user.username}</Text>
+                <Text style={styles.resultSub}>{user.username}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+          {/* Posts */}
+          {showPosts && posts.length > 0 && <Text style={styles.sectionTitle}>Posts</Text>}
+          {showPosts && posts.map(post => (
+            <TouchableOpacity key={post.id} style={styles.resultRow} onPress={() => handleResultPress('post', post)}>
+              <Ionicons name="document-text" size={28} color={COLORS.primary} style={styles.iconResult} />
+              <View>
+                <Text style={styles.resultTitle} numberOfLines={1}>{post.content}</Text>
+                <Text style={styles.resultSub}>{post.user?.username}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+          {/* Reels */}
+          {showReels && reels.length > 0 && <Text style={styles.sectionTitle}>Reels</Text>}
+          {showReels && reels.map(reel => (
+            <TouchableOpacity key={reel.id} style={styles.resultRow} onPress={() => handleResultPress('reel', reel)}>
+              <Image source={{ uri: reel.mediaUrl || 'https://i.imgur.com/6XbK6bE.jpg' }} style={styles.avatar} />
+              <View>
+                <Text style={styles.resultTitle} numberOfLines={1}>{reel.caption || reel.title}</Text>
+                <Text style={styles.resultSub}>{reel.user?.username}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+          {showUsers && users.length === 0 && showPosts && posts.length === 0 && showReels && reels.length === 0 && query.trim() !== '' && !loading && (
+            <Text style={styles.noResults}>No results found.</Text>
+          )}
+        </ScrollView>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    // paddingTop handled inline
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  headerIcon: { 
-    padding: 6,
-    marginRight: 8,
-  },
-  searchContainer: {
-    flex: 1,
-    position: 'relative',
-  },
-  inputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.white,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    height: 40,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchPlaceholder: {
-    flex: 1,
-    fontSize: 16,
-    color: COLORS.lightText,
-  },
-  searchInputContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.white,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    height: 40,
-    zIndex: 10,
-  },
-  searchInput: { 
-    flex: 1, 
-    fontSize: 16, 
-    color: COLORS.text,
-  },
-  section: {
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    marginHorizontal: 16,
-    marginTop: 16,
-    paddingVertical: 8,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f2f5",
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: COLORS.text,
-  },
-  seeAll: { 
-    color: COLORS.primary, 
-    fontSize: 14,
-  },
-  item: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  itemImage: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    marginRight: 12,
-  },
-  iconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  itemLabel: {
-    flex: 1,
-    fontSize: 16,
-    color: COLORS.text,
-  },
-  suggestionItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  suggestionIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#e7f3ff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  suggestionLabel: {
-    fontSize: 16,
-    color: COLORS.text,
-  },
-  quickActions: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    margin: 16,
-    paddingVertical: 12,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  quickAction: {
-    alignItems: "center",
-    paddingHorizontal: 8,
-  },
-  quickActionText: {
-    fontSize: 12,
-    color: COLORS.primary,
-    marginTop: 4,
-  },
-  quickActionDivider: {
-    width: 1,
-    backgroundColor: "#e4e6eb",
-  },
-  loadingText: {
-    padding: 16,
-    color: COLORS.text,
-  },
-  noResultsText: {
-    padding: 16,
-    color: COLORS.lightText,
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  header: { flexDirection: 'row', alignItems: 'center', paddingBottom: 12, paddingHorizontal: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 5, backgroundColor: COLORS.primary },
+  backBtn: { padding: 6, marginRight: 10 },
+  headerTitle: { color: 'white', fontWeight: 'bold', fontSize: 20 },
+  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white, borderRadius: 12, margin: 16, paddingHorizontal: 12, height: 44 },
+  searchIcon: { marginRight: 8 },
+  searchInput: { flex: 1, color: COLORS.text, fontSize: 16 },
+  suggestionsScroll: { maxHeight: 220, paddingHorizontal: 16 },
+  suggestionSection: { marginBottom: 16 },
+  suggestionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  suggestionTitle: { fontWeight: 'bold', color: COLORS.text, fontSize: 15 },
+  clearBtn: { color: COLORS.accent, fontWeight: 'bold', fontSize: 14 },
+  suggestionRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
+  suggestionText: { color: COLORS.text, fontSize: 15 },
+  suggestionWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  suggestionChip: { backgroundColor: '#e4e6eb', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 6, marginRight: 8, marginBottom: 8 },
+  suggestionChipText: { color: COLORS.text, fontWeight: '500' },
+  filtersRow: { flexDirection: 'row', paddingHorizontal: 8, marginBottom: 4 },
+  filterChip: { backgroundColor: '#e4e6eb', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 8, marginRight: 8 },
+  filterChipActive: { backgroundColor: COLORS.primary },
+  filterText: { color: COLORS.text, fontWeight: '500' },
+  filterTextActive: { color: COLORS.white },
+  resultsScroll: { flex: 1, paddingHorizontal: 8 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.text, marginTop: 16, marginBottom: 8 },
+  resultRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#eee', gap: 12 },
+  avatar: { width: 44, height: 44, borderRadius: 22, marginRight: 12, backgroundColor: '#eee' },
+  iconResult: { marginRight: 12 },
+  resultTitle: { fontWeight: 'bold', color: COLORS.text, fontSize: 16 },
+  resultSub: { color: COLORS.lightText, fontSize: 13 },
+  noResults: { color: COLORS.lightText, textAlign: 'center', marginTop: 32, fontSize: 16 },
 });

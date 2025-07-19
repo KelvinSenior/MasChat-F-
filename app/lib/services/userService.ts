@@ -1,4 +1,5 @@
 import client, { BASE_URL } from '../../api/client';
+import { Post } from './postService';
 
 export type UserDetails = {
   profileType?: string;
@@ -92,6 +93,58 @@ export const uploadImage = async (
   );
   return response.data;
 };
+
+export type Notification = {
+  id: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+  avatar?: string;
+};
+
+export async function fetchNotifications(userId: string) {
+  const res = await client.get(`/notifications/${userId}`);
+  return res.data as Notification[];
+}
+
+export async function markNotificationRead(notificationId: string) {
+  await client.post(`/notifications/read/${notificationId}`);
+}
+
+export async function acceptFriendRequest(requestId: string) {
+  await client.post(`/friends/accept?requestId=${requestId}`);
+}
+
+export async function deleteFriendRequest(requestId: string, userId: string) {
+  await client.delete('/users/request', { data: { fromUserId: requestId, toUserId: userId } });
+}
+
+export type Friend = {
+  id: string;
+  username: string;
+  fullName?: string;
+  profilePicture?: string;
+};
+
+export async function getUserFriends(userId: string): Promise<Friend[]> {
+  try {
+    const response = await client.get(`/friends/list/${userId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error fetching user friends:', error.response?.data || error.message);
+    throw error;
+  }
+}
+
+export async function getUserPosts(userId: string): Promise<Post[]> {
+  try {
+    const response = await client.get(`/posts/user/${userId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error fetching user posts:', error.response?.data || error.message);
+    throw error;
+  }
+}
 
 export default function UserService() {
   return null;

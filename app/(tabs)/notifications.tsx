@@ -10,6 +10,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useAuth } from '../context/AuthContext';
+import { fetchNotifications, markNotificationRead, Notification, acceptFriendRequest, deleteFriendRequest } from '../lib/services/userService';
+import client from '../api/client';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
+import { Swipeable } from 'react-native-gesture-handler';
+import { useNotification } from '../context/NotificationContext';
 
 // Color Palette (matching home screen)
 const COLORS = {
@@ -21,74 +28,83 @@ const COLORS = {
   lightText: '#888888',
 };
 
-const notifications = [
-  {
-    id: 1,
-    avatar: "https://randomuser.me/api/portraits/men/21.jpg",
-    name: "Prophetic Coomson",
-    message: "sent you a friend request.",
-    mutual: "Wesley Oduro and 6 other mutual friends",
-    actions: ["Confirm", "Delete"],
-    isNew: true,
-  },
-  {
-    id: 2,
-    avatar: "https://randomuser.me/api/portraits/men/21.jpg",
-    name: "Prophetic Coomson",
-    message: "sent you a friend request that you haven't responded to yet.",
-    time: "1w",
-    isNew: true,
-  },
-  {
-    id: 3,
-    name: "Akanakoji Kyojiro",
-    message: "We have an update about your report of Akanakoji Kyojiro.",
-    time: "5d",
-    isNew: true,
-    isReport: true,
-  },
-  {
-    id: 4,
-    avatar: "https://randomuser.me/api/portraits/men/22.jpg",
-    name: "",
-    message: "Blast to the past with your post from December 2023.",
-    time: "9h",
-    isNew: true,
-    isBlast: true,
-  },
-  {
-    id: 5,
-    avatar: "https://randomuser.me/api/portraits/men/22.jpg",
-    name: "",
-    message:
-      "Blast to the past with your post from December 2023 with Dnaiel Yeboah, Cecilia Hodey and 12 others: '😲😲'...",
-    time: "2d",
-    isNew: true,
-    isBlast: true,
-  },
-  {
-    id: 6,
-    avatar: "https://randomuser.me/api/portraits/men/22.jpg",
-    name: "",
-    message: "Blast to the past with your post from August 2020.",
-    time: "1d",
-    isNew: true,
-    isBlast: true,
-  },
-  {
-    id: 7,
-    avatar: "https://randomuser.me/api/portraits/men/22.jpg",
-    name: "",
-    message: "Remember what you were up to in April 2024.",
-    time: "5d",
-    actions: ["Remix", "Dismiss"],
-    isNew: true,
-    isBlast: true,
-  },
-];
-
 export default function Notifications() {
   const router = useRouter();
+  const [notifications, setNotifications] = React.useState<Notification[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const { user } = useAuth();
+  const { showBanner } = useNotification();
+
+  React.useEffect(() => {
+    if (!user?.id) return;
+    setLoading(true);
+    fetchNotifications(user.id)
+      .then(data => setNotifications(data))
+      .finally(() => setLoading(false));
+
+    // WebSocket for real-time notifications
+    const socket = new SockJS('http://10.132.74.85:8080/ws-chat');
+    const client = new Client({
+      webSocketFactory: () => socket,
+      debug: str => console.log(str),
+      onConnect: () => {
+        client.subscribe(`/user/${user.id}/queue/notifications`, message => {
+          const notif = JSON.parse(message.body);
+          const newNotification = {
+            id: notif.id?.toString() || `${Date.now()}`,
+            message: notif.message,
+            read: false,
+            createdAt: notif.createdAt || new Date().toISOString(),
+          };
+          setNotifications(prev => [newNotification, ...prev]);
+          
+          // Show banner for new notifications
+          showBanner(notif.message);
+        });
+      },
+    });
+    client.activate();
+    return () => { client.deactivate(); };
+  }, [user?.id]);
+
+  const handleMarkRead = async (notificationId: string) => {
+    await markNotificationRead(notificationId);
+    setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, read: true } : n));
+  };
+
+  const handleConfirmFriendRequest = async (requestId: string) => {
+    await acceptFriendRequest(requestId);
+    setNotifications(prev => prev.map(n => n.id === requestId ? { ...n, read: true, message: 'Friend request accepted.' } : n));
+  };
+  const handleDeleteFriendRequest = async (requestId: string) => {
+    if (!user?.id) return;
+    await deleteFriendRequest(requestId, user.id);
+    setNotifications(prev => prev.filter(n => n.id !== requestId));
+  };
+
+  async function deleteNotification(notificationId: string) {
+    await client.delete(`/notifications/${notificationId}`);
+  }
+
+  const renderRightActions = (notificationId: string) => (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', width: 120 }}>
+      <TouchableOpacity 
+        style={{ backgroundColor: COLORS.accent, justifyContent: 'center', alignItems: 'center', width: 60, height: '100%' }}
+        onPress={() => handleMarkRead(notificationId)}
+      >
+        <Ionicons name="checkmark" size={24} color="white" />
+      </TouchableOpacity>
+      <TouchableOpacity 
+        style={{ backgroundColor: '#ff4444', justifyContent: 'center', alignItems: 'center', width: 60, height: '100%' }}
+        onPress={async () => {
+          await deleteNotification(notificationId);
+          setNotifications(prev => prev.filter(n => n.id !== notificationId));
+        }}
+      >
+        <Ionicons name="trash" size={24} color="white" />
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -117,62 +133,45 @@ export default function Notifications() {
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <Text style={styles.sectionLabel}>New</Text>
-        {notifications.map((item) => (
-          <View key={item.id} style={styles.card}>
-            <View style={styles.row}>
-              {item.isReport ? (
-                <View style={[styles.avatarContainer, { backgroundColor: COLORS.primary }]}>
-                  <FontAwesome name="flag" size={20} color="white" />
-                </View>
-              ) : (
+        {loading ? (
+          <Text style={{ textAlign: 'center', marginVertical: 24 }}>Loading...</Text>
+        ) : notifications.length === 0 ? (
+          <Text style={{ textAlign: 'center', marginVertical: 24 }}>No notifications yet.</Text>
+        ) : notifications.map((item) => (
+          <Swipeable
+            key={item.id}
+            renderRightActions={() => renderRightActions(item.id)}
+            overshootRight={false}
+          >
+            <TouchableOpacity style={[styles.card, !item.read && { backgroundColor: '#e6f0ff' }]} onPress={() => handleMarkRead(item.id)}>
+              <View style={styles.row}>
                 <View style={styles.avatarContainer}>
-                  <Image
-                    source={
-                      typeof item.avatar === "string"
-                        ? { uri: item.avatar }
-                        : item.avatar
-                    }
-                    style={styles.avatar}
-                  />
+                  {/* If item.avatar exists, show it, else show Ionicons */}
+                  {item.avatar ? (
+                    <Image source={{ uri: item.avatar }} style={styles.avatar} />
+                  ) : (
+                    <Ionicons name="notifications" size={20} color={item.read ? COLORS.lightText : COLORS.primary} />
+                  )}
                 </View>
-              )}
-              <View style={{ flex: 1 }}>
-                <Text style={styles.messageText}>
-                  {item.name ? (
-                    <Text style={styles.bold}>{item.name} </Text>
-                  ) : null}
-                  {item.message}
-                </Text>
-                {item.mutual && (
-                  <Text style={styles.mutual}>{item.mutual}</Text>
-                )}
-                {item.time && <Text style={styles.time}>{item.time}</Text>}
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.messageText}>{item.message}</Text>
+                  <Text style={styles.time}>{new Date(item.createdAt).toLocaleString()}</Text>
+                  {/* Friend request actions */}
+                  {item.message?.toLowerCase().includes('friend request') && !item.read && (
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                      <TouchableOpacity style={[styles.actionBtn, styles.primaryAction]} onPress={() => handleConfirmFriendRequest(item.id)}>
+                        <Text style={[styles.actionText, styles.primaryText]}>Confirm</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[styles.actionBtn, styles.secondaryAction]} onPress={() => handleDeleteFriendRequest(item.id)}>
+                        <Text style={[styles.actionText, styles.secondaryText]}>Delete</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+                {!item.read && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.accent, marginLeft: 8 }} />}
               </View>
-              <TouchableOpacity>
-                <Ionicons name="ellipsis-horizontal" size={20} color={COLORS.lightText} />
-              </TouchableOpacity>
-            </View>
-            {item.actions && (
-              <View style={styles.actionsRow}>
-                {item.actions.map((action) => (
-                  <TouchableOpacity
-                    key={action}
-                    style={[
-                      styles.actionBtn,
-                      (action === "Confirm" || action === "Remix") ? styles.primaryAction : styles.secondaryAction
-                    ]}
-                  >
-                    <Text style={[
-                      styles.actionText,
-                      (action === "Confirm" || action === "Remix") ? styles.primaryText : styles.secondaryText
-                    ]}>
-                      {action}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
+            </TouchableOpacity>
+          </Swipeable>
         ))}
       </ScrollView>
     </View>

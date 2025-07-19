@@ -1,6 +1,6 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -14,9 +14,10 @@ import {
   Modal
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { getUserProfile, getUserFriends, getUserPosts, Friend } from '../lib/services/userService';
+import { getUserProfile } from '../lib/services/userService';
 import { getPosts, Post } from '../lib/services/postService';
 import { fetchReels, Reel } from '../lib/services/reelService';
+import client from '../api/client';
 
 // Color Palette
 const COLORS = {
@@ -30,51 +31,62 @@ const COLORS = {
 
 const DEFAULT_COVER = "https://images.unsplash.com/photo-1506744038136-46273834b3fb";
 const DEFAULT_AVATAR = "https://randomuser.me/api/portraits/men/1.jpg";
-const DEFAULT_PROFILE_PHOTO = "https://randomuser.me/api/portraits/men/1.jpg";
 
-export default function Profile() {
+export default function FriendsProfileScreen() {
   const router = useRouter();
-  const { user, updateUser } = useAuth();
+  const params = useLocalSearchParams();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('Posts');
   const [profileData, setProfileData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [userReels, setUserReels] = useState<Reel[]>([]);
-  const [userFriends, setUserFriends] = useState<Friend[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [mediaModal, setMediaModal] = useState<{ type: 'photo' | 'video' | 'reel', uri: string, postId?: string, reelId?: string } | null>(null);
+  const [isFriend, setIsFriend] = useState(false);
+  const [requestSent, setRequestSent] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
 
   const tabs = ['Posts', 'About', 'Videos', 'Photos'];
+  const targetUserId = params.userId as string;
 
-  const fetchProfileData = async () => {
-    if (!user?.id) return;
+  const fetchProfile = async () => {
+    if (!targetUserId) return;
     try {
       setLoading(true);
-      const [profile, posts, reels, friends] = await Promise.all([
-        getUserProfile(user.id),
-        getUserPosts(user.id),
-        fetchReels(),
-        getUserFriends(user.id)
-      ]);
+      const data = await getUserProfile(targetUserId);
+      setProfileData(data);
       
-      setProfileData(profile);
-      setUserPosts(posts);
-      setUserReels(reels.filter((r: Reel) => r.userId === user.id));
-      setUserFriends(friends);
+      // Fetch posts and reels for this user
+      const allPosts = await getPosts();
+      setUserPosts(allPosts.filter((p: Post) => p.user.id === targetUserId));
+      const allReels = await fetchReels();
+      setUserReels(allReels.filter((r: Reel) => r.userId === targetUserId));
     } catch (error) {
-      console.error('Failed to fetch profile data:', error);
+      console.error('Failed to fetch profile:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  useEffect(() => { fetchProfileData(); }, [user?.id]);
+  const fetchFriendStatus = async () => {
+    if (!user || !targetUserId) return;
+    // Fetch friends
+    const friendsRes = await client.get(`/friends/list/${user.id}`);
+    setIsFriend(friendsRes.data.some((f: any) => f.id === targetUserId));
+    // Fetch pending requests
+    const pendingRes = await client.get(`/friends/requests/${user.id}`);
+    setPendingRequests(pendingRes.data);
+    setRequestSent(pendingRes.data.some((r: any) => r.sender.id === user.id && r.receiver.id === targetUserId));
+  };
 
-  if (!user) {
+  useEffect(() => { fetchProfile(); fetchFriendStatus(); }, [targetUserId, user?.id]);
+
+  if (!targetUserId) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Please sign in to view profile</Text>
+        <Text style={styles.loadingText}>User not found</Text>
       </View>
     );
   }
@@ -87,32 +99,6 @@ export default function Profile() {
     );
   }
 
-  // Helper function to format post time (assuming a simple date parsing)
-  const formatPostTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-    if (diffInSeconds < 60) {
-      return `${diffInSeconds}s ago`;
-    } else if (diffInSeconds < 3600) {
-      return `${Math.floor(diffInSeconds / 60)}m ago`;
-    } else if (diffInSeconds < 86400) {
-      return `${Math.floor(diffInSeconds / 3600)}h ago`;
-    } else {
-      return `${Math.floor(diffInSeconds / 86400)}d ago`;
-    }
-  };
-
-  // Helper function to navigate to appropriate profile screen
-  const navigateToProfile = (userId: string) => {
-    if (userId === user?.id) {
-      router.push('/(tabs)/profile');
-    } else {
-      router.push({ pathname: '../screens/FriendsProfileScreen', params: { userId } });
-    }
-  };
-
   return (
     <View style={styles.container}>
       <ScrollView
@@ -121,7 +107,7 @@ export default function Profile() {
             refreshing={refreshing}
             onRefresh={() => {
               setRefreshing(true);
-              fetchProfileData();
+              fetchProfile();
             }}
             colors={[COLORS.primary]}
           />
@@ -137,19 +123,13 @@ export default function Profile() {
           <View style={styles.headerActions}>
             <TouchableOpacity 
               style={styles.actionButton}
-              onPress={() => router.push("../screens/editProfile")}
+              onPress={() => router.back()}
             >
-              <Ionicons name="pencil-outline" size={20} color="white" />
+              <Ionicons name="arrow-back" size={20} color="white" />
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.actionButton}
-              onPress={() => router.push("../screens/editProfile")}
-            >
-              <Ionicons name="settings" size={20} color="white" />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => router.push("../screens/SearchScreen")}
+              onPress={() => router.push('../screens/SearchScreen')}
             >
               <Ionicons name="search" size={20} color="white" />
             </TouchableOpacity>
@@ -164,12 +144,6 @@ export default function Profile() {
               style={styles.profilePic}
             />
           </View>
-          <TouchableOpacity 
-            style={styles.cameraButton}
-            onPress={() => router.push("../screens/editProfile")}
-          >
-            <Ionicons name="camera" size={16} color="white" />
-          </TouchableOpacity>   
         </View>
 
         {/* Profile Info */}
@@ -223,15 +197,15 @@ export default function Profile() {
                 userPosts.map(post => (
                   <View key={post.id} style={{ backgroundColor: COLORS.white, marginBottom: 16, padding: 16, borderRadius: 12 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                      <TouchableOpacity onPress={() => navigateToProfile(post.user.id)}>
+                      <TouchableOpacity onPress={() => router.push({ pathname: '../screens/FriendsProfileScreen', params: { userId: post.user.id } })}>
                         <Image 
-                          source={{ uri: post.user.profilePicture || DEFAULT_PROFILE_PHOTO }} 
+                          source={{ uri: post.user.profilePicture || DEFAULT_AVATAR }} 
                           style={{ width: 32, height: 32, borderRadius: 16, marginRight: 8 }} 
                         />
                       </TouchableOpacity>
                       <View style={{ flex: 1 }}>
                         <Text style={{ fontWeight: 'bold' }}>{post.user.username}</Text>
-                        <Text style={{ color: COLORS.lightText, fontSize: 12 }}>{formatPostTime(post.createdAt)}</Text>
+                        <Text style={{ color: COLORS.lightText, fontSize: 12 }}>{post.createdAt}</Text>
                       </View>
                     </View>
                     <Text style={{ color: COLORS.text }}>{post.content}</Text>
@@ -246,46 +220,16 @@ export default function Profile() {
             </View>
           )}
           {activeTab === 'Photos' && (
-            <View style={{ width: '100%' }}>
-              {/* Profile Pictures Section */}
-              <View style={{ marginBottom: 24 }}>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginBottom: 12 }}>Profile Pictures</Text>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  {profileData.profilePicture && (
-                    <TouchableOpacity onPress={() => setMediaModal({ type: 'photo', uri: profileData.profilePicture })}>
-                      <Image source={{ uri: profileData.profilePicture }} style={{ width: 80, height: 80, borderRadius: 8 }} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-
-              {/* Cover Photos Section */}
-              <View style={{ marginBottom: 24 }}>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginBottom: 12 }}>Cover Photos</Text>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  {profileData.coverPhoto && (
-                    <TouchableOpacity onPress={() => setMediaModal({ type: 'photo', uri: profileData.coverPhoto })}>
-                      <Image source={{ uri: profileData.coverPhoto }} style={{ width: 80, height: 80, borderRadius: 8 }} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-
-              {/* Posted Photos Section */}
-              <View>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginBottom: 12 }}>Posted Photos</Text>
-                {userPosts.filter(p => p.imageUrl).length === 0 ? (
-                  <Text style={{ textAlign: 'center', color: COLORS.lightText, marginVertical: 12 }}>No photos posted yet.</Text>
-                ) : (
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                    {userPosts.filter(p => p.imageUrl).map(post => (
-                      <TouchableOpacity key={post.id} onPress={() => setMediaModal({ type: 'photo', uri: post.imageUrl!, postId: post.id })}>
-                        <Image source={{ uri: post.imageUrl! }} style={{ width: '48%', height: 160, borderRadius: 8, marginBottom: 8 }} />
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              </View>
+            <View style={{ width: '100%', flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-start' }}>
+              {userPosts.filter(p => p.imageUrl).length === 0 ? (
+                <Text style={{ textAlign: 'center', color: COLORS.lightText, marginVertical: 24, width: '100%' }}>No photos yet.</Text>
+              ) : (
+                userPosts.filter(p => p.imageUrl).map(post => (
+                  <TouchableOpacity key={post.id} onPress={() => setMediaModal({ type: 'photo', uri: post.imageUrl!, postId: post.id })}>
+                    <Image source={{ uri: post.imageUrl! }} style={{ width: '48%', height: 160, borderRadius: 8, marginBottom: 8 }} />
+                  </TouchableOpacity>
+                ))
+              )}
             </View>
           )}
           {activeTab === 'Videos' && (
@@ -363,33 +307,25 @@ export default function Profile() {
                   </View>
                 )}
               </View>
-              
-              {/* Friends Section */}
-              <View style={{ marginTop: 24 }}>
-                <Text style={{ fontSize: 18, fontWeight: 'bold', color: COLORS.text, marginBottom: 16 }}>Friends</Text>
-                {userFriends.length === 0 ? (
-                  <Text style={{ textAlign: 'center', color: COLORS.lightText, marginVertical: 12 }}>No friends yet.</Text>
-                ) : (
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-                    {userFriends.map(friend => (
-                      <TouchableOpacity 
-                        key={friend.id} 
-                        style={styles.friendItem} 
-                        onPress={() => navigateToProfile(friend.id)}
-                      >
-                        <Image 
-                          source={{ uri: friend.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} 
-                          style={styles.friendAvatar} 
-                        />
-                        <Text style={styles.friendName}>{friend.fullName || friend.username}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              </View>
             </View>
           )}
         </View>
+        {user && !isFriend && !requestSent && user.id !== targetUserId && (
+          <TouchableOpacity
+            style={{ backgroundColor: '#22c55e', padding: 12, borderRadius: 8, marginVertical: 12, alignItems: 'center' }}
+            onPress={async () => {
+              await client.post('/friends/request', { senderId: user.id, recipientId: targetUserId });
+              setRequestSent(true);
+            }}
+          >
+            <Text style={{ color: 'white', fontWeight: 'bold' }}>Send Friend Request</Text>
+          </TouchableOpacity>
+        )}
+        {requestSent && (
+          <View style={{ backgroundColor: '#fbbf24', padding: 12, borderRadius: 8, marginVertical: 12, alignItems: 'center' }}>
+            <Text style={{ color: 'white', fontWeight: 'bold' }}>Request Sent</Text>
+          </View>
+        )}
       </ScrollView>
 
       {/* Media Modal */}
@@ -476,17 +412,6 @@ const styles = StyleSheet.create({
     borderWidth: 4,
     borderColor: COLORS.white,
   },
-  cameraButton: {
-    position: 'absolute',
-    bottom: 10,
-    right: 10,
-    backgroundColor: COLORS.accent,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   infoContainer: {
     padding: 16,
     alignItems: 'center',
@@ -511,64 +436,47 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   tabsContainer: {
-    paddingBottom: 8,
-    marginBottom: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   tabButton: {
-    paddingHorizontal: 20,
     paddingVertical: 8,
-    marginRight: 8,
+    paddingHorizontal: 20,
     borderRadius: 20,
+    marginRight: 8,
   },
   activeTabButton: {
-    backgroundColor: '#E7F0FD',
+    backgroundColor: '#e7f0fd',
   },
   tabText: {
+    fontSize: 16,
     color: COLORS.lightText,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   activeTabText: {
     color: COLORS.primary,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   detailsContainer: {
     width: '100%',
-    padding: 16,
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
+    marginTop: 16,
   },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   detailIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F0F2F5',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#e7f0fd',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   detailText: {
     color: COLORS.text,
-    flex: 1,
+    fontSize: 16,
   },
-  friendItem: {
-    alignItems: 'center',
-    width: '30%',
-  },
-  friendAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    marginBottom: 8,
-  },
-  friendName: {
-    fontSize: 12,
-    color: COLORS.text,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-});
+}); 

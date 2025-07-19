@@ -11,7 +11,13 @@ export default function ComingSoon() {
       <View style={styles.content}>
         <Text style={styles.title}>🚀 Coming Soon 🚀</Text>
         <Text style={styles.subtitle}>This feature is coming soon. Stay tuned for updates!</Text>
-        <TouchableOpacity onPress={() => router.back()} style={{marginTop: 24, alignSelf: 'center', padding: 12, backgroundColor: '#1877f2', borderRadius: 8}}>
+        <TouchableOpacity onPress={() => {
+          if (router.canGoBack?.()) {
+            router.back();
+          } else {
+            router.replace('/(tabs)/home');
+          }
+        }} style={{marginTop: 24, alignSelf: 'center', padding: 12, backgroundColor: '#1877f2', borderRadius: 8}}>
           <Text style={{color: '#fff', fontWeight: 'bold'}}>Back</Text>
         </TouchableOpacity>
       </View>

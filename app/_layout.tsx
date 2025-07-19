@@ -4,8 +4,10 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import AIChatModal from '../components/AIChatModal';
 import FloatingAIButton from '../components/FloatingAIButton';
+import NotificationBanner from './components/NotificationBanner';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from "./context/ThemeContext";
+import { NotificationProvider } from './context/NotificationContext';
 
 export default function RootLayout() {
   const [showChat, setShowChat] = useState(false);
@@ -18,13 +20,16 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-            <FloatingAIButton onPress={() => setShowChat(true)} />
-            <AuthProvider>
-              <Slot />
-            </AuthProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <NotificationProvider>
+          <NotificationBanner />
+          <FloatingAIButton onPress={() => setShowChat(true)} />
+          <AuthProvider>
+            <Slot />
+          </AuthProvider>
           <AIChatModal visible={showChat} onClose={() => setShowChat(false)} />
-        </GestureHandlerRootView>
+        </NotificationProvider>
+      </GestureHandlerRootView>
     </ThemeProvider>
   );
 }

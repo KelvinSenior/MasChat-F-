@@ -16,6 +16,17 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { createPost } from '../lib/services/postService';
 import { uploadImage } from '../lib/services/userService';
+import { LinearGradient } from 'expo-linear-gradient';
+
+// Color Palette (matching home/friends screens)
+const COLORS = {
+  primary: '#0A2463',  // Deep Blue
+  accent: '#FF7F11',   // Vibrant Orange
+  background: '#F5F7FA',
+  white: '#FFFFFF',
+  text: '#333333',
+  lightText: '#888888',
+};
 
 const options = [
   {
@@ -95,17 +106,28 @@ export default function NewPost() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="close" size={28} color="#222" />
+      <LinearGradient
+        colors={[COLORS.primary, '#1A4B8C']}
+        style={styles.header}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+      >
+        <TouchableOpacity onPress={() => {
+          if (router.canGoBack?.()) {
+            router.back();
+          } else {
+            router.replace('/(tabs)/home');
+          }
+        }} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Create post</Text>
-        <TouchableOpacity onPress={handleSubmit} disabled={isLoading}>
-          <Text style={[styles.nextBtn, isLoading && styles.disabledBtn]}>
+        <Text style={styles.headerTitle}>Create Post</Text>
+        <TouchableOpacity onPress={handleSubmit} disabled={isLoading} style={styles.postButton}>
+          <Text style={[styles.postButtonText, isLoading && styles.disabledBtn]}>
             {isLoading ? "Posting..." : "Post"}
           </Text>
         </TouchableOpacity>
-      </View>
+      </LinearGradient>
 
       {/* User Info and Controls */}
       <View style={styles.userRow}>
@@ -114,14 +136,14 @@ export default function NewPost() {
           <Text style={styles.userName}>{user.fullName || user.username}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsRow}>
             <TouchableOpacity style={styles.chip}>
-              <Ionicons name="earth" size={14} color="#1877f2" />
+              <Ionicons name="earth" size={14} color={COLORS.primary} />
               <Text style={styles.chipText}>Public</Text>
-              <Ionicons name="chevron-down" size={14} color="#1877f2" />
+              <Ionicons name="chevron-down" size={14} color={COLORS.primary} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.chip}>
-              <Ionicons name="albums" size={14} color="#1877f2" />
+              <Ionicons name="albums" size={14} color={COLORS.primary} />
               <Text style={styles.chipText}>Album</Text>
-              <Ionicons name="chevron-down" size={14} color="#1877f2" />
+              <Ionicons name="chevron-down" size={14} color={COLORS.primary} />
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -131,7 +153,7 @@ export default function NewPost() {
       <TextInput
         style={styles.input}
         placeholder="What's on your mind?"
-        placeholderTextColor="#888"
+        placeholderTextColor={COLORS.lightText}
         multiline
         value={post}
         onChangeText={setPost}
@@ -140,11 +162,11 @@ export default function NewPost() {
       {/* Image/Video Picker */}
       <View style={styles.pickerContainer}>
         <TouchableOpacity onPress={pickImage} style={styles.pickButton}>
-          <Ionicons name="image" size={24} color="#fff" />
+          <Ionicons name="image" size={24} color={COLORS.accent} />
           <Text style={styles.pickButtonText}>Add Image</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={pickVideo} style={styles.pickButton}>
-          <Ionicons name="videocam" size={24} color="#fff" />
+          <Ionicons name="videocam" size={24} color={COLORS.accent} />
           <Text style={styles.pickButtonText}>Add Video</Text>
         </TouchableOpacity>
       </View>
@@ -184,34 +206,51 @@ export default function NewPost() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingTop: 48,
-    paddingBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 50,
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f2f5",
-    backgroundColor: "#fff",
-    justifyContent: "space-between",
+    paddingBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  backButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#222",
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
   },
-  nextBtn: {
-    color: "#1877f2",
-    fontWeight: "bold",
+  postButton: {
+    minWidth: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  postButtonText: {
+    color: COLORS.accent,
+    fontWeight: 'bold',
     fontSize: 16,
   },
   disabledBtn: {
     opacity: 0.5,
   },
   userRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     paddingHorizontal: 16,
     paddingTop: 18,
     paddingBottom: 8,
@@ -221,21 +260,22 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     marginRight: 12,
+    backgroundColor: '#f0f2f5',
   },
   userName: {
-    fontWeight: "bold",
+    fontWeight: 'bold',
     fontSize: 16,
-    color: "#222",
+    color: COLORS.text,
     marginBottom: 6,
   },
   chipsRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     marginBottom: 2,
   },
   chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#e7f0fd",
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e7f0fd',
     borderRadius: 16,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -243,56 +283,62 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   chipText: {
-    color: "#1877f2",
+    color: COLORS.primary,
     fontSize: 13,
     marginHorizontal: 3,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   input: {
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    fontSize: 16,
+    color: COLORS.text,
     minHeight: 80,
-    fontSize: 18,
-    color: "#222",
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 10,
-    backgroundColor: "#fff",
-    marginBottom: 8,
+    textAlignVertical: 'top',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   pickerContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    marginBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 12,
+    gap: 12,
   },
   pickButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#1877f2",
-    borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    flex: 1,
-    marginRight: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e7f0fd',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginHorizontal: 4,
   },
   pickButtonText: {
-    color: "#fff",
-    fontSize: 16,
+    color: COLORS.primary,
+    fontWeight: 'bold',
+    fontSize: 15,
     marginLeft: 8,
   },
   previewContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 8,
+    alignItems: 'center',
+    marginBottom: 16,
   },
   previewImage: {
-    width: "100%",
+    width: 200,
     height: 200,
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: 8,
+    backgroundColor: '#eee',
   },
   previewText: {
-    color: "#666",
-    fontSize: 14,
-    marginBottom: 8,
+    color: COLORS.lightText,
+    fontSize: 16,
   },
   optionsSheet: {
     position: "absolute",

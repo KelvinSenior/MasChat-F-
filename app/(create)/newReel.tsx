@@ -1,139 +1,196 @@
-import { FontAwesome5, Ionicons, MaterialIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import React from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, TextInput, Image, Alert, ActivityIndicator } from 'react-native';
+import { useAuth } from '../context/AuthContext';
+import { createReel } from '../lib/services/reelService';
+
+const COLORS = {
+  primary: '#0A2463',
+  accent: '#FF7F11',
+  background: '#F5F7FA',
+  white: '#FFFFFF',
+  text: '#333333',
+  lightText: '#888888',
+};
 
 export default function NewReel() {
   const router = useRouter();
+  const { user } = useAuth();
+  const [video, setVideo] = useState<string | null>(null);
+  const [caption, setCaption] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const pickVideo = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+    if (!result.canceled) setVideo(result.assets[0].uri);
+  };
+
+  const handleSubmit = async () => {
+    if (!user) {
+      Alert.alert('Error', 'User not found');
+      return;
+    }
+    if (!video) {
+      Alert.alert('Error', 'Please select a video for your reel.');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      // For demo, assume video is already uploaded. In production, upload to server/cloud first.
+      await createReel({ mediaUrl: video, caption }, user.id);
+      router.replace('/(tabs)/videos');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to create reel. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="close" size={28} color="#222" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Create reel</Text>
-        <TouchableOpacity>
-          <Ionicons name="settings-outline" size={24} color="#222" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Reel Options */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.optionsRow}
-        contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 80 }}
+      <LinearGradient
+        colors={[COLORS.primary, '#1A4B8C']}
+        style={styles.header}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
       >
-        <TouchableOpacity style={styles.option} onPress={() => router.push('/screens/ComingSoon')}>
-          <Ionicons name="camera-outline" size={28} color="#222" />
-          <Text style={styles.optionText}>Camera</Text>
+        <TouchableOpacity onPress={() => {
+          if (router.canGoBack?.()) {
+            router.back();
+          } else {
+            router.replace('/(tabs)/home');
+          }
+        }} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.option} onPress={() => router.push('/screens/ComingSoon')}>
-          <Ionicons name="musical-notes-outline" size={28} color="#222" />
-          <Text style={styles.optionText}>Music</Text>
+        <Text style={styles.headerTitle}>Create Reel</Text>
+        <TouchableOpacity onPress={handleSubmit} disabled={isLoading} style={styles.postButton}>
+          <Text style={[styles.postButtonText, isLoading && styles.disabledBtn]}>
+            {isLoading ? 'Posting...' : 'Post'}
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.option} onPress={() => router.push('/screens/ComingSoon')}>
-          <MaterialIcons name="filter-none" size={28} color="#222" />
-          <Text style={styles.optionText}>Templates</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.option} onPress={() => router.push('/screens/ComingSoon')}>
-          <Ionicons name="play-circle-outline" size={28} color="#222" />
-          <Text style={styles.optionText}>Your content</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.option} onPress={() => router.push('/screens/ComingSoon')}>
-          <FontAwesome5 name="bookmark" size={24} color="#222" />
-          <Text style={styles.optionText}>Saved</Text>
-        </TouchableOpacity>
-      </ScrollView>
+      </LinearGradient>
 
-      {/* Manage Access */}
-      <View style={styles.manageRow}>
-        <Text style={styles.manageText}>
-          You ve allowed access to select photos. You can add more or allow access to all photos.
-        </Text>
-        <TouchableOpacity>
-          <Text style={styles.manageLink}>Manage</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* See All Photos */}
-      <TouchableOpacity style={styles.seeAllPhotosBtn}>
-        <Ionicons name="image-outline" size={32} color="#1877f2" />
-        <Text style={styles.seeAllPhotosText}>See all photos</Text>
+      {/* Video Picker */}
+      <TouchableOpacity style={styles.mediaPicker} onPress={pickVideo}>
+        {video ? (
+          <Image source={{ uri: video }} style={styles.mediaPreview} />
+        ) : (
+          <View style={styles.mediaPlaceholder}>
+            <Ionicons name="videocam-outline" size={48} color={COLORS.lightText} />
+            <Text style={styles.mediaPlaceholderText}>Tap to select video</Text>
+          </View>
+        )}
       </TouchableOpacity>
+
+      {/* Caption Input */}
+      <TextInput
+        style={styles.captionInput}
+        placeholder="Add a caption..."
+        placeholderTextColor={COLORS.lightText}
+        value={caption}
+        onChangeText={setCaption}
+        multiline
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingTop: 48,
-    paddingBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 50,
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f2f5",
-    backgroundColor: "#fff",
-    justifyContent: "space-between",
+    paddingBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  backButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#222",
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
   },
-  optionsRow: {
-    flexDirection: "row",
-    marginTop: 10,
-    marginBottom: 8,
+  postButton: {
+    minWidth: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  option: {
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#f0f2f5",
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    marginRight: 10,
+  postButtonText: {
+    color: COLORS.accent,
+    fontWeight: 'bold',
+    fontSize: 16,
   },
-  optionText: {
-    fontSize: 13,
-    color: "#222",
-    marginTop: 4,
-    fontWeight: "500",
+  disabledBtn: {
+    opacity: 0.5,
   },
-  manageRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    backgroundColor: "#fff",
+  mediaPicker: {
+    margin: 24,
+    borderRadius: 16,
+    backgroundColor: COLORS.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 260,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  manageText: {
+  mediaPreview: {
+    width: '100%',
+    height: 260,
+    borderRadius: 16,
+    resizeMode: 'cover',
+  },
+  mediaPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
     flex: 1,
-    fontSize: 12,
-    color: "#888",
+    height: 260,
   },
-  manageLink: {
-    color: "#1877f2",
-    fontWeight: "bold",
-    fontSize: 13,
-    marginLeft: 8,
+  mediaPlaceholderText: {
+    color: COLORS.lightText,
+    fontSize: 16,
+    marginTop: 12,
   },
-  seeAllPhotosBtn: {
-    marginTop: 24,
-    alignSelf: "flex-start",
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 24,
-  },
-  seeAllPhotosText: {
-    color: "#1877f2",
-    fontWeight: "bold",
-    fontSize: 15,
-    marginTop: 6,
+  captionInput: {
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    fontSize: 16,
+    color: COLORS.text,
+    minHeight: 60,
+    textAlignVertical: 'top',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
 });
