@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -5,6 +6,16 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View
 import SuggestionCard from './SuggestionCard';
 import { useAuth } from '../context/AuthContext';
 import client, { BASE_URL } from '../api/client';
+
+// Color Palette (matching home screen)
+const COLORS = {
+  primary: '#0A2463',  // Deep Blue
+  accent: '#FF7F11',   // Vibrant Orange
+  background: '#F5F7FA',
+  white: '#FFFFFF',
+  text: '#333333',
+  lightText: '#888888',
+};
 
 type Suggestion = {
   id: string;
@@ -33,37 +44,146 @@ export default function SuggestionsScreen() {
       });
   }, [user?.id]);
 
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      );
+    }
+    if (suggestions.length === 0) {
+      return (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="people-outline" size={60} color={COLORS.lightText} />
+          <Text style={styles.emptyText}>No suggestions available</Text>
+          <Text style={styles.emptySubtext}>We'll show you people you may know based on your connections</Text>
+        </View>
+      );
+    }
+    return suggestions.map(sug => (
+      <SuggestionCard key={sug.id} suggestion={sug} />
+    ));
+  };
+
   return (
-    <LinearGradient colors={['#f5f7fa', '#e4e8f0']} style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>{'<'} Back</Text>
+    <View style={styles.container}>
+      {/* Header */}
+      <LinearGradient
+        colors={[COLORS.primary, '#1A4B8C']}
+        style={styles.header}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+      >
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <Text style={styles.title}>Suggestions</Text>
-        <TouchableOpacity style={styles.searchBtn}>
-          <Text style={styles.searchIcon}>🔍</Text>
+        <Text style={styles.headerTitle}>Suggestions</Text>
+        <TouchableOpacity style={styles.refreshButton}>
+          <Ionicons name="refresh" size={24} color="white" />
         </TouchableOpacity>
+      </LinearGradient>
+
+      {/* Section Header */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>
+          People you may know
+        </Text>
+        <Text style={styles.sectionSubtitle}>
+          {suggestions.length} {suggestions.length === 1 ? 'suggestion' : 'suggestions'}
+        </Text>
       </View>
-      <Text style={styles.sectionTitle}>People you may know</Text>
-      <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 80 }}>
-        {loading ? <ActivityIndicator size="large" color="#1877f2" /> :
-          suggestions.length === 0 ? <Text style={styles.emptyText}>No suggestions</Text> :
-          suggestions.map(sug => <SuggestionCard key={sug.id} suggestion={sug} />)
-        }
+
+      {/* Suggestions List */}
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+        {renderContent()}
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', padding: 16, justifyContent: 'space-between' },
-  backBtn: { marginRight: 12 },
-  backText: { color: '#1877f2', fontWeight: 'bold', fontSize: 16 },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#222', flex: 1, textAlign: 'center' },
-  searchBtn: { marginLeft: 12 },
-  searchIcon: { fontSize: 22, color: '#222' },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginLeft: 16, marginBottom: 8, color: '#222' },
-  scroll: { flex: 1, paddingHorizontal: 8 },
-  emptyText: { textAlign: 'center', marginTop: 32, color: '#888' },
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 50,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  backButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  refreshButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sectionHeader: {
+    backgroundColor: COLORS.white,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: COLORS.lightText,
+    marginTop: 2,
+  },
+  scroll: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 60,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingHorizontal: 32,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    textAlign: 'center',
+    marginTop: 16,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: COLORS.lightText,
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 20,
+  },
 });

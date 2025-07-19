@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -6,6 +7,16 @@ import FriendCard from './FriendCard';
 import { useAuth } from '../context/AuthContext';
 import client, { BASE_URL } from '../api/client';
 import { useFocusEffect } from '@react-navigation/native';
+
+// Color Palette (matching home screen)
+const COLORS = {
+  primary: '#0A2463',  // Deep Blue
+  accent: '#FF7F11',   // Vibrant Orange
+  background: '#F5F7FA',
+  white: '#FFFFFF',
+  text: '#333333',
+  lightText: '#888888',
+};
 
 type Friend = {
   id: string;
@@ -46,71 +57,325 @@ export default function FriendsScreen() {
     }, [user?.id])
   );
 
-  const filteredFriends = friends.filter(f => f.fullName?.toLowerCase().includes(search.toLowerCase()));
+  const filteredFriends = friends.filter(f => 
+    f.fullName?.toLowerCase().includes(search.toLowerCase()) ||
+    f.username?.toLowerCase().includes(search.toLowerCase())
+  );
 
   const renderContent = () => {
     if (loading) {
-      return <ActivityIndicator size="large" color="#1877f2" />;
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      );
     }
     if (filteredFriends.length === 0) {
-      return <Text style={styles.emptyText}>No friends found</Text>;
+      return (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="people-outline" size={60} color={COLORS.lightText} />
+          <Text style={styles.emptyText}>
+            {search ? 'No friends found matching your search' : 'No friends yet'}
+          </Text>
+          {!search && (
+            <TouchableOpacity 
+              style={styles.addFriendsButton}
+              onPress={() => router.push('/friends/SuggestionsScreen')}
+            >
+              <LinearGradient
+                colors={[COLORS.accent, '#FF9E40']}
+                style={styles.addFriendsGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Text style={styles.addFriendsText}>Find Friends</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+        </View>
+      );
     }
     return filteredFriends.map(friend => (
-      <View key={friend.id} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-        <Image source={{ uri: friend.profilePicture }} style={{ width: 44, height: 44, borderRadius: 22, marginRight: 12, backgroundColor: '#eee' }} />
-        <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#222' }}>{friend.username}</Text>
+      <View key={friend.id} style={styles.friendItem}>
+        <Image 
+          source={{ uri: friend.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} 
+          style={styles.friendAvatar} 
+        />
+        <View style={styles.friendInfo}>
+          <Text style={styles.friendName}>{friend.fullName || friend.username}</Text>
+          <Text style={styles.friendUsername}>@{friend.username}</Text>
+        </View>
+        <TouchableOpacity style={styles.messageButton}>
+          <Ionicons name="chatbubble-outline" size={20} color={COLORS.primary} />
+        </TouchableOpacity>
       </View>
     ));
   };
 
   return (
-    <LinearGradient colors={['#f5f7fa', '#e4e8f0']} style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>{'<'} Back</Text>
+    <View style={styles.container}>
+      {/* Header */}
+      <LinearGradient
+        colors={[COLORS.primary, '#1A4B8C']}
+        style={styles.header}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+      >
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <Text style={styles.title}>Your friends</Text>
-        <TouchableOpacity style={styles.searchBtn}>
-          <Text style={styles.searchIcon}>🔍</Text>
+        <Text style={styles.headerTitle}>Friends</Text>
+        <TouchableOpacity style={styles.searchButton}>
+          <Ionicons name="search" size={24} color="white" />
         </TouchableOpacity>
+      </LinearGradient>
+
+      {/* Search Input */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchInputContainer}>
+          <Ionicons name="search" size={20} color={COLORS.lightText} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search friends..."
+            placeholderTextColor={COLORS.lightText}
+            value={search}
+            onChangeText={setSearch}
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')} style={styles.clearButton}>
+              <Ionicons name="close-circle" size={20} color={COLORS.lightText} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Search friends"
-        value={search}
-        onChangeText={setSearch}
-      />
-      {/* Tabs Row */}
-      <View style={styles.tabs}>
-        <TouchableOpacity style={styles.tabBtn} onPress={() => router.push('/friends/SuggestionsScreen')}>
-          <Text style={styles.tabText}>Suggestions</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tabBtn} onPress={() => router.push('/friends/FriendRequestsScreen')}>
-          <Text style={styles.tabText}>Friend Requests</Text>
-        </TouchableOpacity>
+
+      {/* Navigation Tabs */}
+      <View style={styles.tabsContainer}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabsRow}
+        >
+          <TouchableOpacity 
+            style={[styles.tabButton, styles.tabButtonActive]}
+            onPress={() => {}}
+          >
+            <Text style={[styles.tabText, styles.tabTextActive]}>All Friends</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.tabButton}
+            onPress={() => router.push('/friends/SuggestionsScreen')}
+          >
+            <Text style={styles.tabText}>Suggestions</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.tabButton}
+            onPress={() => router.push('/friends/FriendRequestsScreen')}
+          >
+            <Text style={styles.tabText}>Requests</Text>
+          </TouchableOpacity>
+        </ScrollView>
       </View>
-      <Text style={styles.sectionTitle}>{friends.length} friends</Text>
-      <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 80 }}>
+
+      {/* Friends Count */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>
+          {filteredFriends.length} {filteredFriends.length === 1 ? 'friend' : 'friends'}
+        </Text>
+      </View>
+
+      {/* Friends List */}
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         {renderContent()}
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', padding: 16, justifyContent: 'space-between' },
-  backBtn: { marginRight: 12 },
-  backText: { color: '#1877f2', fontWeight: 'bold', fontSize: 16 },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#222', flex: 1, textAlign: 'center' },
-  searchBtn: { marginLeft: 12 },
-  searchIcon: { fontSize: 22, color: '#222' },
-  searchInput: { backgroundColor: '#fff', borderRadius: 8, padding: 10, marginHorizontal: 16, marginBottom: 8, borderWidth: 1, borderColor: '#eee' },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginLeft: 16, marginBottom: 8, color: '#222' },
-  tabs: { flexDirection: 'row', justifyContent: 'space-around', marginVertical: 12 },
-  tabBtn: { padding: 8 },
-  tabText: { color: '#666', fontWeight: 'bold' },
-  tabTextActive: { color: '#1877f2', fontWeight: 'bold', textDecorationLine: 'underline' },
-  scroll: { flex: 1, paddingHorizontal: 16 },
-  emptyText: { textAlign: 'center', marginTop: 32, color: '#888' },
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 50,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  backButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  searchButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  searchContainer: {
+    backgroundColor: COLORS.white,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F2F5',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    height: 40,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: COLORS.text,
+  },
+  clearButton: {
+    marginLeft: 8,
+  },
+  tabsContainer: {
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  tabsRow: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  tabButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  tabButtonActive: {
+    backgroundColor: '#e7f0fd',
+  },
+  tabText: {
+    fontSize: 16,
+    color: COLORS.lightText,
+    fontWeight: "500",
+  },
+  tabTextActive: {
+    color: COLORS.primary,
+    fontWeight: "bold",
+  },
+  sectionHeader: {
+    backgroundColor: COLORS.white,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  scroll: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 60,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingHorizontal: 32,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: COLORS.lightText,
+    textAlign: 'center',
+    marginTop: 16,
+    lineHeight: 22,
+  },
+  addFriendsButton: {
+    marginTop: 24,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  addFriendsGradient: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addFriendsText: {
+    color: COLORS.white,
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  friendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    padding: 16,
+    marginHorizontal: 12,
+    marginVertical: 4,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  friendAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+    backgroundColor: '#f0f2f5',
+  },
+  friendInfo: {
+    flex: 1,
+  },
+  friendName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 2,
+  },
+  friendUsername: {
+    fontSize: 14,
+    color: COLORS.lightText,
+  },
+  messageButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f0f2f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

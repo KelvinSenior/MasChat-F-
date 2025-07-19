@@ -1,5 +1,17 @@
+import { Ionicons } from "@expo/vector-icons";
 import React from 'react';
-import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
+
+// Color Palette (matching home screen)
+const COLORS = {
+  primary: '#0A2463',  // Deep Blue
+  accent: '#FF7F11',   // Vibrant Orange
+  background: '#F5F7FA',
+  white: '#FFFFFF',
+  text: '#333333',
+  lightText: '#888888',
+};
 
 type Friend = {
   id: string;
@@ -8,78 +20,108 @@ type Friend = {
   profilePicture?: string;
 };
 
-type Props = {
+interface Props {
   friend: Friend;
-};
+}
 
 export default function FriendCard({ friend }: Props) {
+  const router = useRouter();
+
+  const handleMessage = () => {
+    router.push(`/screens/ChatScreen?userId=${friend.id}&username=${friend.username}`);
+  };
+
+  const handleViewProfile = () => {
+    router.push(`/profile?userId=${friend.id}`);
+  };
+
   return (
-    <TouchableOpacity style={styles.card}>
-      <View style={styles.cardContent}>
-        <Image source={{ uri: friend.profilePicture }} style={styles.avatar} />
-        <Text style={styles.name}>{friend.fullName || friend.username}</Text>
+    <View style={styles.card}>
+      <TouchableOpacity onPress={handleViewProfile} style={styles.userSection}>
+        <Image 
+          source={{ uri: friend.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} 
+          style={styles.avatar} 
+        />
+        <View style={styles.userInfo}>
+          <Text style={styles.name}>{friend.fullName || friend.username}</Text>
+          <Text style={styles.username}>@{friend.username}</Text>
+        </View>
+      </TouchableOpacity>
+      <View style={styles.actions}>
+        <TouchableOpacity style={styles.messageButton} onPress={handleMessage}>
+          <Ionicons name="chatbubble-outline" size={20} color={COLORS.primary} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.moreButton}>
+          <Ionicons name="ellipsis-horizontal" size={20} color={COLORS.lightText} />
+        </TouchableOpacity>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  cardContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: COLORS.white,
+    padding: 16,
+    marginHorizontal: 12,
+    marginVertical: 4,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  userSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     marginRight: 12,
-    backgroundColor: '#eee',
+    backgroundColor: '#f0f2f5',
+  },
+  userInfo: {
+    flex: 1,
   },
   name: {
-    fontSize: 16,
     fontWeight: 'bold',
-    color: '#222',
+    fontSize: 16,
+    color: COLORS.text,
+    marginBottom: 2,
   },
-  // Define other styles as needed
+  username: {
+    fontSize: 14,
+    color: COLORS.lightText,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  messageButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f0f2f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  moreButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f0f2f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
 
-export function FriendList({ filteredFriends, loading }: { filteredFriends: Friend[]; loading: boolean }) {
-  const renderContent = () => {
-    if (loading) {
-      return <ActivityIndicator size="large" color="#1877f2" />;
-    }
-    if (filteredFriends.length === 0) {
-      return <Text style={emptyTextStyle}>No friends found</Text>;
-    }
-    return filteredFriends.map(friend => (
-      <FriendCard
-        key={friend.id}
-        friend={friend}
-      />
-    ));
-  };
 
-  // Inline style for emptyText since it's not in StyleSheet.create
-  const emptyTextStyle = {
-    textAlign: 'center' as const,
-    marginTop: 32,
-    color: '#888',
-  };
-
-  return (
-    <View>
-      {renderContent()}
-    </View>
-  );
-}

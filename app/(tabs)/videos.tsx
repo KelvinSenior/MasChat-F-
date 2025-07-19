@@ -12,6 +12,16 @@ import {
   View,
 } from "react-native";
 
+// Color Palette (matching home screen)
+const COLORS = {
+  primary: '#0A2463',  // Deep Blue
+  accent: '#FF7F11',   // Vibrant Orange
+  background: '#F5F7FA',
+  white: '#FFFFFF',
+  text: '#333333',
+  lightText: '#888888',
+};
+
 const TABS = ["For you", "Live", "Reels", "Following"];
 
 const videoFeed = [
@@ -21,8 +31,7 @@ const videoFeed = [
     date: "Nov 28, 2024",
     desc: "Part63",
     avatar: "https://randomuser.me/api/portraits/men/11.jpg",
-    videoThumb:
-      "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80",
+    videoThumb: "https://assets.mixkit.co/videos/preview/mixkit-man-dancing-under-changing-lights-1240-large.mp4",
     likes: "444K",
     comments: "2.6K",
     shares: "1.7K",
@@ -34,8 +43,7 @@ const videoFeed = [
     date: "Dec 4, 2024",
     desc: "Every child's favorite scene 😂",
     avatar: "https://randomuser.me/api/portraits/men/12.jpg",
-    videoThumb:
-      "https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=800&q=80",
+    videoThumb: "https://assets.mixkit.co/videos/preview/mixkit-tree-with-yellow-flowers-1173-large.mp4",
     likes: "120K",
     comments: "1.2K",
     shares: "800",
@@ -43,58 +51,48 @@ const videoFeed = [
   },
 ];
 
+
+
 export default function Videos() {
   const [activeTab, setActiveTab] = useState("For you");
   const router = useRouter();
   const { width } = Dimensions.get("window");
 
+  if (activeTab === "Reels") {
+    router.push("/screens/ReelsScreen");
+    return null;
+  }
+
   return (
-    <LinearGradient colors={['#f5f7fa', '#e4e8f0']} style={styles.container}>
+    <View style={styles.container}>
       {/* Header */}
       <LinearGradient
-        colors={['#1877f2', '#0a5bc4']}
+        colors={[COLORS.primary, '#1A4B8C']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
       >
-        <Text style={styles.headerTitle}>Video</Text>
+        <Text style={styles.logo}>
+          Mas<Text style={{ color: COLORS.accent }}>Chat</Text>
+        </Text>
         <View style={styles.headerIcons}>
           <TouchableOpacity 
             onPress={() => router.push("/profile")}
             style={styles.iconBtn}
           >
-            <LinearGradient 
-              colors={['#4facfe', '#00f2fe']} 
-              style={styles.iconBtnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Ionicons name="person" size={20} color="white" />
-            </LinearGradient>
+            <Ionicons name="person" size={24} color="white" />
           </TouchableOpacity>
           <TouchableOpacity 
             style={styles.iconBtn} 
             onPress={() => router.push('../screens/SearchScreen')}
           >
-            <LinearGradient 
-              colors={['#667eea', '#764ba2']} 
-              style={styles.iconBtnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Ionicons name="search" size={20} color="white" />
-            </LinearGradient>
+            <Ionicons name="search" size={24} color="white" />
           </TouchableOpacity>
         </View>
       </LinearGradient>
 
       {/* Tabs */}
-      <LinearGradient
-        colors={['#fff', '#f8f9fa']}
-        style={styles.tabsContainer}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
+      <View style={styles.tabsContainer}>
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false}
@@ -120,36 +118,31 @@ export default function Videos() {
             </TouchableOpacity>
           ))}
         </ScrollView>
-      </LinearGradient>
+      </View>
 
       {/* Video Feed */}
-      <ScrollView style={styles.feedScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
+      <ScrollView style={styles.feedScroll} showsVerticalScrollIndicator={false}>
         {videoFeed.map((item) => (
           <View style={styles.feed} key={item.id}>
             <View style={styles.feedHeader}>
-              <LinearGradient
-                colors={['#4facfe', '#00f2fe']}
-                style={styles.feedAvatarContainer}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
+              <View style={styles.feedAvatarContainer}>
                 <Image source={{ uri: item.avatar }} style={styles.feedAvatar} />
-              </LinearGradient>
+              </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.feedName}>{item.user} <Text style={styles.follow}>· Follow</Text></Text>
                 <View style={{ flexDirection: "row", alignItems: "center" }}>
                   <Text style={styles.feedTime}>{item.date}</Text>
-                  <Feather name="globe" size={12} color="#888" style={{ marginLeft: 4 }} />
+                  <Feather name="globe" size={12} color={COLORS.lightText} style={{ marginLeft: 4 }} />
                 </View>
               </View>
-              <Feather name="more-horizontal" size={20} color="#888" style={{ marginRight: 8 }} />
-              <Ionicons name="close" size={20} color="#888" />
+              <Feather name="more-horizontal" size={20} color={COLORS.lightText} style={{ marginRight: 8 }} />
+              <Ionicons name="close" size={20} color={COLORS.lightText} />
             </View>
             <Text style={styles.feedDesc}>{item.desc}</Text>
             <Image source={{ uri: item.videoThumb }} style={[styles.feedVideo, { width: width - 24 }]} />
             <View style={styles.statsRow}>
               <View style={styles.statsLeft}>
-                <FontAwesome name="thumbs-up" size={16} color="#1877f2" />
+                <FontAwesome name="thumbs-up" size={16} color={COLORS.primary} />
                 <Text style={styles.statsText}>{item.likes}</Text>
               </View>
               <Text style={styles.statsText}>{item.comments} comments</Text>
@@ -158,119 +151,79 @@ export default function Videos() {
             </View>
             <View style={styles.feedActions}>
               <TouchableOpacity style={styles.actionBtn}>
-                <LinearGradient 
-                  colors={['#4facfe', '#00f2fe']} 
-                  style={styles.actionIconBg}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <FontAwesome name="thumbs-up" size={16} color="white" />
-                </LinearGradient>
+                <View style={styles.actionIcon}>
+                  <FontAwesome name="thumbs-up" size={16} color={COLORS.primary} />
+                </View>
                 <Text style={styles.actionText}>Like</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.actionBtn}>
-                <LinearGradient 
-                  colors={['#667eea', '#764ba2']} 
-                  style={styles.actionIconBg}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <Ionicons name="chatbubble" size={16} color="white" />
-                </LinearGradient>
+                <View style={styles.actionIcon}>
+                  <Ionicons name="chatbubble" size={16} color={COLORS.primary} />
+                </View>
                 <Text style={styles.actionText}>Comment</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.actionBtn}>
-                <LinearGradient 
-                  colors={['#f093fb', '#f5576c']} 
-                  style={styles.actionIconBg}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <Ionicons name="send" size={16} color="white" />
-                </LinearGradient>
+                <View style={styles.actionIcon}>
+                  <Ionicons name="send" size={16} color={COLORS.primary} />
+                </View>
                 <Text style={styles.actionText}>Send</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.actionBtn}>
-                <LinearGradient 
-                  colors={['#43e97b', '#38f9d7']} 
-                  style={styles.actionIconBg}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <Ionicons name="arrow-redo" size={16} color="white" />
-                </LinearGradient>
+                <View style={styles.actionIcon}>
+                  <Ionicons name="arrow-redo" size={16} color={COLORS.primary} />
+                </View>
                 <Text style={styles.actionText}>Share</Text>
               </TouchableOpacity>
             </View>
           </View>
         ))}
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingTop: 50,
     paddingHorizontal: 16,
     paddingBottom: 12,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowRadius: 4,
     elevation: 5,
   },
-  headerTitle: {
+  logo: {
     fontSize: 24,
-    fontWeight: "bold",
-    color: "white",
-    flex: 1,
-    fontFamily: 'sans-serif-medium',
-    textShadowColor: 'rgba(0,0,0,0.1)',
-    textShadowOffset: {width: 1, height: 1},
-    textShadowRadius: 2
+    fontWeight: 'bold',
+    color: 'white',
   },
   headerIcons: {
     flexDirection: "row",
-    alignItems: "center",
+    gap: 12,
   },
   iconBtn: {
-    borderRadius: 18,
-    overflow: 'hidden',
-    marginLeft: 10,
-  },
-  iconBtnGradient: {
     width: 36,
     height: 36,
     borderRadius: 18,
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   tabsContainer: {
-    paddingVertical: 8,
+    backgroundColor: COLORS.white,
     borderBottomWidth: 1,
-    borderBottomColor: "#e4e6eb",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    borderBottomColor: '#eee',
   },
   tabsRow: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   tabBtn: {
     paddingVertical: 8,
@@ -279,24 +232,23 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   tabBtnActive: {
-    backgroundColor: "#e7f0fd",
+    backgroundColor: '#e7f0fd',
   },
   tabText: {
     fontSize: 16,
-    color: "#666",
+    color: COLORS.lightText,
     fontWeight: "500",
-    fontFamily: 'sans-serif-medium'
   },
   tabTextActive: {
-    color: "#1877f2",
+    color: COLORS.primary,
     fontWeight: "bold",
   },
   feedScroll: {
     flex: 1,
   },
   feed: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
     marginHorizontal: 12,
     marginVertical: 8,
     padding: 16,
@@ -321,36 +273,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    backgroundColor: '#f0f2f5',
+    overflow: 'hidden',
   },
   feedAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: 'white'
+    width: '100%',
+    height: '100%',
   },
   feedName: {
     fontWeight: "bold",
     fontSize: 16,
-    color: "#222",
-    fontFamily: 'sans-serif-medium'
+    color: COLORS.text,
   },
   follow: {
-    color: "#1877f2",
+    color: COLORS.primary,
     fontWeight: "bold",
     fontSize: 14,
   },
   feedTime: {
-    color: "#888",
+    color: COLORS.lightText,
     fontSize: 13,
-    fontFamily: 'sans-serif'
   },
   feedDesc: {
     fontSize: 15,
-    color: "#222",
+    color: COLORS.text,
     marginBottom: 12,
     lineHeight: 20,
-    fontFamily: 'sans-serif'
   },
   feedVideo: {
     height: 240,
@@ -372,10 +320,9 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   statsText: {
-    color: "#666",
+    color: COLORS.lightText,
     fontSize: 14,
     marginLeft: 6,
-    fontFamily: 'sans-serif'
   },
   feedActions: {
     flexDirection: "row",
@@ -391,18 +338,18 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 8,
   },
-  actionIconBg: {
+  actionIcon: {
     width: 32,
     height: 32,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 6
+    marginRight: 6,
+    backgroundColor: '#f0f2f5',
   },
   actionText: {
-    color: "#666",
+    color: COLORS.lightText,
     fontWeight: "500",
     fontSize: 14,
-    fontFamily: 'sans-serif-medium'
   },
 });

@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -6,6 +7,16 @@ import FriendRequestCard from './FriendRequestCard';
 import { useAuth } from '../context/AuthContext';
 import client, { BASE_URL } from '../api/client';
 import { useFocusEffect } from '@react-navigation/native';
+
+// Color Palette (matching home screen)
+const COLORS = {
+  primary: '#0A2463',  // Deep Blue
+  accent: '#FF7F11',   // Vibrant Orange
+  background: '#F5F7FA',
+  white: '#FFFFFF',
+  text: '#333333',
+  lightText: '#888888',
+};
 
 type User = {
   id: string;
@@ -17,7 +28,7 @@ type User = {
 type FriendRequest = {
   id: string;
   sender: User;
-  recipient: User;
+  receiver: User;
   status: string;
   createdAt: string;
 };
@@ -53,48 +64,138 @@ export default function FriendRequestsScreen() {
     }, [user?.id])
   );
 
-  let content;
-  if (loading) {
-    content = <ActivityIndicator size="large" color="#1877f2" />;
-  } else if (requests.length === 0) {
-    content = <Text style={styles.emptyText}>No friend requests</Text>;
-  } else {
-    content = requests.map(req => <FriendRequestCard key={req.id} request={req} onAccepted={fetchRequests} />);
-  }
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      );
+    }
+    if (requests.length === 0) {
+      return (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="person-add-outline" size={60} color={COLORS.lightText} />
+          <Text style={styles.emptyText}>No friend requests</Text>
+          <Text style={styles.emptySubtext}>When someone sends you a friend request, it will appear here</Text>
+        </View>
+      );
+    }
+    return requests.map(req => (
+      <FriendRequestCard key={req.id} request={req} onAccepted={fetchRequests} />
+    ));
+  };
 
   return (
-    <LinearGradient colors={['#f5f7fa', '#e4e8f0']} style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>{'<'} Back</Text>
+    <View style={styles.container}>
+      {/* Header */}
+      <LinearGradient
+        colors={[COLORS.primary, '#1A4B8C']}
+        style={styles.header}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+      >
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <Text style={styles.title}>Friends</Text>
-        <TouchableOpacity style={styles.searchBtn}>
-          <Text style={styles.searchIcon}>🔍</Text>
+        <Text style={styles.headerTitle}>Friend Requests</Text>
+        <TouchableOpacity style={styles.menuButton}>
+          <Ionicons name="ellipsis-vertical" size={24} color="white" />
         </TouchableOpacity>
+      </LinearGradient>
+
+      {/* Section Header */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>
+          {requests.length} {requests.length === 1 ? 'request' : 'requests'}
+        </Text>
       </View>
-      <Text style={styles.sectionTitle}>Friend requests</Text>
-      <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 80 }}>
-        {content}
+
+      {/* Requests List */}
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+        {renderContent()}
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', padding: 16, justifyContent: 'space-between' },
-  backBtn: { marginRight: 12 },
-  backText: { color: '#1877f2', fontWeight: 'bold', fontSize: 16 },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#222', flex: 1, textAlign: 'center' },
-  searchBtn: { marginLeft: 12 },
-  searchIcon: { fontSize: 22, color: '#222' },
-  tabsRow: { flexDirection: 'row', justifyContent: 'center', marginVertical: 12 },
-  tabBtn: { paddingVertical: 8, paddingHorizontal: 18, borderRadius: 18, backgroundColor: '#f1f1f1', marginHorizontal: 4 },
-  tabBtnActive: { backgroundColor: '#e4e8f0' },
-  tabText: { color: '#222', fontWeight: 'bold', fontSize: 15 },
-  tabTextActive: { color: '#1877f2', fontWeight: 'bold', fontSize: 15 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginLeft: 16, marginBottom: 8, color: '#222' },
-  scroll: { flex: 1, paddingHorizontal: 8 },
-  emptyText: { textAlign: 'center', marginTop: 32, color: '#888' },
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 50,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  backButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  menuButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sectionHeader: {
+    backgroundColor: COLORS.white,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  scroll: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 60,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingHorizontal: 32,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    textAlign: 'center',
+    marginTop: 16,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: COLORS.lightText,
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 20,
+  },
 });

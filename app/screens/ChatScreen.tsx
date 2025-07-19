@@ -8,6 +8,16 @@ import client, { BASE_URL } from '../api/client';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 
+// Color Palette (matching Home screen)
+const COLORS = {
+  primary: '#0A2463',  // Deep Blue
+  accent: '#FF7F11',   // Vibrant Orange
+  background: '#F5F7FA',
+  white: '#FFFFFF',
+  text: '#333333',
+  lightText: '#888888',
+};
+
 type Message = {
   id: string;
   sender: { id: string };
@@ -67,10 +77,6 @@ export default function ChatScreen() {
 
   useEffect(() => {
     loadMessages();
-    
-    // Optional: Set up polling if you need periodic updates
-    // const pollInterval = setInterval(loadMessages, 10000);
-    // return () => clearInterval(pollInterval);
   }, [recipient?.id]);
 
   useEffect(() => {
@@ -143,7 +149,7 @@ export default function ChatScreen() {
       <LinearGradient
         colors={
           item.sender.id === currentUser?.id 
-            ? ['#1877f2', '#0a5bc4'] 
+            ? [COLORS.primary, '#1A4B8C'] 
             : ['#f0f2f5', '#e4e6eb']
         }
         start={{ x: 0, y: 0 }}
@@ -186,17 +192,16 @@ export default function ChatScreen() {
   );
 
   return (
-    <LinearGradient colors={['#f5f7fa', '#e4e8f0']} style={styles.container}>
-      <StatusBar backgroundColor="#1877f2" barStyle="light-content" translucent />
+    <View style={styles.container}>
       {/* Header */}
       <LinearGradient
-        colors={['#1877f2', '#0a5bc4']}
+        colors={[COLORS.primary, '#1A4B8C']}
         style={[styles.header, { paddingTop: Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 0) + 10 }]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
       >
-        <TouchableOpacity onPress={() => router.replace('/screens/MessengerScreen')} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={26} color="#fff" />
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.profileContainer}
@@ -213,10 +218,10 @@ export default function ChatScreen() {
         </TouchableOpacity>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.headerIconBtn}>
-            <Ionicons name="call-outline" size={22} color="#fff" />
+            <Ionicons name="call-outline" size={22} color="white" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconBtn} onPress={() => router.push('/(create)/LiveScreen')}>
-            <Ionicons name="videocam-outline" size={24} color="#fff" />
+          <TouchableOpacity style={styles.headerIconBtn}>
+            <Ionicons name="videocam-outline" size={24} color="white" />
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -224,7 +229,7 @@ export default function ChatScreen() {
       {/* Messages */}
       {isLoading && messages.length === 0 ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#1877f2" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
       ) : (
         <FlatList
@@ -232,7 +237,7 @@ export default function ChatScreen() {
           data={messages}
           renderItem={renderMessage}
           keyExtractor={item => item.id}
-          contentContainerStyle={{ paddingBottom: 80 }}
+          contentContainerStyle={styles.messagesContainer}
           showsVerticalScrollIndicator={false}
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
           ListEmptyComponent={
@@ -253,19 +258,19 @@ export default function ChatScreen() {
           <View style={styles.inputRow}>
             <View style={styles.leftIcons}>
               <TouchableOpacity style={styles.iconBtn}>
-                <Ionicons name="image" size={24} color="#1877f2" />
+                <Ionicons name="image" size={24} color={COLORS.primary} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.iconBtn}>
-                <Feather name="paperclip" size={24} color="#1877f2" />
+                <Feather name="paperclip" size={24} color={COLORS.primary} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.iconBtn}>
-                <MaterialIcons name="photo-camera" size={24} color="#1877f2" />
+                <MaterialIcons name="photo-camera" size={24} color={COLORS.primary} />
               </TouchableOpacity>
             </View>
             <TextInput
               style={[styles.input, { height: Math.max(44, inputHeight) }]}
               placeholder="Aa"
-              placeholderTextColor="#888"
+              placeholderTextColor={COLORS.lightText}
               value={text}
               onChangeText={setText}
               multiline
@@ -282,42 +287,37 @@ export default function ChatScreen() {
               disabled={!text.trim() || isSending}
             >
               {isSending ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <ActivityIndicator size="small" color="white" />
               ) : (
-                <Ionicons name="send" size={20} color="#fff" />
+                <Ionicons name="send" size={20} color="white" />
               )}
             </TouchableOpacity>
           </View>
         </View>
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { 
     flex: 1,
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    // paddingTop handled inline
     paddingBottom: 12,
-    paddingHorizontal: 12,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    paddingHorizontal: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowRadius: 4,
     elevation: 5,
   },
   backButton: {
     padding: 6,
-    marginRight: 4,
+    marginRight: 10,
   },
   profileContainer: {
     flexDirection: 'row',
@@ -329,26 +329,23 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: COLORS.accent,
   },
   headerInfo: { 
     marginLeft: 10,
   },
   headerTitle: { 
-    color: '#fff', 
+    color: 'white', 
     fontWeight: 'bold', 
     fontSize: 18,
-    fontFamily: 'sans-serif-medium'
   },
   headerSubtitle: { 
     color: 'rgba(255,255,255,0.8)', 
     fontSize: 13,
-    fontFamily: 'sans-serif'
   },
   headerActions: { 
     flexDirection: 'row', 
     alignItems: 'center',
-    marginLeft: 'auto'
   },
   headerIconBtn: {
     padding: 8,
@@ -366,20 +363,18 @@ const styles = StyleSheet.create({
     paddingTop: 100,
   },
   emptyText: {
-    color: '#666',
+    color: COLORS.text,
     fontSize: 16,
     fontWeight: '500',
-    fontFamily: 'sans-serif-medium'
   },
   emptySubtext: {
-    color: '#888',
+    color: COLORS.lightText,
     fontSize: 14,
     marginTop: 4,
-    fontFamily: 'sans-serif'
   },
   messagesContainer: { 
     padding: 16,
-    paddingBottom: 8,
+    paddingBottom: 80,
   },
   messageRow: {
     flexDirection: 'row',
@@ -430,13 +425,12 @@ const styles = StyleSheet.create({
   messageText: {
     fontSize: 16,
     lineHeight: 22,
-    fontFamily: 'sans-serif'
   },
   sentText: {
-    color: '#fff',
+    color: 'white',
   },
   receivedText: {
-    color: '#222',
+    color: COLORS.text,
   },
   messageImage: {
     width: 200,
@@ -453,19 +447,18 @@ const styles = StyleSheet.create({
   },
   timeText: {
     fontSize: 12,
-    fontFamily: 'sans-serif'
   },
   sentTime: {
     color: 'rgba(255,255,255,0.7)',
   },
   receivedTime: {
-    color: '#888',
+    color: COLORS.lightText,
   },
   statusIcon: {
     marginLeft: 4,
   },
   inputContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderTopWidth: 1,
@@ -494,7 +487,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    color: '#222',
+    color: COLORS.text,
     borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -502,14 +495,13 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
     minHeight: 36,
     maxHeight: 120,
-    fontFamily: 'sans-serif'
   },
   iconBtn: {
     padding: 6,
     borderRadius: 20,
   },
   sendBtn: {
-    backgroundColor: '#1877f2',
+    backgroundColor: COLORS.primary,
     borderRadius: 20,
     width: 36,
     height: 36,
