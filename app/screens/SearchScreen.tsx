@@ -82,9 +82,11 @@ export default function SearchScreen() {
     if (type === 'user') {
       router.push({ pathname: '/screens/FriendsProfileScreen', params: { userId: item.id } });
     } else if (type === 'post') {
-      router.push({ pathname: '/screens/PostViewerScreen', params: { postId: item.id } });
+      router.push({ pathname: '/(tabs)/videos', params: { tab: 'Posts', postId: item.id } });
     } else if (type === 'reel') {
-      router.push({ pathname: '/screens/ReelViewerScreen', params: { reelId: item.id } });
+      router.push({ pathname: '/(tabs)/videos', params: { tab: 'Reels', reelId: item.id } });
+    } else if (type === 'story') {
+      router.push({ pathname: '/(tabs)/videos', params: { tab: 'Stories', storyId: item.id } });
     }
   };
 
@@ -175,7 +177,7 @@ export default function SearchScreen() {
           {showUsers && users.length > 0 && <Text style={styles.sectionTitle}>Users</Text>}
           {showUsers && users.map(user => (
             <TouchableOpacity key={user.id} style={styles.resultRow} onPress={() => handleResultPress('user', user)}>
-              <Image source={{ uri: user.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} style={styles.avatar} />
+              <Image source={{ uri: user?.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} style={styles.avatar} />
               <View>
                 <Text style={styles.resultTitle}>{user.fullName || user.username}</Text>
                 <Text style={styles.resultSub}>{user.username}</Text>
@@ -231,10 +233,10 @@ const styles = StyleSheet.create({
   suggestionWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   suggestionChip: { backgroundColor: '#e4e6eb', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 6, marginRight: 8, marginBottom: 8 },
   suggestionChipText: { color: COLORS.text, fontWeight: '500' },
-  filtersRow: { flexDirection: 'row', paddingHorizontal: 8, marginBottom: 4 },
-  filterChip: { backgroundColor: '#e4e6eb', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 8, marginRight: 8 },
+  filtersRow: { flexDirection: 'row', paddingHorizontal: 15, marginBottom: 4 },
+  filterChip: { backgroundColor: '#e4e6eb', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 10, marginRight: 10 },
   filterChipActive: { backgroundColor: COLORS.primary },
-  filterText: { color: COLORS.text, fontWeight: '500' },
+  filterText: { color: COLORS.text, fontWeight: '500', fontSize: 14 },
   filterTextActive: { color: COLORS.white },
   resultsScroll: { flex: 1, paddingHorizontal: 8 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.text, marginTop: 16, marginBottom: 8 },

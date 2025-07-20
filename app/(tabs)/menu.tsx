@@ -10,9 +10,11 @@ import {
   Text,
   TouchableOpacity,
   View,
-  Pressable
+  Pressable,
+  Alert
 } from "react-native";
 import { useAuth } from '../context/AuthContext';
+import { getBestFriends, Friend } from '../lib/services/userService';
 
 // Color Palette
 const COLORS = {
@@ -46,9 +48,16 @@ export default function Menu() {
   const router = useRouter();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [bestFriends, setBestFriends] = useState<Friend[]>([]);
 
   useEffect(() => {
-    if (user) setLoading(false);
+    if (user) {
+      setLoading(false);
+      // Fetch best friends
+      getBestFriends(user.id)
+        .then(setBestFriends)
+        .catch(() => setBestFriends([]));
+    }
   }, [user]);
 
   if (loading || !user) {
@@ -83,25 +92,25 @@ export default function Menu() {
         {/* Profile Card */}
         <TouchableOpacity style={styles.profileCard} onPress={() => router.push("/profile")}>
           <Image 
-            source={{ uri: user.profilePicture || "https://i.imgur.com/6XbK6bE.jpg" }} 
+            source={{ uri: user?.profilePicture || "https://i.imgur.com/6XbK6bE.jpg" }} 
             style={styles.profileAvatar} 
           />
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{user.fullName || 'User'}</Text>
+            <Text style={styles.profileName}>{user?.fullName || 'User'}</Text>
             <Text style={styles.profileSubtext}>View your profile</Text>
           </View>
           <View style={styles.followerBadge}>
-            <Text style={styles.followerText}>{user.details?.followerCount || 0}+</Text>
+            <Text style={styles.followerText}>{user?.details?.followerCount || 0}+</Text>
           </View>
         </TouchableOpacity>
 
         {/* Shortcuts */}
         <Text style={styles.sectionTitle}>Your Shortcuts</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.shortcutsContainer}>
-          {shortcuts.map((item) => (
-            <TouchableOpacity key={item.name} style={styles.shortcutItem}>
-              <Image source={{ uri: item.avatar }} style={styles.shortcutAvatar} />
-              <Text style={styles.shortcutName}>{item.name}</Text>
+          {bestFriends.map((friend) => (
+            <TouchableOpacity key={friend.id} style={styles.shortcutItem} onPress={() => router.push({ pathname: '/screens/FriendsProfileScreen', params: { userId: friend.id } })}>
+              <Image source={{ uri: friend.profilePicture || 'https://i.imgur.com/6XbK6bE.jpg' }} style={styles.shortcutAvatar} />
+              <Text style={styles.shortcutName}>{friend.fullName || friend.username}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -116,7 +125,13 @@ export default function Menu() {
                 if (item.label === 'Friends') router.push('/friends/FriendsScreen');
                 else if (item.label === 'Marketplace') router.push('/(tabs)/marketplace');
                 else if (item.label === 'Reels') router.push('/(create)/newReel');
-                else if (item.label === 'Dashboard' || item.label === 'Memories' || item.label === 'Feeds' || item.label === 'Groups' || item.label === 'Saved' || item.label === 'Support' || item.label === 'Ad Center') router.push('/screens/ComingSoon');
+                else if (item.label === 'Dashboard') router.push('/screens/DashboardScreen');
+                else if (item.label === 'Memories') router.push('/screens/MemoriesScreen');
+                else if (item.label === 'Feeds') router.push('/screens/FeedsScreen');
+                else if (item.label === 'Groups') router.push('/screens/GroupsScreen');
+                else if (item.label === 'Saved') router.push('/screens/SavedScreen');
+                else if (item.label === 'Support') router.push('/screens/SupportScreen');
+                else if (item.label === 'Ad Center') router.push('/screens/AdCenterScreen');
               }}
             >
               <View style={styles.menuIcon}>
@@ -130,10 +145,19 @@ export default function Menu() {
         {/* Logout Button */}
         <TouchableOpacity 
           style={styles.logoutButton}
-          onPress={() => router.replace("/login")}
+          onPress={() => {
+            Alert.alert(
+              'Logout',
+              'Are you sure you want to logout?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Logout', style: 'destructive', onPress: () => router.replace("/login") }
+              ]
+            );
+          }}
         >
           <Ionicons name="log-out-outline" size={20} color="white" />
-          <Text style={styles.logoutText}>Log Out</Text>
+          <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>

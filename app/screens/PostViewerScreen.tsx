@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getPost, deletePost, Post } from '../lib/services/postService';
 import { useAuth } from '../context/AuthContext';
+// TODO: Replace with expo-video when available in SDK 54
 import { Video } from 'expo-av';
 
 const COLORS = {

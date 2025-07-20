@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import client, { BASE_URL } from '../api/client';
 
@@ -29,20 +29,37 @@ interface Props {
 export default function SuggestionCard({ suggestion }: Props) {
   const [sent, setSent] = useState(false);
   const { user } = useAuth();
+  const router = useRouter();
 
   const handleSendRequest = () => {
-    if (!user?.id) return;
-    client.post('/friends/request', {
-      fromUserId: user.id,
-      toUserId: suggestion.id
+    if (!user?.id || user.id === suggestion.id) return;
+    client.post('/friends/request', null, {
+      params: {
+        senderId: user.id,
+        recipientId: suggestion.id
+      }
     })
-      .then(() => setSent(true))
-      .catch(error => console.error('Error sending friend request:', error));
+    .then(() => setSent(true))
+    .catch(error => console.error('Error sending friend request:', error));
   };
 
-  if (sent) {
-    return (
-      <View style={styles.card}>
+  const handleViewProfile = () => {
+    router.push({
+      pathname: "/screens/FriendsProfileScreen",
+      params: { userId: suggestion.id }
+    });
+  };
+
+  const handleMessage = () => {
+    router.push({
+      pathname: "/screens/ChatScreen",
+      params: { recipient: JSON.stringify(suggestion) }
+    });
+  };
+
+  return (
+    <View style={styles.card}>
+      <TouchableOpacity onPress={handleViewProfile} style={styles.userSection}>
         <Image 
           source={{ uri: suggestion.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} 
           style={styles.avatar} 
@@ -51,36 +68,19 @@ export default function SuggestionCard({ suggestion }: Props) {
           <Text style={styles.name}>{suggestion.fullName || suggestion.username}</Text>
           <Text style={styles.username}>@{suggestion.username}</Text>
         </View>
-        <View style={styles.sentButton}>
-          <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
-          <Text style={styles.sentText}>Sent</Text>
-        </View>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.card}>
-      <Image 
-        source={{ uri: suggestion.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} 
-        style={styles.avatar} 
-      />
-      <View style={styles.userInfo}>
-        <Text style={styles.name}>{suggestion.fullName || suggestion.username}</Text>
-        <Text style={styles.username}>@{suggestion.username}</Text>
-        <Text style={styles.mutual}>You may know this person</Text>
-      </View>
-      <TouchableOpacity style={styles.addButton} onPress={handleSendRequest}>
-        <LinearGradient
-          colors={[COLORS.accent, '#FF9E40']}
-          style={styles.addGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-        >
-          <Ionicons name="person-add" size={16} color="white" />
-          <Text style={styles.addText}>Add</Text>
-        </LinearGradient>
       </TouchableOpacity>
+      <View style={styles.actions}>
+        <TouchableOpacity style={styles.messageButton} onPress={handleMessage}>
+          <Ionicons name="chatbubble-outline" size={20} color={COLORS.primary} />
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.addButton, sent && styles.sentButton]} 
+          onPress={handleSendRequest}
+          disabled={sent || user?.id === suggestion.id}
+        >
+          <Ionicons name={sent ? "checkmark" : "person-add"} size={20} color="white" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -103,59 +103,45 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
+  userSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
   avatar: {
     width: 50,
     height: 50,
     borderRadius: 25,
     marginRight: 12,
-    backgroundColor: '#f0f2f5',
   },
   userInfo: {
     flex: 1,
   },
   name: {
-    fontWeight: 'bold',
     fontSize: 16,
+    fontWeight: 'bold',
     color: COLORS.text,
     marginBottom: 2,
   },
   username: {
-    fontSize: 14,
-    color: COLORS.lightText,
-    marginBottom: 4,
-  },
-  mutual: {
-    color: COLORS.lightText,
     fontSize: 13,
+    color: COLORS.lightText,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  messageButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#e0e0e0',
   },
   addButton: {
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  addGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    gap: 4,
-  },
-  addText: {
-    color: COLORS.white,
-    fontWeight: 'bold',
-    fontSize: 14,
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: COLORS.accent,
   },
   sentButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#e7f0fd',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    gap: 4,
-  },
-  sentText: {
-    color: COLORS.primary,
-    fontWeight: 'bold',
-    fontSize: 14,
+    backgroundColor: '#22c55e',
   },
 });

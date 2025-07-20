@@ -61,4 +61,16 @@ export async function shareReel(reelId: string) {
 export async function fetchReelComments(reelId: string) {
   const res = await client.get(`/reels/${reelId}/comments`);
   return res.data as ReelComment[];
-} 
+}
+
+// Default export to fix warning
+export default {
+  fetchReels,
+  createReel,
+  deleteReel,
+  likeReel,
+  unlikeReel,
+  addReelComment,
+  shareReel,
+  fetchReelComments
+}; 

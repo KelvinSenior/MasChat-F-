@@ -2,9 +2,7 @@ import { Entypo, Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, StatusBar, Platform } from "react-native";
-import { useTheme } from '../../constants/ThemeContext';
-import { Switch } from "react-native";
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, StatusBar, Platform, Alert } from "react-native";
 
 // Color Palette (matching home screen)
 const COLORS = {
@@ -18,20 +16,19 @@ const COLORS = {
 
 const settingsOptions = [
   {
-    section: "Tools and resources",
+    section: "Privacy & Security",
     data: [
-      { icon: <Ionicons name="lock-closed-outline" size={22} color="#0A2463" />, label: "Privacy Checkup" },
-      { icon: <MaterialCommunityIcons name="home-outline" size={22} color="#FF7F11" />, label: "Family Center" },
-      { icon: <Ionicons name="settings-outline" size={22} color="#5c6bc0" />, label: "Default audience settings" },
+      { icon: <Ionicons name="lock-closed-outline" size={22} color="#0A2463" />, label: "Privacy Settings", route: "/screens/PrivacySettingsScreen" },
+      { icon: <Ionicons name="shield-outline" size={22} color="#FF7F11" />, label: "Security Settings", route: "/screens/SecuritySettingsScreen" },
+      { icon: <Ionicons name="notifications-outline" size={22} color="#5c6bc0" />, label: "Notification Settings", route: "/screens/NotificationSettingsScreen" },
     ],
   },
   {
     section: "Preferences",
     data: [
-      { icon: <Feather name="sliders" size={22} color="#26a69a" />, label: "Content preferences" },
+      { icon: <Feather name="sliders" size={22} color="#26a69a" />, label: "Content Preferences", route: "/screens/ContentPreferencesScreen" },
       { icon: <MaterialCommunityIcons name="emoticon-outline" size={22} color="#ffca28" />, label: "Reaction preferences" },
-      { icon: <Ionicons name="notifications-outline" size={22} color="#42a5f5" />, label: "Notifications" },
-      { icon: <MaterialCommunityIcons name="account-outline" size={22} color="#ab47bc" />, label: "Accessibility" },
+      { icon: <MaterialCommunityIcons name="account-outline" size={22} color="#ab47bc" />, label: "Accessibility", route: "/screens/AccessibilitySettingsScreen" },
       { icon: <Entypo name="pin" size={22} color="#66bb6a" />, label: "Tab bar" },
       { icon: <Ionicons name="globe-outline" size={22} color="#26c6da" />, label: "Language and region" },
       { icon: <Feather name="file" size={22} color="#7e57c2" />, label: "Media" },
@@ -52,7 +49,6 @@ const settingsOptions = [
 export default function SettingsScreen() {
   const [search, setSearch] = useState("");
   const router = useRouter();
-  const { theme, toggleTheme } = useTheme();
 
   // Filter options based on search
   const filteredOptions = settingsOptions.map(section => ({
@@ -61,6 +57,14 @@ export default function SettingsScreen() {
       option.label.toLowerCase().includes(search.toLowerCase())
     ),
   })).filter(section => section.data.length > 0);
+
+  const handleOptionPress = (option: any) => {
+    if (option.route) {
+      router.push(option.route);
+    } else {
+      router.push('/screens/ComingSoon');
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -110,7 +114,10 @@ export default function SettingsScreen() {
             <View style={styles.sectionContainer}>
               {section.data.map((option, index) => (
                 <React.Fragment key={option.label}>
-                  <TouchableOpacity style={styles.optionRow}>
+                  <TouchableOpacity 
+                    style={styles.optionRow}
+                    onPress={() => handleOptionPress(option)}
+                  >
                     <View style={styles.iconContainer}>
                       {option.icon}
                     </View>
@@ -136,43 +143,22 @@ export default function SettingsScreen() {
               <Ionicons name="chevron-forward" size={20} color={COLORS.lightText} />
             </TouchableOpacity>
             <View style={styles.optionDivider} />
-            <TouchableOpacity style={styles.optionRow}>
-              <View style={styles.iconContainer}>
-                <Ionicons name="shield-outline" size={22} color={COLORS.primary} />
-              </View>
-              <Text style={styles.optionLabel}>Security</Text>
-              <Ionicons name="chevron-forward" size={20} color={COLORS.lightText} />
-            </TouchableOpacity>
-            <View style={styles.optionDivider} />
-            <TouchableOpacity style={styles.optionRow}>
+            <TouchableOpacity style={styles.optionRow} onPress={() => {
+              Alert.alert(
+                'Logout',
+                'Are you sure you want to logout?',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Logout', style: 'destructive', onPress: () => router.replace("/login") }
+                ]
+              );
+            }}>
               <View style={styles.iconContainer}>
                 <Ionicons name="log-out" size={22} color="#ec407a" />
               </View>
               <Text style={[styles.optionLabel, { color: '#ec407a' }]}>Log Out</Text>
             </TouchableOpacity>
           </View>
-        </View>
-
-        {/* Dark Mode Toggle */}
-        <View style={styles.section}>
-          <TouchableOpacity style={styles.optionRow} onPress={toggleTheme}>
-            <View style={styles.iconContainer}>
-              <Ionicons 
-                name={theme === 'light' ? 'moon' : 'sunny'} 
-                size={22} 
-                color={COLORS.primary} 
-              />
-            </View>
-            <Text style={styles.optionLabel}>
-              {theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
-            </Text>
-            <Switch
-              value={theme === 'dark'}
-              onValueChange={toggleTheme}
-              thumbColor={theme === 'dark' ? COLORS.primary : "#f4f3f4"}
-              trackColor={{ false: "#767577", true: "#81b0ff" }}
-            />
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </View>

@@ -11,12 +11,14 @@ import {
   Text,
   TouchableOpacity,
   View,
-  Modal
+  Modal,
+  Alert
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { getUserProfile } from '../lib/services/userService';
 import { getPosts, Post } from '../lib/services/postService';
 import { fetchReels, Reel } from '../lib/services/reelService';
+import { friendService } from '../lib/services/friendService';
 import client from '../api/client';
 
 // Color Palette
@@ -76,9 +78,29 @@ export default function FriendsProfileScreen() {
     const friendsRes = await client.get(`/friends/list/${user.id}`);
     setIsFriend(friendsRes.data.some((f: any) => f.id === targetUserId));
     // Fetch pending requests
-    const pendingRes = await client.get(`/friends/requests/${user.id}`);
+    const pendingRes = await client.get(`/friends/pending/${user.id}`);
     setPendingRequests(pendingRes.data);
     setRequestSent(pendingRes.data.some((r: any) => r.sender.id === user.id && r.receiver.id === targetUserId));
+  };
+
+  const handleFriendRequest = async () => {
+    if (!user?.id || !targetUserId) return;
+    
+    try {
+      await friendService.sendFriendRequest(user.id, targetUserId);
+      setRequestSent(true);
+      Alert.alert('Success', 'Friend request sent!');
+    } catch (error) {
+      console.error('Error sending friend request:', error);
+      Alert.alert('Error', 'Failed to send friend request');
+    }
+  };
+
+  const handleStartChat = () => {
+    router.push({
+      pathname: "/screens/ChatScreen",
+      params: { recipient: JSON.stringify(profileData) }
+    });
   };
 
   useEffect(() => { fetchProfile(); fetchFriendStatus(); }, [targetUserId, user?.id]);
@@ -311,20 +333,33 @@ export default function FriendsProfileScreen() {
           )}
         </View>
         {user && !isFriend && !requestSent && user.id !== targetUserId && (
-          <TouchableOpacity
-            style={{ backgroundColor: '#22c55e', padding: 12, borderRadius: 8, marginVertical: 12, alignItems: 'center' }}
-            onPress={async () => {
-              await client.post('/friends/request', { senderId: user.id, recipientId: targetUserId });
-              setRequestSent(true);
-            }}
-          >
-            <Text style={{ color: 'white', fontWeight: 'bold' }}>Send Friend Request</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 12, marginVertical: 12 }}>
+            <TouchableOpacity
+              style={{ flex: 1, backgroundColor: '#22c55e', padding: 12, borderRadius: 8, alignItems: 'center' }}
+              onPress={handleFriendRequest}
+            >
+              <Text style={{ color: 'white', fontWeight: 'bold' }}>Add Friend</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{ flex: 1, backgroundColor: COLORS.primary, padding: 12, borderRadius: 8, alignItems: 'center' }}
+              onPress={handleStartChat}
+            >
+              <Text style={{ color: 'white', fontWeight: 'bold' }}>Message</Text>
+            </TouchableOpacity>
+          </View>
         )}
         {requestSent && (
           <View style={{ backgroundColor: '#fbbf24', padding: 12, borderRadius: 8, marginVertical: 12, alignItems: 'center' }}>
             <Text style={{ color: 'white', fontWeight: 'bold' }}>Request Sent</Text>
           </View>
+        )}
+        {isFriend && (
+          <TouchableOpacity
+            style={{ backgroundColor: COLORS.primary, padding: 12, borderRadius: 8, marginVertical: 12, alignItems: 'center' }}
+            onPress={handleStartChat}
+          >
+            <Text style={{ color: 'white', fontWeight: 'bold' }}>Message Friend</Text>
+          </TouchableOpacity>
         )}
       </ScrollView>
 

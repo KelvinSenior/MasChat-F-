@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { fetchReels, deleteReel, Reel } from '../lib/services/reelService';
 import { useAuth } from '../context/AuthContext';
+// TODO: Replace with expo-video when available in SDK 54
 import { Video } from 'expo-av';
 
 const COLORS = {
@@ -86,7 +87,7 @@ export default function ReelViewerScreen() {
               source={{ uri: reel.mediaUrl }}
               style={styles.reelVideo}
               useNativeControls
-              resizeMode="contain"
+              resizeMode="contain" as any
               shouldPlay
               isLooping
             />

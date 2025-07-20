@@ -22,14 +22,19 @@ export default function NewStory() {
   const [media, setMedia] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [mediaType, setMediaType] = useState<'image' | 'video' | 'audio' | null>(null);
 
-  const pickImage = async () => {
+  const pickMedia = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.All,
       allowsEditing: true,
       quality: 0.8,
     });
-    if (!result.canceled) setMedia(result.assets[0].uri);
+    if (!result.canceled) {
+      const asset = result.assets[0];
+      setMedia(asset.uri);
+      setMediaType(asset.type);
+    }
   };
 
   const handleSubmit = async () => {
@@ -80,13 +85,16 @@ export default function NewStory() {
       </LinearGradient>
 
       {/* Media Picker */}
-      <TouchableOpacity style={styles.mediaPicker} onPress={pickImage}>
+      <TouchableOpacity style={styles.mediaPicker} onPress={pickMedia}>
         {media ? (
-          <Image source={{ uri: media }} style={styles.mediaPreview} />
+          mediaType === 'image' ? <Image source={{ uri: media }} style={styles.mediaPreview} /> :
+          mediaType === 'video' ? <Text style={styles.mediaPlaceholderText}>Video selected</Text> :
+          mediaType === 'audio' ? <Text style={styles.mediaPlaceholderText}>Audio selected</Text> :
+          null
         ) : (
           <View style={styles.mediaPlaceholder}>
             <Ionicons name="image-outline" size={48} color={COLORS.lightText} />
-            <Text style={styles.mediaPlaceholderText}>Tap to select image or video</Text>
+            <Text style={styles.mediaPlaceholderText}>Tap to select image, video, or audio</Text>
           </View>
         )}
       </TouchableOpacity>

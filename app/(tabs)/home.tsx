@@ -3,6 +3,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from "react";
 import { Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, KeyboardAvoidingView, Platform } from "react-native";
+// TODO: Replace with expo-video when available in SDK 54
+import { Video, ResizeMode } from 'expo-av';
 import CommentDialog from "../components/CommentDialog";
 import { useAuth } from '../context/AuthContext';
 import { getPosts, deletePost, Post, likePost, unlikePost, addComment, sharePost, fetchPostComments, PostComment } from '../lib/services/postService';
@@ -33,10 +35,18 @@ export default function HomeScreen() {
   const [commentText, setCommentText] = useState('');
   const [commentLoading, setCommentLoading] = useState(false);
   const [comments, setComments] = useState<PostComment[]>([]);
+  const [playingVideos, setPlayingVideos] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchPosts();
     fetchAllStories();
+  }, []);
+
+  // Cleanup videos when component unmounts
+  useEffect(() => {
+    return () => {
+      setPlayingVideos(new Set());
+    };
   }, []);
 
   const fetchPosts = async () => {
@@ -97,6 +107,20 @@ export default function HomeScreen() {
     const data = await fetchPostComments(post.id);
     setComments(data);
   };
+
+  const toggleVideoPlayback = (postId: string) => {
+    setPlayingVideos(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(postId)) {
+        newSet.delete(postId);
+      } else {
+        newSet.add(postId);
+      }
+      return newSet;
+    });
+  };
+
+  const isVideoPlaying = (postId: string) => playingVideos.has(postId);
 
   // Helper function to navigate to appropriate profile screen
   const navigateToProfile = (userId: string) => {
@@ -210,7 +234,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </Modal>
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80, paddingHorizontal: 0 }}>
         {/* Status Update */}
         <View style={styles.statusContainer}>
           <TouchableOpacity onPress={() => router.push('/profile')}>
@@ -250,7 +274,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               key={story.id}
               style={styles.storyItem}
-              onPress={() => router.push({ pathname: '/screens/StoryViewerScreen', params: { storyId: story.id } })}
+              onPress={() => router.push({ pathname: '/(tabs)/videos', params: { tab: 'Stories', storyId: story.id } })}
             >
               <View style={styles.storyImageContainer}>
                 <Image source={{ uri: story.mediaUrl }} style={styles.storyImage} />
@@ -273,7 +297,7 @@ export default function HomeScreen() {
           </View>
         ) : (
           posts.map(post => (
-            <View key={post.id} style={[styles.postCard, { marginHorizontal: 0, borderRadius: 0 }]}>
+            <View key={post.id} style={[styles.postCard, { marginHorizontal: 0, borderRadius: 0, marginBottom: 0, shadowOpacity: 0, elevation: 0 }]}>
               <View style={styles.postHeader}>
                 <TouchableOpacity onPress={() => navigateToProfile(post.user.id)}>
                   <Image
@@ -293,15 +317,37 @@ export default function HomeScreen() {
               </View>
               <Text style={styles.postText}>{post.content}</Text>
               {(post.imageUrl || post.videoUrl) && (
-                <TouchableOpacity onPress={() => router.push({ pathname: '/screens/PostViewerScreen', params: { postId: post.id } })}>
+                <TouchableOpacity onPress={() => router.push({ pathname: '/(tabs)/videos', params: { tab: 'Posts', postId: post.id } })}>
                   {post.imageUrl ? (
                     <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
-                  ) : (
-                    <Ionicons name="videocam" size={60} color={COLORS.accent} style={styles.postImagePlaceholder} />
-                  )}
+                  ) : post.videoUrl ? (
+                    <View style={styles.videoContainer}>
+                      <Video
+                        source={{ uri: post.videoUrl }}
+                        style={styles.postVideo}
+                        resizeMode={ResizeMode.CONTAIN}
+                        shouldPlay={isVideoPlaying(post.id)}
+                        isLooping
+                        isMuted={false}
+                      />
+                      <TouchableOpacity 
+                        style={styles.playPauseButton}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          toggleVideoPlayback(post.id);
+                        }}
+                      >
+                        <Ionicons 
+                          name={isVideoPlaying(post.id) ? "pause" : "play"} 
+                          size={32} 
+                          color="white" 
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  ) : null}
                 </TouchableOpacity>
               )}
-              <View style={styles.postActions}>
+              <View style={[styles.postActions, { marginHorizontal: 16 }]}>
                 <TouchableOpacity onPress={() => user && handleLikePost(post)} style={styles.actionBtn}>
                   <View style={styles.actionIcon}>
                     <FontAwesome name="thumbs-up" size={16} color={getLikeColor(!!post.likedBy && post.likedBy.includes(user?.id || ''))} />
@@ -587,6 +633,31 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 1, // Square format
     marginBottom: 12,
+  },
+  postVideo: {
+    width: '100%',
+    aspectRatio: 1, // Square format
+    marginBottom: 12,
+  },
+  videoContainer: {
+    position: 'relative',
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 0, // Remove border radius to match images
+    overflow: 'hidden',
+  },
+  playPauseButton: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -16 }, { translateY: -16 }],
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 20,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
   },
   postActions: {
     flexDirection: 'row',

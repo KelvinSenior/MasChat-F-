@@ -69,8 +69,27 @@ export default function SellItemScreen() {
     }
     setLoading(true);
     try {
-      // TODO: Upload images to server and get URLs
-      const uploadedImages = images; // Replace with actual upload logic
+      // Upload images to server and get URLs
+      const uploadedImages: string[] = [];
+      for (const img of images) {
+        if (img.startsWith('http')) {
+          uploadedImages.push(img);
+        } else {
+          const formData = new FormData();
+          formData.append('file', {
+            uri: img,
+            name: `photo.jpg`,
+            type: 'image/jpeg',
+          } as any);
+          const res = await fetch('http://10.132.74.85:8080/api/marketplace/upload-image', {
+            method: 'POST',
+            body: formData,
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
+          const url = await res.text();
+          uploadedImages.push(url.replace(/"/g, ''));
+        }
+      }
       await marketplaceService.createItem({
         title,
         description,

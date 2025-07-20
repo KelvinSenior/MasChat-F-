@@ -105,7 +105,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateUser = async (updatedUser?: Partial<User>) => {
     try {
       if (!user) return;
-      const mergedUser = updatedUser ? { ...user, ...updatedUser } : user;
+      let mergedUser = updatedUser ? { ...user, ...updatedUser } : user;
+      // Always fetch the latest user from backend after update
+      const response = await client.get(`/users/${user.id}`);
+      mergedUser = response.data;
       await AsyncStorage.setItem('user', JSON.stringify(mergedUser));
       setUser(mergedUser);
     } catch (error) {

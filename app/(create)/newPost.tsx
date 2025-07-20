@@ -53,21 +53,20 @@ export default function NewPost() {
   const [post, setPost] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const [video, setVideo] = useState<string | null>(null);
+  const [audio, setAudio] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const pickImage = async () => {
+  const pickMedia = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
       allowsEditing: true,
       quality: 0.8,
     });
-    if (!result.canceled) setImage(result.assets[0].uri);
-  };
-
-  const pickVideo = async () => {
-    let result = await DocumentPicker.getDocumentAsync({ type: "video/*" });
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      setVideo(result.assets[0].uri);
+    if (!result.canceled) {
+      const asset = result.assets[0];
+      if (asset.type === 'video') setVideo(asset.uri);
+      else if (asset.type === 'image') setImage(asset.uri);
+      // Remove audio handling since it's not supported in posts
     }
   };
 
@@ -84,12 +83,13 @@ export default function NewPost() {
     try {
       let imageUrl = null;
       if (image) {
-        imageUrl = await uploadImage(image, 'profilePicture', user.id); // Use 'profilePicture' or add a new type for posts
+        // For posts, we'll handle the image URL directly without using uploadImage
+        imageUrl = image; // Use the local URI directly for now
       }
       await createPost({
         content: post,
-        imageUrl,
-        videoUrl: video,
+        imageUrl: image || undefined,
+        videoUrl: video || undefined,
       }, user.id);
       router.back();
     } catch (error) {
@@ -161,21 +161,18 @@ export default function NewPost() {
 
       {/* Image/Video Picker */}
       <View style={styles.pickerContainer}>
-        <TouchableOpacity onPress={pickImage} style={styles.pickButton}>
-          <Ionicons name="image" size={24} color={COLORS.accent} />
-          <Text style={styles.pickButtonText}>Add Image</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={pickVideo} style={styles.pickButton}>
-          <Ionicons name="videocam" size={24} color={COLORS.accent} />
-          <Text style={styles.pickButtonText}>Add Video</Text>
+        <TouchableOpacity onPress={pickMedia} style={styles.pickButton}>
+          <Ionicons name="images" size={24} color={COLORS.accent} />
+          <Text style={styles.pickButtonText}>Add Media</Text>
         </TouchableOpacity>
       </View>
 
       {/* Preview Selected Media */}
-      {(image || video) && (
+      {(image || video || audio) && (
         <View style={styles.previewContainer}>
           {image && <Image source={{ uri: image }} style={styles.previewImage} />}
           {video && <Text style={styles.previewText}>Video selected</Text>}
+          {audio && <Text style={styles.previewText}>Audio selected</Text>}
         </View>
       )}
 

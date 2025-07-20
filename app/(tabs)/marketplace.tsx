@@ -28,6 +28,7 @@ export default function MarketplaceScreen() {
 
   const fetchData = async () => {
     setLoading(true);
+    setSelectedCategory(null);
     const [itemData, catData] = await Promise.all([
       marketplaceService.getItems(),
       marketplaceService.getCategories(),
@@ -39,6 +40,7 @@ export default function MarketplaceScreen() {
 
   const handleSearch = async () => {
     setLoading(true);
+    setSelectedCategory(null);
     const results = await marketplaceService.searchItems(search);
     setItems(results);
     setLoading(false);

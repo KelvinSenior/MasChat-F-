@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import client, { BASE_URL } from '../api/client';
 
@@ -38,9 +39,10 @@ export default function FriendRequestCard({ request, onAccepted }: Props) {
   const [accepted, setAccepted] = useState(false);
   const [deleted, setDeleted] = useState(false);
   const { user } = useAuth();
+  const router = useRouter();
 
   const handleAccept = () => {
-    client.post(`/friends/accept?requestId=${request.id}`)
+    client.post(`/friends/accept/${request.id}`)
       .then(() => {
         setAccepted(true);
         if (onAccepted) onAccepted();
@@ -49,39 +51,48 @@ export default function FriendRequestCard({ request, onAccepted }: Props) {
   };
 
   const handleDelete = () => {
-    client.delete('/users/request', { 
-      data: { fromUserId: request.id, toUserId: user?.id }
-    })
+    client.delete(`/friends/request/${request.id}`)
       .then(() => setDeleted(true))
       .catch(error => console.error('Error deleting friend request:', error));
+  };
+
+  const handleViewProfile = () => {
+    router.push({
+      pathname: "/screens/FriendsProfileScreen",
+      params: { userId: request.sender.id }
+    });
+  };
+
+  const handleMessage = () => {
+    router.push({
+      pathname: "/screens/ChatScreen",
+      params: { recipient: JSON.stringify(request.sender) }
+    });
   };
 
   if (accepted || deleted) return null;
 
   return (
     <View style={styles.card}>
-      <Image 
-        source={{ uri: request.sender.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} 
-        style={styles.avatar} 
-      />
-      <View style={styles.userInfo}>
-        <Text style={styles.name}>{request.sender.fullName || request.sender.username}</Text>
-        <Text style={styles.username}>@{request.sender.username}</Text>
-        <Text style={styles.mutual}>Wants to be your friend</Text>
-      </View>
+      <TouchableOpacity onPress={handleViewProfile} style={styles.userSection}>
+        <Image 
+          source={{ uri: request.sender.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} 
+          style={styles.avatar} 
+        />
+        <View style={styles.userInfo}>
+          <Text style={styles.name}>{request.sender.fullName || request.sender.username}</Text>
+          <Text style={styles.username}>@{request.sender.username}</Text>
+        </View>
+      </TouchableOpacity>
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.confirmBtn} onPress={handleAccept}>
-          <LinearGradient
-            colors={[COLORS.primary, '#1A4B8C']}
-            style={styles.confirmGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          >
-            <Text style={styles.confirmText}>Confirm</Text>
-          </LinearGradient>
+        <TouchableOpacity style={styles.messageButton} onPress={handleMessage}>
+          <Ionicons name="chatbubble-outline" size={20} color={COLORS.primary} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
-          <Text style={styles.deleteText}>Delete</Text>
+        <TouchableOpacity style={styles.acceptButton} onPress={handleAccept}>
+          <Ionicons name="checkmark" size={20} color="white" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+          <Ionicons name="close" size={20} color="white" />
         </TouchableOpacity>
       </View>
     </View>
@@ -106,61 +117,47 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
+  userSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
   avatar: {
     width: 50,
     height: 50,
     borderRadius: 25,
     marginRight: 12,
-    backgroundColor: '#f0f2f5',
   },
   userInfo: {
     flex: 1,
   },
   name: {
-    fontWeight: 'bold',
     fontSize: 16,
+    fontWeight: 'bold',
     color: COLORS.text,
     marginBottom: 2,
   },
   username: {
-    fontSize: 14,
-    color: COLORS.lightText,
-    marginBottom: 4,
-  },
-  mutual: {
-    color: COLORS.lightText,
     fontSize: 13,
+    color: COLORS.lightText,
   },
   actions: {
     flexDirection: 'row',
     gap: 8,
   },
-  confirmBtn: {
-    borderRadius: 8,
-    overflow: 'hidden',
+  messageButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#e0e0e0',
   },
-  confirmGradient: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
+  acceptButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: COLORS.primary,
   },
-  confirmText: {
-    color: COLORS.white,
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  deleteBtn: {
-    backgroundColor: '#f0f2f5',
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  deleteText: {
-    color: COLORS.lightText,
-    fontWeight: 'bold',
-    fontSize: 14,
+  deleteButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#ff6b6b',
   },
 });

@@ -91,7 +91,16 @@ const marketplaceService = {
     const res = await client.get('/marketplace/orders');
     return res.data;
   },
-  async createOrder(order: Partial<MarketplaceOrder>) {
+  async createOrder(order: {
+    itemId: number;
+    buyerId: string;
+    sellerId: string;
+    price: number;
+    status: string;
+    deliveryMethod: string;
+    paymentMethod: string;
+    fee: number;
+  }) {
     const res = await client.post('/marketplace/orders', order);
     return res.data;
   },

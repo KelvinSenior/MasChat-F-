@@ -28,7 +28,10 @@ export default function FriendCard({ friend }: Props) {
   const router = useRouter();
 
   const handleMessage = () => {
-    router.push(`/screens/ChatScreen?userId=${friend.id}&username=${friend.username}`);
+    router.push({
+      pathname: "/screens/ChatScreen",
+      params: { recipient: JSON.stringify(friend) }
+    });
   };
 
   const handleViewProfile = () => {
@@ -87,19 +90,18 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 25,
     marginRight: 12,
-    backgroundColor: '#f0f2f5',
   },
   userInfo: {
     flex: 1,
   },
   name: {
-    fontWeight: 'bold',
     fontSize: 16,
+    fontWeight: 'bold',
     color: COLORS.text,
     marginBottom: 2,
   },
   username: {
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.lightText,
   },
   actions: {
@@ -107,20 +109,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   messageButton: {
-    width: 40,
-    height: 40,
+    padding: 8,
     borderRadius: 20,
-    backgroundColor: '#f0f2f5',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: '#e0e0e0',
   },
   moreButton: {
-    width: 40,
-    height: 40,
+    padding: 8,
     borderRadius: 20,
-    backgroundColor: '#f0f2f5',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: '#e0e0e0',
   },
 });
 

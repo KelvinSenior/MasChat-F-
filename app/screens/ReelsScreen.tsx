@@ -118,7 +118,7 @@ export default function ReelsScreen() {
             <View key={reel.id} style={styles.reelCard}>
               <TouchableOpacity
                 style={{ flex: 1 }}
-                onPress={() => router.push({ pathname: '/screens/ReelViewerScreen', params: { reelId: reel.id } })}
+                onPress={() => router.push({ pathname: '/(tabs)/videos', params: { tab: 'Reels', reelId: reel.id } })}
               >
                 <Image source={{ uri: reel.mediaUrl }} style={styles.reelImage} />
                 <View style={styles.reelInfo}>

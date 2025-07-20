@@ -112,7 +112,11 @@ export async function markNotificationRead(notificationId: string) {
 }
 
 export async function acceptFriendRequest(requestId: string) {
-  await client.post(`/friends/accept?requestId=${requestId}`);
+  await client.post(`/friends/accept/${requestId}`);
+}
+
+export async function deleteNotification(notificationId: string) {
+  await client.delete(`/notifications/${notificationId}`);
 }
 
 export async function deleteFriendRequest(requestId: string, userId: string) {
@@ -142,6 +146,16 @@ export async function getUserPosts(userId: string): Promise<Post[]> {
     return response.data;
   } catch (error: any) {
     console.error('Error fetching user posts:', error.response?.data || error.message);
+    throw error;
+  }
+}
+
+export async function getBestFriends(userId: string): Promise<Friend[]> {
+  try {
+    const response = await client.get(`/users/${userId}/best-friends`);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error fetching best friends:', error.response?.data || error.message);
     throw error;
   }
 }

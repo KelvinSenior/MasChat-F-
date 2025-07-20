@@ -8,16 +8,29 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  StatusBar
 } from 'react-native';
 
 const { height } = Dimensions.get('window');
+
+// Color Palette (matching app design)
+const COLORS = {
+  primary: '#0A2463',  // Deep Blue
+  accent: '#FF7F11',   // Vibrant Orange
+  background: '#F5F7FA',
+  white: '#FFFFFF',
+  text: '#333333',
+  lightText: '#888888',
+  gradient1: ['#0A2463', '#1A4B8C'] as const,
+  gradient2: ['#4facfe', '#00f2fe'] as const,
+  gradient3: ['#fff', '#f8f9fa'] as const,
+};
 
 type Message = { 
   text: string; 
@@ -107,213 +120,249 @@ export default function AIChatModal({ visible, onClose }: AIChatModalProps) {
       animationType="slide" 
       onRequestClose={onClose}
       transparent={false}
-      statusBarTranslucent={true}
+      statusBarTranslucent={false}
     >
-      <SafeAreaView style={styles.safeArea}>
-        <LinearGradient colors={['#f5f7fa', '#e4e8f0']} style={styles.container}>
-          {/* Header */}
-          <LinearGradient
-            colors={['#1877f2', '#0a5bc4']}
-            style={styles.header}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          >
-            <View style={styles.headerContent}>
-              <TouchableOpacity
-                onPress={onClose}
-                style={styles.closeButton}
-                hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-              >
-                <Ionicons
-                  name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'}
-                  size={24}
-                  color="#fff"
-                />
-              </TouchableOpacity>
-              <Image
-                source={{ uri: 'https://i.imgur.com/JgYD2nQ.png' }}
-                style={styles.avatar}
-              />
-              <View style={styles.headerText}>
-                <Text style={styles.title}>MasChat AI</Text>
-                <Text style={styles.subtitle}>
-                  {isLoading ? 'Typing...' : 'Online'}
-                </Text>
-              </View>
-            </View>
-          </LinearGradient>
-
-          {/* Chat Content */}
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.chatContainer}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-          >
-            <ScrollView 
-              ref={scrollViewRef}
-              contentContainerStyle={styles.chatContent}
-              showsVerticalScrollIndicator={false}
+      <StatusBar 
+        backgroundColor={COLORS.primary} 
+        barStyle="light-content" 
+        translucent={false}
+      />
+      <View style={styles.container}>
+        {/* Header */}
+        <LinearGradient
+          colors={COLORS.gradient1}
+          style={styles.header}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+        >
+          <View style={styles.headerContent}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.closeButton}
+              hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
             >
-              {messages.map((msg) => (
-                <View
-                  key={msg.id}
-                  style={[
-                    styles.messageContainer,
-                    msg.isUser ? styles.userContainer : styles.aiContainer
-                  ]}
-                >
-                  {!msg.isUser && (
-                    <Image
-                      source={{ uri: 'https://i.imgur.com/JgYD2nQ.png' }}
-                      style={styles.aiAvatar}
-                    />
-                  )}
-                  <LinearGradient
-                    colors={msg.isUser ? ['#4facfe', '#00f2fe'] : ['#fff', '#f8f9fa']}
-                    style={[
-                      styles.messageBubble,
-                      msg.isUser ? styles.userBubble : styles.aiBubble
-                    ]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
-                    <Text style={msg.isUser ? styles.userText : styles.aiText}>
-                      {msg.text}
-                    </Text>
-                    <Text style={[
-                      styles.timeText,
-                      msg.isUser ? styles.userTime : styles.aiTime
-                    ]}>
-                      {msg.time}
-                    </Text>
-                  </LinearGradient>
-                </View>
-              ))}
-              {isLoading && (
-                <View style={styles.typingContainer}>
-                  <View style={styles.typingBubble}>
-                    <View style={styles.typingDot} />
-                    <View style={styles.typingDot} />
-                    <View style={styles.typingDot} />
-                  </View>
-                </View>
-              )}
-            </ScrollView>
-            {/* Input Area moved here */}
-            <View style={styles.inputContainer}>
-              <View style={styles.inputWrapper}>
-                <TouchableOpacity style={styles.attachmentButton}>
-                  <MaterialCommunityIcons name="attachment" size={24} color="#1877f2" />
-                </TouchableOpacity>
-                <TextInput
-                  style={styles.input}
-                  value={inputText}
-                  onChangeText={setInputText}
-                  placeholder="Message MasChat AI..."
-                  placeholderTextColor="#888"
-                  multiline
-                  onSubmitEditing={handleSend}
-                  editable={!isLoading}
-                />
-                <TouchableOpacity
-                  style={[
-                    styles.sendButton,
-                    !inputText.trim() && styles.sendButtonDisabled,
-                    isLoading && styles.sendButtonLoading
-                  ]}
-                  onPress={handleSend}
-                  disabled={!inputText.trim() || isLoading}
-                >
-                  {isLoading ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Ionicons 
-                      name="send" 
-                      size={20} 
-                      color={inputText.trim() ? "#fff" : "#aaa"} 
-                    />
-                  )}
-                </TouchableOpacity>
-              </View>
+              <Ionicons
+                name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'}
+                size={24}
+                color={COLORS.white}
+              />
+            </TouchableOpacity>
+            <View style={styles.avatarContainer}>
+              <LinearGradient
+                colors={[COLORS.accent, '#FF9F4A']}
+                style={styles.avatarGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Ionicons name="sparkles" size={20} color={COLORS.white} />
+              </LinearGradient>
             </View>
-          </KeyboardAvoidingView>
+            <View style={styles.headerText}>
+              <Text style={styles.title}>MasChat AI</Text>
+              <Text style={styles.subtitle}>
+                {isLoading ? 'Typing...' : 'Online'}
+              </Text>
+            </View>
+          </View>
         </LinearGradient>
-      </SafeAreaView>
+
+        {/* Chat Content */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.chatContainer}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        >
+          <ScrollView 
+            ref={scrollViewRef}
+            contentContainerStyle={styles.chatContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {messages.map((msg) => (
+              <View
+                key={msg.id}
+                style={[
+                  styles.messageContainer,
+                  msg.isUser ? styles.userContainer : styles.aiContainer
+                ]}
+              >
+                {!msg.isUser && (
+                  <View style={styles.aiAvatarContainer}>
+                    <LinearGradient
+                      colors={[COLORS.accent, '#FF9F4A']}
+                      style={styles.aiAvatar}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                    >
+                      <Ionicons name="sparkles" size={16} color={COLORS.white} />
+                    </LinearGradient>
+                  </View>
+                )}
+                <LinearGradient
+                  colors={msg.isUser ? COLORS.gradient2 : COLORS.gradient3}
+                  style={[
+                    styles.messageBubble,
+                    msg.isUser ? styles.userBubble : styles.aiBubble,
+                    Platform.OS === 'android' ? styles.androidMessageShadow : styles.iosMessageShadow
+                  ]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <Text style={msg.isUser ? styles.userText : styles.aiText}>
+                    {msg.text}
+                  </Text>
+                  <Text style={[
+                    styles.timeText,
+                    msg.isUser ? styles.userTime : styles.aiTime
+                  ]}>
+                    {msg.time}
+                  </Text>
+                </LinearGradient>
+              </View>
+            ))}
+            {isLoading && (
+              <View style={styles.typingContainer}>
+                <View style={[
+                  styles.typingBubble,
+                  Platform.OS === 'android' ? styles.androidMessageShadow : styles.iosMessageShadow
+                ]}>
+                  <View style={styles.typingDot} />
+                  <View style={styles.typingDot} />
+                  <View style={styles.typingDot} />
+                </View>
+              </View>
+            )}
+          </ScrollView>
+          
+          {/* Input Area */}
+          <View style={[
+            styles.inputContainer,
+            Platform.OS === 'android' ? styles.androidInputShadow : styles.iosInputShadow
+          ]}>
+            <View style={styles.inputWrapper}>
+              <TouchableOpacity style={styles.attachmentButton}>
+                <MaterialCommunityIcons name="attachment" size={24} color={COLORS.primary} />
+              </TouchableOpacity>
+              <TextInput
+                style={styles.input}
+                value={inputText}
+                onChangeText={setInputText}
+                placeholder="Message MasChat AI..."
+                placeholderTextColor={COLORS.lightText}
+                multiline
+                onSubmitEditing={handleSend}
+                editable={!isLoading}
+              />
+              <TouchableOpacity
+                style={[
+                  styles.sendButton,
+                  !inputText.trim() && styles.sendButtonDisabled,
+                  isLoading && styles.sendButtonLoading
+                ]}
+                onPress={handleSend}
+                disabled={!inputText.trim() || isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color={COLORS.white} />
+                ) : (
+                  <Ionicons 
+                    name="send" 
+                    size={20} 
+                    color={inputText.trim() ? COLORS.white : COLORS.lightText} 
+                  />
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#1877f2',
-  },
   container: {
     flex: 1,
+    backgroundColor: COLORS.background,
   },
   header: {
-    paddingTop: Platform.OS === 'ios' ? 0 : 30,
-    paddingBottom: 12,
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
+    paddingBottom: 16,
     paddingHorizontal: 16,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: {
+          width: 0,
+          height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   closeButton: {
-    padding: 6,
-    marginRight: 8,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
+    padding: 8,
+    marginRight: 12,
     borderRadius: 20,
-    borderWidth: 2,
-    borderColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  avatarContainer: {
     marginRight: 12,
   },
-  aiAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  avatarGradient: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.white,
+  },
+  aiAvatarContainer: {
     marginRight: 8,
+  },
+  aiAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerText: {
     flex: 1,
   },
   title: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
-    fontFamily: 'sans-serif-medium'
+    color: COLORS.white,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium'
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 14,
     color: 'rgba(255,255,255,0.8)',
-    fontFamily: 'sans-serif'
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif'
   },
   chatContainer: {
     flex: 1,
   },
   chatContent: {
-    paddingVertical: 16,
-    paddingHorizontal: 12,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
     paddingBottom: 20,
   },
   messageContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   userContainer: {
     justifyContent: 'flex-end',
@@ -323,82 +372,80 @@ const styles = StyleSheet.create({
   },
   messageBubble: {
     maxWidth: '80%',
-    borderRadius: 18,
-    padding: 12,
+    borderRadius: 20,
+    padding: 16,
+  },
+  iosMessageShadow: {
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 1,
+      height: 2,
     },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowRadius: 4,
+  },
+  androidMessageShadow: {
+    elevation: 2,
   },
   userBubble: {
-    borderBottomRightRadius: 4,
+    borderBottomRightRadius: 6,
   },
   aiBubble: {
-    borderBottomLeftRadius: 4,
+    borderBottomLeftRadius: 6,
   },
   userText: {
-    color: '#fff',
+    color: COLORS.white,
     fontSize: 16,
     lineHeight: 22,
-    fontFamily: 'sans-serif'
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif'
   },
   aiText: {
-    color: '#222',
+    color: COLORS.text,
     fontSize: 16,
     lineHeight: 22,
-    fontFamily: 'sans-serif'
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif'
   },
   timeText: {
-    fontSize: 11,
-    marginTop: 4,
+    fontSize: 12,
+    marginTop: 6,
     textAlign: 'right',
-    fontFamily: 'sans-serif'
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif'
   },
   userTime: {
     color: 'rgba(255,255,255,0.7)',
   },
   aiTime: {
-    color: '#888',
+    color: COLORS.lightText,
   },
   typingContainer: {
     flexDirection: 'row',
-    marginBottom: 12,
-    paddingLeft: 12,
+    marginBottom: 16,
+    paddingLeft: 16,
   },
   typingBubble: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    backgroundColor: COLORS.white,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
   },
   typingDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#1877f2',
+    backgroundColor: COLORS.accent,
     marginHorizontal: 2,
   },
   inputContainer: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    backgroundColor: COLORS.white,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: '#e4e6eb',
+  },
+  iosInputShadow: {
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -406,37 +453,39 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.05,
     shadowRadius: 4,
-    elevation: 2,
+  },
+  androidInputShadow: {
+    elevation: 3,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f0f2f5',
-    borderRadius: 22,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    borderRadius: 24,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   attachmentButton: {
-    padding: 6,
-    marginRight: 4,
+    padding: 8,
+    marginRight: 8,
   },
   input: {
     flex: 1,
-    color: '#222',
+    color: COLORS.text,
     fontSize: 16,
     maxHeight: 120,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    fontFamily: 'sans-serif'
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif'
   },
   sendButton: {
-    backgroundColor: '#1877f2',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    backgroundColor: COLORS.primary,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 6,
+    marginLeft: 8,
   },
   sendButtonDisabled: {
     backgroundColor: '#b0c4de',

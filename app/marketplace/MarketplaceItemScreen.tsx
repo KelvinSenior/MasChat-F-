@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, FlatList } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, FlatList, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import marketplaceService, { MarketplaceItem, MarketplaceReview } from '../lib/services/marketplaceService';
+import { useAuth } from '../context/AuthContext';
 
 const COLORS = {
   primary: '#0A2463',
@@ -16,9 +17,11 @@ const COLORS = {
 export default function MarketplaceItemScreen() {
   const { itemId } = useLocalSearchParams();
   const router = useRouter();
+  const { user } = useAuth();
   const [item, setItem] = useState<MarketplaceItem | null>(null);
   const [reviews, setReviews] = useState<MarketplaceReview[]>([]);
   const [loading, setLoading] = useState(true);
+  const [buying, setBuying] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -33,6 +36,29 @@ export default function MarketplaceItemScreen() {
     setItem(itemData);
     setReviews(reviewData);
     setLoading(false);
+  };
+
+  const handleBuy = async () => {
+    if (!user || !item) return;
+    setBuying(true);
+    try {
+      await marketplaceService.createOrder({
+        itemId: item.id,
+        buyerId: user.id,
+        sellerId: item.seller.id,
+        price: item.price,
+        status: 'pending',
+        deliveryMethod: item.deliveryMethod,
+        paymentMethod: 'Cash',
+        fee: 0,
+      });
+      Alert.alert('Success', 'Order placed! The seller will be notified.');
+      router.back();
+    } catch (e) {
+      Alert.alert('Error', 'Failed to place order. Please try again.');
+    } finally {
+      setBuying(false);
+    }
   };
 
   if (loading || !item) return <ActivityIndicator style={{ flex: 1, marginTop: 80 }} size="large" color={COLORS.primary} />;
@@ -66,9 +92,9 @@ export default function MarketplaceItemScreen() {
             <Ionicons name="chatbubble-ellipses" size={22} color={COLORS.primary} />
             <Text style={styles.actionText}>Chat</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => router.push({ pathname: '/marketplace/MarketplaceOrderScreen', params: { itemId: item.id } })}>
-            <Ionicons name="cart" size={22} color={COLORS.accent} />
-            <Text style={styles.actionText}>Buy</Text>
+          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.accent }]} onPress={handleBuy} disabled={buying}>
+            <Ionicons name="cart" size={22} color={COLORS.white} />
+            <Text style={[styles.actionText, { color: COLORS.white }]}>{buying ? 'Buying...' : 'Buy'}</Text>
           </TouchableOpacity>
         </View>
       </View>

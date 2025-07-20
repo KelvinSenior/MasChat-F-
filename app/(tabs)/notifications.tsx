@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 import { useAuth } from '../context/AuthContext';
-import { fetchNotifications, markNotificationRead, Notification, acceptFriendRequest, deleteFriendRequest } from '../lib/services/userService';
+import { fetchNotifications, markNotificationRead, Notification, acceptFriendRequest, deleteFriendRequest, deleteNotification } from '../lib/services/userService';
 import client from '../api/client';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
@@ -74,7 +74,9 @@ export default function Notifications() {
 
   const handleConfirmFriendRequest = async (requestId: string) => {
     await acceptFriendRequest(requestId);
-    setNotifications(prev => prev.map(n => n.id === requestId ? { ...n, read: true, message: 'Friend request accepted.' } : n));
+    setNotifications(prev => prev.map(n =>
+      n.id === requestId ? { ...n, read: true, message: 'Friend request accepted.' } : n
+    ));
   };
   const handleDeleteFriendRequest = async (requestId: string) => {
     if (!user?.id) return;
@@ -82,9 +84,10 @@ export default function Notifications() {
     setNotifications(prev => prev.filter(n => n.id !== requestId));
   };
 
-  async function deleteNotification(notificationId: string) {
-    await client.delete(`/notifications/${notificationId}`);
-  }
+  const handleDeleteNotification = async (notificationId: string) => {
+    await deleteNotification(notificationId);
+    setNotifications(prev => prev.filter(n => n.id !== notificationId));
+  };
 
   const renderRightActions = (notificationId: string) => (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', width: 120 }}>
@@ -97,8 +100,7 @@ export default function Notifications() {
       <TouchableOpacity 
         style={{ backgroundColor: '#ff4444', justifyContent: 'center', alignItems: 'center', width: 60, height: '100%' }}
         onPress={async () => {
-          await deleteNotification(notificationId);
-          setNotifications(prev => prev.filter(n => n.id !== notificationId));
+          await handleDeleteNotification(notificationId);
         }}
       >
         <Ionicons name="trash" size={24} color="white" />

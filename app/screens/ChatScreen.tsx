@@ -2,9 +2,9 @@ import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { StatusBar, ActivityIndicator, FlatList, Image, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { StatusBar, ActivityIndicator, FlatList, Image, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import client, { BASE_URL } from '../api/client';
+import { messageService, Message } from '../lib/services/messageService';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 
@@ -16,18 +16,6 @@ const COLORS = {
   white: '#FFFFFF',
   text: '#333333',
   lightText: '#888888',
-};
-
-type Message = {
-  id: string;
-  sender: { id: string };
-  recipient: { id: string };
-  content?: string;
-  image?: any;
-  time?: string;
-  sentAt?: string;
-  isPending?: boolean;
-  failed?: boolean;
 };
 
 export default function ChatScreen() {
@@ -55,10 +43,10 @@ export default function ChatScreen() {
     setIsLoading(true);
     try {
       const recipientId = recipient?.id || "1";
-      const res = await client.get(`/messages/conversation/${recipientId}`);
-      if (res.data && Array.isArray(res.data)) {
+      const conversation = await messageService.getConversation(currentUser.id, recipientId);
+      if (conversation && Array.isArray(conversation)) {
         // Merge with pending messages and remove duplicates
-        const allMessages = [...res.data, ...pendingMessages.current];
+        const allMessages = [...conversation, ...pendingMessages.current];
         const uniqueMessages = allMessages.filter(
           (msg, index, self) => index === self.findIndex(m => m.id === msg.id)
         );
@@ -68,7 +56,7 @@ export default function ChatScreen() {
       }
     } catch (err) {
       console.log("Error loading messages:", err);
-      // If API fails, show pending messages only
+      // If API fails, show pending messages
       setMessages(pendingMessages.current);
     } finally {
       setIsLoading(false);
@@ -112,34 +100,122 @@ export default function ChatScreen() {
   const sendMessage = async () => {
     if (!text.trim() || isSending || !currentUser?.id) return;
     setIsSending(true);
+    
     const msg = {
       senderId: currentUser.id,
       recipientId: recipient.id,
       content: text,
       timestamp: new Date().toISOString(),
     };
-    stompClient.current.publish({
-      destination: '/app/chat.send',
-      body: JSON.stringify(msg),
-    });
-    setMessages(prev => [...prev, {
+    
+    // Add to pending messages immediately for UI responsiveness
+    const pendingMsg: Message = {
       id: msg.timestamp,
       sender: { id: msg.senderId },
       recipient: { id: msg.recipientId },
       content: msg.content,
       sentAt: msg.timestamp,
       time: new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      isPending: false,
-    }]);
+      isPending: true,
+    };
+    setMessages(prev => [...prev, pendingMsg]);
     setText('');
-    setIsSending(false);
+    
+    try {
+      // Send via WebSocket for real-time
+      if (stompClient.current && stompClient.current.connected) {
+        stompClient.current.publish({
+          destination: '/app/chat.send',
+          body: JSON.stringify(msg),
+        });
+      }
+      
+      // Also send via REST API for persistence
+      const savedMessage = await messageService.sendMessage(currentUser.id, recipient.id, text);
+      
+      // Update the pending message with the saved message
+      if (savedMessage) {
+        setMessages(prev => prev.map(msg => 
+          msg.id === pendingMsg.id ? { 
+            ...msg, 
+            id: savedMessage.id?.toString() || msg.id,
+            sentAt: savedMessage.sentAt,
+            isPending: false,
+            time: new Date(savedMessage.sentAt || '').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          } : msg
+        ));
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      // Mark message as failed
+      setMessages(prev => prev.map(msg => 
+        msg.id === pendingMsg.id ? { ...msg, failed: true, isPending: false } : msg
+      ));
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const deleteMessage = async (messageId: string) => {
+    if (!currentUser?.id) return;
+    
+    Alert.alert(
+      "Delete Message",
+      "Are you sure you want to delete this message?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await messageService.deleteMessage(messageId, currentUser.id);
+              setMessages(prev => prev.filter(msg => msg.id !== messageId));
+            } catch (error) {
+              console.error('Error deleting message:', error);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const deleteConversation = async () => {
+    if (!currentUser?.id) return;
+    
+    Alert.alert(
+      "Delete Conversation",
+      "Are you sure you want to delete this entire conversation? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await messageService.deleteConversation(currentUser.id, recipient.id);
+              router.back();
+            } catch (error) {
+              console.error('Error deleting conversation:', error);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const renderMessage = ({ item }: { item: Message }) => (
-    <View style={[
-      styles.messageRow,
-      item.sender.id === currentUser?.id ? styles.rowRight : styles.rowLeft
-    ]}>
+    <TouchableOpacity 
+      style={[
+        styles.messageRow,
+        item.sender.id === currentUser?.id ? styles.rowRight : styles.rowLeft
+      ]}
+      onLongPress={() => {
+        if (item.sender.id === currentUser?.id) {
+          deleteMessage(item.id);
+        }
+      }}
+    >
       {item.sender.id !== currentUser?.id && (
         <Image 
           source={{ uri: recipient?.image || "https://randomuser.me/api/portraits/men/5.jpg" }} 
@@ -188,7 +264,7 @@ export default function ChatScreen() {
           ) : null}
         </View>
       </LinearGradient>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -215,7 +291,7 @@ export default function ChatScreen() {
         >
           <Image 
             source={{ uri: recipient?.image || "https://randomuser.me/api/portraits/men/5.jpg" }} 
-            style={styles.profilePic} 
+            style={styles.profilePic}
           />
           <View style={styles.headerInfo}>
             <Text style={styles.headerTitle}>{recipient?.name || recipient?.username || "Chat"}</Text>
@@ -228,6 +304,22 @@ export default function ChatScreen() {
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerIconBtn}>
             <Ionicons name="videocam-outline" size={24} color="white" />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.headerIconBtn}
+            onPress={() => {
+              Alert.alert(
+                "Conversation Options",
+                "What would you like to do?",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  { text: "Delete Conversation", style: "destructive", onPress: deleteConversation },
+                  { text: "View Profile", onPress: () => router.push({ pathname: "/(tabs)/profile", params: { user: JSON.stringify(recipient) } }) }
+                ]
+              );
+            }}
+          >
+            <Ionicons name="ellipsis-vertical" size={24} color="white" />
           </TouchableOpacity>
         </View>
       </LinearGradient>

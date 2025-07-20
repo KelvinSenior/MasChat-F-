@@ -5,7 +5,8 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import SuggestionCard from './SuggestionCard';
 import { useAuth } from '../context/AuthContext';
-import client, { BASE_URL } from '../api/client';
+import { friendService } from '../lib/services/friendService';
+import { useFocusEffect } from '@react-navigation/native';
 
 // Color Palette (matching home screen)
 const COLORS = {
@@ -30,19 +31,28 @@ export default function SuggestionsScreen() {
   const router = useRouter();
   const { user } = useAuth();
 
-  useEffect(() => {
+  const fetchSuggestions = async () => {
     if (!user?.id) return;
-    client.get(`/friends/suggestions/${user.id}`)
-      .then(res => res.data)
-      .then((data: Suggestion[]) => {
-        setSuggestions(data);
-        setLoading(false);
-      })
-      .catch(error => {
-        console.error('Error fetching suggestions:', error);
-        setLoading(false);
-      });
+    setLoading(true);
+    try {
+      const data = await friendService.getSuggestions(user.id);
+      setSuggestions(data);
+    } catch (error) {
+      console.error('Error fetching suggestions:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSuggestions();
   }, [user?.id]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchSuggestions();
+    }, [user?.id])
+  );
 
   const renderContent = () => {
     if (loading) {

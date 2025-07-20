@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Image } from 'react-native';
 import FriendCard from './FriendCard';
 import { useAuth } from '../context/AuthContext';
-import client, { BASE_URL } from '../api/client';
+import { friendService } from '../lib/services/friendService';
 import { useFocusEffect } from '@react-navigation/native';
 
 // Color Palette (matching home screen)
@@ -32,19 +32,17 @@ export default function FriendsScreen() {
   const router = useRouter();
   const { user } = useAuth();
 
-  const fetchFriends = () => {
+  const fetchFriends = async () => {
     if (!user?.id) return;
     setLoading(true);
-    client.get(`/friends/list/${user.id}`)
-      .then(res => res.data)
-      .then((data: Friend[]) => {
-        setFriends(data);
-        setLoading(false);
-      })
-      .catch(error => {
-        console.error('Error fetching friends:', error);
-        setLoading(false);
-      });
+    try {
+      const data = await friendService.getFriends(user.id);
+      setFriends(data);
+    } catch (error) {
+      console.error('Error fetching friends:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

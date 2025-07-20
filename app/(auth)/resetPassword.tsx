@@ -1,15 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { Image, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import React, { useState } from "react";
+import { StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import * as Animatable from 'react-native-animatable';
 import Toast from 'react-native-toast-message';
-import { useAuth } from '../context/AuthContext';
-import client, { BASE_URL, testConnection } from '../api/client';
+import client from '../api/client';
 
-// Color Palette (matching home screen)
+// Color Palette (matching login screen)
 const COLORS = {
   primary: '#0A2463',  // Deep Blue
   accent: '#FF7F11',   // Vibrant Orange
@@ -19,30 +17,26 @@ const COLORS = {
   lightText: '#888888',
 };
 
-export default function Login() {
-  const [username, setUsername] = useState("");
+export default function ResetPassword() {
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [errors, setErrors] = useState({
-    username: '',
     password: '',
+    confirmPassword: '',
   });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const router = useRouter();
-
-  const { signIn } = useAuth();
+  const params = useLocalSearchParams();
+  const token = params.token as string;
 
   const validateForm = () => {
     let valid = true;
     const newErrors = {
-      username: '',
       password: '',
+      confirmPassword: '',
     };
-
-    if (!username.trim()) {
-      newErrors.username = 'Username is required';
-      valid = false;
-    }
 
     if (!password) {
       newErrors.password = 'Password is required';
@@ -52,55 +46,44 @@ export default function Login() {
       valid = false;
     }
 
+    if (!confirmPassword) {
+      newErrors.confirmPassword = 'Please confirm your password';
+      valid = false;
+    } else if (password !== confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+      valid = false;
+    }
+
     setErrors(newErrors);
     return valid;
   };
 
-  const handleLogin = async () => {
+  const handleResetPassword = async () => {
     if (!validateForm()) return;
-
-    const isConnected = await testConnection();
-    if (!isConnected) {
-      Toast.show({
-        type: 'error',
-        text1: 'Connection Failed',
-        text2: 'Cannot reach server. Check your network and server IP.',
-        position: 'top',
-        visibilityTime: 4000,
-        topOffset: 60,
-      });
-      return;
-    }
 
     setLoading(true);
     try {
       const response = await client.post(
-        `/auth/login`,
-        { username: username.trim(), password },
+        `/auth/reset-password`,
+        { 
+          token,
+          password 
+        },
         { headers: { 'Content-Type': 'application/json' }, timeout: 10000 }
       );
 
-      if (response.data?.token) {
-        let { token, user } = response.data;
-        if (user.userId && !user.id) user = { ...user, id: user.userId };
-        
-        await signIn(token, user);
-        await AsyncStorage.setItem('userToken', token);
-        await AsyncStorage.setItem('user', JSON.stringify(user));
-        await AsyncStorage.setItem('username', username.trim());
-        
-        Toast.show({
-          type: 'success',
-          text1: 'Login Successful',
-          text2: 'Welcome back to MasChat!',
-          position: 'top',
-          visibilityTime: 3000,
-          topOffset: 60,
-        });
-        router.replace('/(tabs)/home');
-      }
+      Toast.show({
+        type: 'success',
+        text1: 'Password Reset Successful',
+        text2: 'Your password has been updated. You can now login with your new password.',
+        position: 'top',
+        visibilityTime: 5000,
+        topOffset: 60,
+      });
+      
+      router.replace('/(auth)/login');
     } catch (error: any) {
-      let errorMessage = 'Login failed. Please try again.';
+      let errorMessage = 'Failed to reset password. Please try again.';
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.message) {
@@ -108,7 +91,7 @@ export default function Login() {
       }
       Toast.show({
         type: 'error',
-        text1: 'Login Error',
+        text1: 'Error',
         text2: errorMessage,
         position: 'top',
         visibilityTime: 5000,
@@ -119,58 +102,37 @@ export default function Login() {
     }
   };
 
-  const testConnection = async () => {
-    try {
-      await client.get(`/auth/test`, { timeout: 3000 });
-      return true;
-    } catch (error) {
-      return false;
-    }
-  };
-
-  useEffect(() => { testConnection(); }, []);
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
       
-      {/* Header matching home screen */}
+      {/* Header matching login screen */}
       <LinearGradient
         colors={[COLORS.primary, '#1A4B8C']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
       >
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="white" />
+        </TouchableOpacity>
         <Text style={styles.logo}>
           Mas<Text style={{ color: COLORS.accent }}>Chat</Text>
         </Text>
+        <View style={styles.placeholder} />
       </LinearGradient>
 
       <Animatable.View animation="fadeInUp" duration={1000} style={styles.content}>
         <View style={styles.formContainer}>
-          <Text style={styles.title}>Welcome Back!</Text>
-          <Text style={styles.subtitle}>Connect, chat, and share with MasChat</Text>
+          <Text style={styles.title}>Reset Password</Text>
+          <Text style={styles.subtitle}>Enter your new password below</Text>
 
-          {/* Username Input */}
-          <View style={styles.inputContainer}>
-            <Ionicons name="person-outline" size={20} color={COLORS.lightText} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Username"
-              placeholderTextColor={COLORS.lightText}
-              value={username}
-              onChangeText={setUsername}
-              autoCapitalize="none"
-            />
-          </View>
-          {errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
-
-          {/* Password Input */}
+          {/* New Password Input */}
           <View style={styles.inputContainer}>
             <Ionicons name="lock-closed-outline" size={20} color={COLORS.lightText} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Password"
+              placeholder="New Password"
               placeholderTextColor={COLORS.lightText}
               value={password}
               onChangeText={setPassword}
@@ -186,9 +148,30 @@ export default function Login() {
           </View>
           {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
 
+          {/* Confirm Password Input */}
+          <View style={styles.inputContainer}>
+            <Ionicons name="lock-closed-outline" size={20} color={COLORS.lightText} style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Confirm New Password"
+              placeholderTextColor={COLORS.lightText}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry={!showConfirmPassword}
+            />
+            <TouchableOpacity onPress={() => setShowConfirmPassword((prev) => !prev)}>
+              <Ionicons
+                name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+                size={22}
+                color={COLORS.lightText}
+              />
+            </TouchableOpacity>
+          </View>
+          {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
+
           <TouchableOpacity
             style={[styles.button, loading && styles.disabledButton]}
-            onPress={handleLogin}
+            onPress={handleResetPassword}
             disabled={loading}
           >
             <LinearGradient
@@ -198,36 +181,13 @@ export default function Login() {
               end={{ x: 1, y: 0 }}
             >
               <Text style={styles.buttonText}>
-                {loading ? 'Logging in...' : 'Log In'}
+                {loading ? 'Resetting...' : 'Reset Password'}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
           
-          <TouchableOpacity onPress={() => router.push("/(auth)/forgotPassword")}>
-            <Text style={styles.forgot}>Forgot Password?</Text>
-          </TouchableOpacity>
-          
-          <View style={styles.dividerContainer}>
-            <View style={styles.divider} />
-            <Text style={styles.or}>OR</Text>
-            <View style={styles.divider} />
-          </View>
-          
-          <TouchableOpacity
-            style={[styles.createButton, loading && styles.disabledButton]}
-            onPress={() => router.push("/(auth)/signup")}
-            disabled={loading}
-          >
-            <LinearGradient
-              colors={loading ? ['#ccc', '#ccc'] : [COLORS.accent, '#FF9E40']}
-              style={styles.createButtonGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              <Text style={styles.createButtonText}>
-                {loading ? 'Creating...' : 'Create New Account'}
-              </Text>
-            </LinearGradient>
+          <TouchableOpacity onPress={() => router.replace('/(auth)/login')}>
+            <Text style={styles.backToLogin}>Back to Login</Text>
           </TouchableOpacity>
         </View>
       </Animatable.View>
@@ -242,6 +202,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingTop: 50,
     paddingHorizontal: 16,
     paddingBottom: 20,
@@ -251,11 +214,21 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   logo: {
     fontSize: 24,
     fontWeight: 'bold',
     color: 'white',
-    textAlign: 'center',
+  },
+  placeholder: {
+    width: 40,
   },
   content: {
     flex: 1,
@@ -284,6 +257,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 24,
     textAlign: 'center',
+    lineHeight: 22,
   },
   inputContainer: {
     flexDirection: "row",
@@ -322,42 +296,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
-  forgot: {
+  backToLogin: {
     color: COLORS.primary,
     textAlign: "center",
     marginBottom: 16,
     fontSize: 14,
-  },
-  dividerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 16,
-  },
-  divider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#e4e6eb",
-  },
-  or: {
-    color: COLORS.lightText,
-    marginHorizontal: 10,
-    fontWeight: "bold",
-    fontSize: 14,
-  },
-  createButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    height: 50,
-  },
-  createButtonGradient: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  createButtonText: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontWeight: "bold",
   },
   errorText: {
     color: "#f02849",
@@ -365,4 +308,4 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginLeft: 12,
   },
-});
+}); 

@@ -77,3 +77,16 @@ export async function sharePost(postId: string) {
   const res = await client.post(`/posts/${postId}/share`);
   return res.data;
 }
+
+// Default export to fix warning
+export default {
+  getPosts,
+  createPost,
+  deletePost,
+  getPost,
+  fetchPostComments,
+  likePost,
+  unlikePost,
+  addComment,
+  sharePost
+};

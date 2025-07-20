@@ -22,14 +22,19 @@ export default function NewReel() {
   const [video, setVideo] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [mediaType, setMediaType] = useState<'image' | 'video' | 'audio' | null>(null);
 
-  const pickVideo = async () => {
+  const pickMedia = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
       allowsEditing: true,
       quality: 0.8,
     });
-    if (!result.canceled) setVideo(result.assets[0].uri);
+    if (!result.canceled) {
+      const asset = result.assets[0];
+      setVideo(asset.uri);
+      setMediaType(asset.type);
+    }
   };
 
   const handleSubmit = async () => {
@@ -80,13 +85,16 @@ export default function NewReel() {
       </LinearGradient>
 
       {/* Video Picker */}
-      <TouchableOpacity style={styles.mediaPicker} onPress={pickVideo}>
+      <TouchableOpacity style={styles.mediaPicker} onPress={pickMedia}>
         {video ? (
-          <Image source={{ uri: video }} style={styles.mediaPreview} />
+          mediaType === 'video' ? <Text style={styles.mediaPlaceholderText}>Video selected</Text> :
+          mediaType === 'image' ? <Image source={{ uri: video }} style={styles.mediaPreview} /> :
+          mediaType === 'audio' ? <Text style={styles.mediaPlaceholderText}>Audio selected</Text> :
+          null
         ) : (
           <View style={styles.mediaPlaceholder}>
             <Ionicons name="videocam-outline" size={48} color={COLORS.lightText} />
-            <Text style={styles.mediaPlaceholderText}>Tap to select video</Text>
+            <Text style={styles.mediaPlaceholderText}>Tap to select image, video, or audio</Text>
           </View>
         )}
       </TouchableOpacity>

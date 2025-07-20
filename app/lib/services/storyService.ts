@@ -20,6 +20,13 @@ export async function createStory(story: { mediaUrl: string; caption?: string },
   return res.data;
 }
 
-export async function deleteStory(storyId: string) {
-  return client.delete(`/stories/${storyId}`);
-} 
+export async function deleteStory(storyId: string, userId: string) {
+  return client.delete(`/stories/${storyId}?userId=${userId}`);
+}
+
+// Default export to fix warning
+export default {
+  fetchStories,
+  createStory,
+  deleteStory
+}; 

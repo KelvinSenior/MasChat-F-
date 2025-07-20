@@ -46,4 +46,7 @@ export const useNotification = (): NotificationContextType => {
     throw new Error('useNotification must be used within a NotificationProvider');
   }
   return context;
-}; 
+};
+
+// Default export to fix warning
+export default NotificationProvider; 
