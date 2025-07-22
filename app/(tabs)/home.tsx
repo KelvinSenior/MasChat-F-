@@ -2,7 +2,7 @@ import { Feather, FontAwesome, Ionicons, MaterialIcons } from "@expo/vector-icon
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from "react";
-import { Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, KeyboardAvoidingView, Platform } from "react-native";
+import { Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, KeyboardAvoidingView, Platform, Dimensions } from "react-native";
 // TODO: Replace with expo-video when available in SDK 54
 import { Video, ResizeMode } from 'expo-av';
 import CommentDialog from "../components/CommentDialog";
@@ -21,6 +21,11 @@ const COLORS = {
 };
 
 const DEFAULT_PROFILE_PHOTO = "https://i.imgur.com/6XbK6bE.jpg";
+const DEVICE_WIDTH = Dimensions.get('window').width;
+const DEVICE_WIDTH_FULL = DEVICE_WIDTH;
+
+const LIKE_ACTIVE_COLOR = '#22c55e'; // Green
+const LIKE_INACTIVE_COLOR = COLORS.lightText;
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -36,6 +41,7 @@ export default function HomeScreen() {
   const [commentLoading, setCommentLoading] = useState(false);
   const [comments, setComments] = useState<PostComment[]>([]);
   const [playingVideos, setPlayingVideos] = useState<Set<string>>(new Set());
+  const [optimisticLikes, setOptimisticLikes] = useState<{ [postId: string]: string[] }>({});
 
   useEffect(() => {
     fetchPosts();
@@ -79,7 +85,16 @@ export default function HomeScreen() {
 
   const handleLikePost = async (post: Post) => {
     if (!user) return;
-    if (post.likedBy?.includes(user.id)) {
+    const alreadyLiked = (optimisticLikes[post.id] || post.likedBy || []).includes(user.id);
+    // Optimistic UI update
+    setOptimisticLikes(prev => ({
+      ...prev,
+      [post.id]: alreadyLiked
+        ? (prev[post.id] || post.likedBy || []).filter(id => id !== user.id)
+        : [...(prev[post.id] || post.likedBy || []), user.id]
+    }));
+    // Backend update
+    if (alreadyLiked) {
       await unlikePost(post.id, user.id);
     } else {
       await likePost(post.id, user.id);
@@ -238,10 +253,12 @@ export default function HomeScreen() {
         {/* Status Update */}
         <View style={styles.statusContainer}>
           <TouchableOpacity onPress={() => router.push('/profile')}>
-            <Image
-              source={{ uri: user?.profilePicture ?? DEFAULT_PROFILE_PHOTO }}
-              style={styles.avatar}
-            />
+            <View style={styles.orangeRing}>
+              <Image
+                source={{ uri: user?.profilePicture ?? DEFAULT_PROFILE_PHOTO }}
+                style={styles.profilePic}
+              />
+            </View>
           </TouchableOpacity>
           <TextInput
             style={styles.statusInput}
@@ -297,7 +314,10 @@ export default function HomeScreen() {
           </View>
         ) : (
           posts.map(post => (
-            <View key={post.id} style={[styles.postCard, { marginHorizontal: 0, borderRadius: 0, marginBottom: 0, shadowOpacity: 0, elevation: 0 }]}>
+            <View key={post.id} style={[
+              styles.postCard,
+              post.videoUrl ? styles.videoPostCard : {}
+            ]}>
               <View style={styles.postHeader}>
                 <TouchableOpacity onPress={() => navigateToProfile(post.user.id)}>
                   <Image
@@ -325,7 +345,7 @@ export default function HomeScreen() {
                       <Video
                         source={{ uri: post.videoUrl }}
                         style={styles.postVideo}
-                        resizeMode={ResizeMode.CONTAIN}
+                        resizeMode={ResizeMode.COVER}
                         shouldPlay={isVideoPlaying(post.id)}
                         isLooping
                         isMuted={false}
@@ -347,33 +367,45 @@ export default function HomeScreen() {
                   ) : null}
                 </TouchableOpacity>
               )}
-              <View style={[styles.postActions, { marginHorizontal: 16 }]}>
+              {/* Enhanced Action Buttons */}
+              <View style={styles.postActions}>
                 <TouchableOpacity onPress={() => user && handleLikePost(post)} style={styles.actionBtn}>
                   <View style={styles.actionIcon}>
-                    <FontAwesome name="thumbs-up" size={16} color={getLikeColor(!!post.likedBy && post.likedBy.includes(user?.id || ''))} />
+                    <Ionicons
+                      name={(optimisticLikes[post.id] || post.likedBy || []).includes(user.id) ? 'heart' : 'heart-outline'}
+                      size={22}
+                      color={(optimisticLikes[post.id] || post.likedBy || []).includes(user.id) ? LIKE_ACTIVE_COLOR : LIKE_INACTIVE_COLOR}
+                    />
                   </View>
-                  <Text style={[styles.actionText, { color: getLikeColor(!!post.likedBy && post.likedBy.includes(user?.id || '')) }]}>Like</Text>
-                  <Text style={styles.actionCount}>{post.likedBy?.length || 0}</Text>
+                  <Text style={styles.actionText}>Like</Text>
+                  <Text style={styles.actionCount}>{(optimisticLikes[post.id] || post.likedBy || []).length}</Text>
                 </TouchableOpacity>
+
                 <TouchableOpacity onPress={() => openCommentModal(post)} style={styles.actionBtn}>
                   <View style={styles.actionIcon}>
-                    <Ionicons name="chatbubble" size={16} color={COLORS.primary} />
+                    <Ionicons name="chatbubble" size={18} color={COLORS.primary} />
                   </View>
                   <Text style={styles.actionText}>Comment</Text>
-                  <Text style={styles.actionCount}>{post.comments?.length || 0}</Text>
+                  {post.comments?.length ? (
+                    <Text style={styles.actionCount}>{post.comments.length}</Text>
+                  ) : null}
                 </TouchableOpacity>
+
                 <TouchableOpacity style={styles.actionBtn}>
                   <View style={styles.actionIcon}>
-                    <Ionicons name="send" size={16} color={COLORS.primary} />
+                    <Ionicons name="send" size={18} color={COLORS.primary} />
                   </View>
                   <Text style={styles.actionText}>Send</Text>
                 </TouchableOpacity>
+
                 <TouchableOpacity onPress={() => handleSharePost(post.id)} style={styles.actionBtn}>
                   <View style={styles.actionIcon}>
-                    <Ionicons name="arrow-redo" size={16} color={COLORS.primary} />
+                    <Ionicons name="arrow-redo" size={18} color={COLORS.primary} />
                   </View>
                   <Text style={styles.actionText}>Share</Text>
-                  <Text style={styles.actionCount}>{post.shareCount || 0}</Text>
+                  {post.shareCount ? (
+                    <Text style={styles.actionCount}>{post.shareCount}</Text>
+                  ) : null}
                 </TouchableOpacity>
               </View>
             </View>
@@ -392,66 +424,13 @@ export default function HomeScreen() {
       )}
 
       {/* Comment Modal */}
-      {commentModalPost && (
-        <Modal
-          visible={!!commentModalPost}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setCommentModalPost(null)}
-        >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' }}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
-          >
-            <View style={{
-              backgroundColor: COLORS.white,
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              padding: 24,
-              minHeight: 320,
-              maxHeight: '60%',
-              width: '100%',
-              alignSelf: 'flex-end',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: -2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 8,
-              elevation: 8,
-            }}>
-              <View style={{ alignItems: 'center', marginBottom: 12 }}>
-                <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: '#eee', marginBottom: 8 }} />
-                <Text style={styles.commentModalTitle}>Comments</Text>
-              </View>
-              <ScrollView style={{ maxHeight: 180, width: '100%' }}>
-                {comments.length === 0 ? (
-                  <Text style={{ color: COLORS.lightText, textAlign: 'center', marginVertical: 12 }}>No comments yet.</Text>
-                ) : (
-                  comments.map(c => (
-                    <View key={c.id} style={{ marginBottom: 10 }}>
-                      <Text style={{ fontWeight: 'bold' }}>{c.username}</Text>
-                      <Text style={{ color: COLORS.text }}>{c.text}</Text>
-                      <Text style={{ color: COLORS.lightText, fontSize: 12 }}>{new Date(c.createdAt).toLocaleString()}</Text>
-                    </View>
-                  ))
-                )}
-              </ScrollView>
-              <TextInput
-                style={styles.commentInput}
-                placeholder="Write a comment..."
-                value={commentText}
-                onChangeText={setCommentText}
-                multiline
-              />
-              <TouchableOpacity style={styles.commentSendBtn} onPress={handleAddPostComment} disabled={commentLoading}>
-                <Text style={styles.commentSendText}>{commentLoading ? 'Posting...' : 'Send'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.commentCancelBtn} onPress={() => setCommentModalPost(null)}>
-                <Text style={styles.commentCancelText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </KeyboardAvoidingView>
-        </Modal>
+      {commentModalPost && user?.id && (
+        <CommentDialog
+          postId={commentModalPost.id}
+          userId={user.id}
+          onClose={() => setCommentModalPost(null)}
+          onComment={fetchPosts}
+        />
       )}
     </View>
   );
@@ -581,6 +560,23 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: COLORS.white,
   },
+  orangeRing: {
+    borderWidth: 2,
+    borderColor: COLORS.accent,
+    borderRadius: 24,
+    padding: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 48,
+    height: 48,
+  },
+  profilePic: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: COLORS.white,
+  },
   post: {
     backgroundColor: COLORS.white,
     marginBottom: 8,
@@ -635,16 +631,24 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   postVideo: {
-    width: '100%',
-    aspectRatio: 1, // Square format
+    width: DEVICE_WIDTH,
+    height: DEVICE_WIDTH * 1.5,
+    alignSelf: 'stretch',
     marginBottom: 12,
+    borderRadius: 0,
+    borderWidth: 0,
+    margin: 0,
   },
   videoContainer: {
     position: 'relative',
-    width: '100%',
-    aspectRatio: 1,
-    borderRadius: 0, // Remove border radius to match images
+    width: DEVICE_WIDTH,
+    height: DEVICE_WIDTH * 1.5,
+    borderRadius: 0,
+    borderWidth: 0,
     overflow: 'hidden',
+    alignSelf: 'stretch',
+    margin: 0,
+    padding: 0,
   },
   playPauseButton: {
     position: 'absolute',
@@ -658,14 +662,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1,
-  },
-  postActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderColor: '#eee',
-    marginHorizontal: 16,
   },
   postAction: {
     flexDirection: 'row',
@@ -751,17 +747,8 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginVertical: 12,
   },
-  actionBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  actionCount: {
-    marginTop: 4,
-    fontSize: 12,
-    color: COLORS.lightText,
-  },
+  
+  
   commentModalBox: {
     backgroundColor: COLORS.white,
     borderRadius: 12,
@@ -816,19 +803,80 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
+  
+  
+  videoPostCard: {
+    marginHorizontal: 0,
+    marginLeft: 0,
+    borderRadius: 0,
+    marginBottom: 0,
+    shadowOpacity: 0,
+    elevation: 0,
+    paddingHorizontal: 0,
+    width: DEVICE_WIDTH_FULL,
+    alignSelf: 'stretch',
+    backgroundColor: 'transparent',
+    minHeight: DEVICE_WIDTH * 1.5,
+  },
+
+
+  // Enhanced Action Buttons Styles
+  postActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderColor: '#eee',
+  },
+
+  actionBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    flex: 1,
+  },
+
   actionIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 6,
     backgroundColor: '#f0f2f5',
+    marginBottom: 4,
   },
+
+  likedActionIcon: {
+    backgroundColor: COLORS.primary,
+  },
+
   actionText: {
     color: COLORS.lightText,
-    fontWeight: "500",
+    fontWeight: '500',
     fontSize: 14,
-    marginRight: 4,
+  },
+
+  likedActionText: {
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+
+  actionCount: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: COLORS.accent,
+    color: COLORS.white,
+    fontSize: 10,
+    fontWeight: 'bold',
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    minWidth: 16,
+    height: 16,
+    textAlign: 'center',
+    lineHeight: 16,
+    overflow: 'hidden',
   },
 });

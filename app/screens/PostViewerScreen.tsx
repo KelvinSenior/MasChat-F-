@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getPost, deletePost, Post } from '../lib/services/postService';
 import { useAuth } from '../context/AuthContext';
-// TODO: Replace with expo-video when available in SDK 54
-import { Video } from 'expo-av';
+import { Video, ResizeMode } from 'expo-av';
 
 const COLORS = {
   primary: '#0A2463',
@@ -49,145 +47,176 @@ export default function PostViewerScreen() {
     ]);
   };
 
+  if (loading) {
+    return (
+      <View style={[styles.reelItem, { backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center' }]}> 
+        <ActivityIndicator color={COLORS.white} size="large" />
+      </View>
+    );
+  }
+  if (!post) {
+    return (
+      <View style={[styles.reelItem, { backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center' }]}> 
+        <Ionicons name="image-outline" size={60} color={COLORS.lightText} />
+        <Text style={styles.emptyText}>Post not found.</Text>
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={[COLORS.primary, '#1A4B8C']}
-        style={styles.header}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
+    <View style={[styles.reelItem, { backgroundColor: '#111' }]}> 
+      {/* Back Button */}
+      <TouchableOpacity
+        style={{
+          position: 'absolute',
+          top: 50,
+          left: 20,
+          zIndex: 100,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          borderRadius: 20,
+          padding: 8,
+        }}
+        onPress={() => router.back()}
       >
-        <TouchableOpacity onPress={() => {
-          if (router.canGoBack?.()) {
-            router.back();
-          } else {
-            router.replace('/(tabs)/home');
-          }
-        }} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Post</Text>
-        {post && user && user.id === post.userId ? (
-          <TouchableOpacity onPress={handleDelete} style={styles.deleteBtn}>
-            <Ionicons name="trash" size={24} color={COLORS.accent} />
+        <Ionicons name="close" size={28} color="#fff" />
+      </TouchableOpacity>
+      {/* Post Media */}
+      <View style={styles.postMediaContainer}>
+        {post.videoUrl ? (
+          <Video
+            source={{ uri: post.videoUrl }}
+            style={styles.postMedia}
+            resizeMode={ResizeMode.CONTAIN}
+            shouldPlay
+            isLooping
+            isMuted={false}
+            useNativeControls={false}
+            onError={(error) => {
+              Alert.alert('Video error', 'Could not load video.');
+            }}
+          />
+        ) : post.imageUrl ? (
+          <Image source={{ uri: post.imageUrl }} style={styles.postMedia} resizeMode="contain" />
+        ) : null}
+      </View>
+      {/* Post Info */}
+      <View style={styles.postInfoContainer}>
+        <View style={styles.postUserInfo}>
+          <Image source={{ uri: post.user?.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} style={styles.reelAvatar} />
+          <Text style={styles.reelUsername}>{post.user?.username || 'Anonymous'}</Text>
+          <TouchableOpacity style={styles.followButton}>
+            <Text style={styles.followButtonText}>Follow</Text>
           </TouchableOpacity>
-        ) : <View style={{ width: 36 }} />}
-      </LinearGradient>
-      {loading ? (
-        <ActivityIndicator style={{ marginTop: 60 }} color={COLORS.primary} />
-      ) : !post ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="image-outline" size={60} color={COLORS.lightText} />
-          <Text style={styles.emptyText}>Post not found.</Text>
         </View>
-      ) : (
-        <View style={styles.postContent}>
-          {post.videoUrl ? (
-            <Video
-              source={{ uri: post.videoUrl }}
-              style={styles.postVideo}
-              useNativeControls
-              resizeMode="contain"
-              shouldPlay
-              isLooping
-            />
-          ) : post.imageUrl ? (
-            <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
-          ) : null}
-          <View style={styles.postInfo}>
-            <Text style={styles.postUser}>{post.username}</Text>
-            <Text style={styles.postCaption}>{post.content}</Text>
-            <Text style={styles.postTime}>{new Date(post.createdAt).toLocaleString()}</Text>
-          </View>
+        <Text style={styles.reelCaption}>{post.content}</Text>
+      </View>
+      {/* TikTok-style Action Buttons on the right */}
+      <View style={styles.tiktokActionBar}>
+        <View style={styles.tiktokActionButton}>
+          <Ionicons name="heart" size={32} color="#fff" />
+          <Text style={styles.tiktokActionCount}>{post.likedBy?.length || 0}</Text>
         </View>
-      )}
+        <View style={styles.tiktokActionButton}>
+          <Ionicons name="chatbubble" size={32} color="#fff" />
+          <Text style={styles.tiktokActionCount}>{post.comments?.length || 0}</Text>
+        </View>
+        <View style={styles.tiktokActionButton}>
+          <Ionicons name="send" size={32} color="#fff" />
+          <Text style={styles.tiktokActionCount}>{post.shareCount || 0}</Text>
+        </View>
+        {user?.id === post.userId && (
+          <TouchableOpacity style={styles.tiktokActionButton} onPress={handleDelete}>
+            <Ionicons name="trash" size={32} color="#ff4444" />
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
+  reelItem: {
+    width: '100%',
+    height: Dimensions.get('window').height,
+    backgroundColor: '#111',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  header: {
+  postMediaContainer: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 0,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+  },
+  postMedia: {
+    width: '100%',
+    height: '100%',
+  },
+  postInfoContainer: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    bottom: 90,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 10,
+    padding: 16,
+    marginHorizontal: 10,
+  },
+  postUserInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 50,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    marginBottom: 5,
   },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
+  reelAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    marginRight: 8,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  deleteBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  postContent: {
-    alignItems: 'center',
-    marginTop: 32,
-    paddingHorizontal: 16,
-  },
-  postVideo: {
-    width: '100%',
-    height: 320,
-    borderRadius: 16,
-    marginBottom: 16,
-    backgroundColor: '#eee',
-  },
-  postImage: {
-    width: '100%',
-    height: 320,
-    borderRadius: 16,
-    marginBottom: 16,
-    backgroundColor: '#eee',
-  },
-  postInfo: {
-    alignItems: 'center',
-  },
-  postUser: {
+  reelUsername: {
+    color: COLORS.white,
     fontWeight: 'bold',
     fontSize: 16,
-    color: COLORS.text,
-    marginBottom: 4,
+    marginRight: 10,
   },
-  postCaption: {
-    fontSize: 15,
-    color: COLORS.text,
-    marginBottom: 6,
-    textAlign: 'center',
+  followButton: {
+    backgroundColor: COLORS.white,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 15,
   },
-  postTime: {
-    fontSize: 12,
-    color: COLORS.lightText,
+  followButtonText: {
+    color: COLORS.primary,
+    fontWeight: 'bold',
+    fontSize: 14,
   },
-  emptyContainer: {
-    flex: 1,
+  reelCaption: {
+    color: COLORS.white,
+    fontSize: 14,
+    marginBottom: 5,
+  },
+  tiktokActionBar: {
+    position: 'absolute',
+    right: 20,
+    top: '35%',
+    zIndex: 200,
     alignItems: 'center',
-    marginTop: 60,
+    justifyContent: 'center',
+  },
+  tiktokActionButton: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  tiktokActionCount: {
+    color: '#fff',
+    fontSize: 14,
+    marginTop: 4,
+    fontWeight: 'bold',
   },
   emptyText: {
     color: COLORS.lightText,
     fontSize: 16,
     marginTop: 16,
   },
-}); 
+});

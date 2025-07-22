@@ -16,10 +16,11 @@ import {
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { getUserProfile } from '../lib/services/userService';
-import { getPosts, Post } from '../lib/services/postService';
+import { getPosts, Post, likePost, unlikePost } from '../lib/services/postService';
 import { fetchReels, Reel } from '../lib/services/reelService';
 import { friendService } from '../lib/services/friendService';
 import client from '../api/client';
+import CommentDialog from "../components/CommentDialog";
 
 // Color Palette
 const COLORS = {
@@ -33,6 +34,9 @@ const COLORS = {
 
 const DEFAULT_COVER = "https://images.unsplash.com/photo-1506744038136-46273834b3fb";
 const DEFAULT_AVATAR = "https://randomuser.me/api/portraits/men/1.jpg";
+
+const LIKE_ACTIVE_COLOR = '#22c55e'; // Green
+const LIKE_INACTIVE_COLOR = COLORS.lightText;
 
 export default function FriendsProfileScreen() {
   const router = useRouter();
@@ -48,6 +52,8 @@ export default function FriendsProfileScreen() {
   const [isFriend, setIsFriend] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  const [optimisticLikes, setOptimisticLikes] = useState<{ [postId: string]: string[] }>({});
+  const [commentModalPost, setCommentModalPost] = useState<Post | null>(null);
 
   const tabs = ['Posts', 'About', 'Videos', 'Photos'];
   const targetUserId = params.userId as string;
@@ -101,6 +107,25 @@ export default function FriendsProfileScreen() {
       pathname: "/screens/ChatScreen",
       params: { recipient: JSON.stringify(profileData) }
     });
+  };
+
+  const handleLikePost = async (post: Post) => {
+    if (!user) return;
+    const alreadyLiked = (optimisticLikes[post.id] || post.likedBy || []).includes(user.id);
+    // Optimistic UI update
+    setOptimisticLikes(prev => ({
+      ...prev,
+      [post.id]: alreadyLiked
+        ? (prev[post.id] || post.likedBy || []).filter(id => id !== user.id)
+        : [...(prev[post.id] || post.likedBy || []), user.id]
+    }));
+    // Backend update
+    if (alreadyLiked) {
+      await unlikePost(post.id, user.id);
+    } else {
+      await likePost(post.id, user.id);
+    }
+    fetchProfile();
   };
 
   useEffect(() => { fetchProfile(); fetchFriendStatus(); }, [targetUserId, user?.id]);
@@ -233,9 +258,26 @@ export default function FriendsProfileScreen() {
                     <Text style={{ color: COLORS.text }}>{post.content}</Text>
                     {post.imageUrl && <Image source={{ uri: post.imageUrl }} style={{ width: '100%', height: 200, borderRadius: 8, marginTop: 8 }} />}
                     {post.videoUrl && <Text style={{ color: COLORS.accent, marginTop: 8 }}>[Video attached]</Text>}
-                    <Text style={{ color: COLORS.lightText, fontSize: 12, marginTop: 8 }}>
-                      {post.likedBy?.length || 0} likes · {post.comments?.length || 0} comments
-                    </Text>
+                    <View style={styles.postActions}>
+                      <TouchableOpacity onPress={() => user && handleLikePost(post)} style={styles.actionBtn}>
+                        <View style={styles.actionIcon}>
+                          <Ionicons
+                            name={(optimisticLikes[post.id] || post.likedBy || []).includes(user.id) ? 'heart' : 'heart-outline'}
+                            size={22}
+                            color={(optimisticLikes[post.id] || post.likedBy || []).includes(user.id) ? LIKE_ACTIVE_COLOR : LIKE_INACTIVE_COLOR}
+                          />
+                        </View>
+                        <Text style={styles.actionText}>Like</Text>
+                        <Text style={styles.actionCount}>{(optimisticLikes[post.id] || post.likedBy || []).length}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => setCommentModalPost(post)} style={styles.actionBtn}>
+                        <View style={styles.actionIcon}>
+                          <Ionicons name="chatbubble" size={18} color={COLORS.primary} />
+                        </View>
+                        <Text style={styles.actionText}>Comment</Text>
+                        <Text style={styles.actionCount}>{post.comments?.length || 0}</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 ))
               )}
@@ -388,6 +430,14 @@ export default function FriendsProfileScreen() {
           </View>
         </Modal>
       )}
+      {commentModalPost && user?.id && (
+        <CommentDialog
+          postId={commentModalPost.id}
+          userId={user.id}
+          onClose={() => setCommentModalPost(null)}
+          onComment={fetchProfile}
+        />
+      )}
     </View>
   );
 }
@@ -513,5 +563,30 @@ const styles = StyleSheet.create({
   detailText: {
     color: COLORS.text,
     fontSize: 16,
+  },
+  postActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    borderWidth: 1,
+    borderColor: COLORS.lightText,
+    borderRadius: 8,
+  },
+  actionIcon: {
+    marginRight: 8,
+  },
+  actionText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  actionCount: {
+    fontSize: 14,
+    color: COLORS.lightText,
   },
 }); 

@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState, useRef } from "react";
 import {
+  Alert,
   Dimensions,
   Image,
   ScrollView,
@@ -10,15 +11,11 @@ import {
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
-  Alert,
 } from "react-native";
-import ReelsScreen from '../screens/ReelsScreen';
 import { useAuth } from '../context/AuthContext';
 import { fetchReels, Reel, deleteReel } from '../lib/services/reelService';
 // TODO: Replace with expo-video when available in SDK 54
 import { Video, ResizeMode } from 'expo-av';
-import { useLocalSearchParams } from 'expo-router';
 import { getPosts, Post, deletePost } from '../lib/services/postService';
 import { fetchStories, Story, deleteStory } from '../lib/services/storyService';
 
@@ -61,8 +58,6 @@ const videoFeed = [
   },
 ];
 
-
-
 export default function Videos() {
   const [activeTab, setActiveTab] = useState("For you");
   const [currentReelIndex, setCurrentReelIndex] = useState(0);
@@ -78,12 +73,11 @@ export default function Videos() {
   const postsScrollRef = useRef<ScrollView>(null);
   const storiesScrollRef = useRef<ScrollView>(null);
   const router = useRouter();
-  const params = useLocalSearchParams();
   const { user } = useAuth();
-  const initialReelId = typeof params.reelId === 'string' ? params.reelId : undefined;
-  const initialPostId = typeof params.postId === 'string' ? params.postId : undefined;
-  const initialStoryId = typeof params.storyId === 'string' ? params.storyId : undefined;
-  const initialTab = typeof params.tab === 'string' ? params.tab : undefined;
+  const initialReelId = undefined;
+  const initialPostId = undefined;
+  const initialStoryId = undefined;
+  const initialTab = undefined;
   const { width } = Dimensions.get("window");
 
   React.useEffect(() => {
@@ -249,111 +243,6 @@ export default function Videos() {
         >
           <Ionicons name="close" size={28} color="#fff" />
         </TouchableOpacity>
-        {loadingReels ? (
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Text style={{ color: '#fff', fontSize: 18 }}>Loading reels...</Text>
-          </View>
-        ) : reels.length > 0 ? (
-          <ScrollView
-            ref={reelsScrollRef}
-            pagingEnabled
-            showsVerticalScrollIndicator={false}
-            onScroll={handleReelScroll}
-            scrollEventThrottle={16}
-          >
-            {reels.map((reel, index) => (
-              <View key={reel.id} style={styles.reelItem}>
-                <Video
-                  source={{ uri: reel.mediaUrl }}
-                  style={styles.reelVideo}
-                  resizeMode={ResizeMode.COVER}
-                  shouldPlay={index === currentReelIndex && currentReelIndex >= 0}
-                  isLooping
-                  isMuted={false}
-                  useNativeControls={false}
-                  onLoad={() => {
-                    console.log('Video loaded:', reel.mediaUrl);
-                  }}
-                  onError={(error) => {
-                    console.error('Video error:', error);
-                    // Try to reload video on error
-                    if (index === currentReelIndex) {
-                      setTimeout(() => {
-                        setCurrentReelIndex(currentReelIndex);
-                      }, 1000);
-                    }
-                  }}
-                  onLoadStart={() => {
-                    console.log('Video loading started:', reel.mediaUrl);
-                  }}
-                />
-                {/* Reel Info and Action Bar ... (reuse your existing code) */}
-                <View style={styles.reelInfoContainer}>
-                  <View style={styles.reelUserInfo}>
-                    <Image source={{ uri: reel.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} style={styles.reelAvatar} />
-                    <Text style={styles.reelUsername}>{reel.username}</Text>
-                    <TouchableOpacity style={styles.followButton}>
-                      <Text style={styles.followButtonText}>Follow</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <Text style={styles.reelCaption}>{reel.caption}</Text>
-                  {/* Sound Info */}
-                  <View style={styles.soundInfo}>
-                    <Ionicons name="musical-notes" size={16} color="white" />
-                    <Text style={styles.soundName}>Original Sound</Text>
-                  </View>
-                </View>
-                {/* Right Action Bar */}
-                <View style={styles.rightActionBar}>
-                  <View style={styles.actionBarButtons}>
-                    <TouchableOpacity style={styles.actionButton}>
-                      <Ionicons name="heart" size={32} color="white" />
-                      <Text style={styles.actionCount}>{reel.likedBy?.length || 0}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.actionButton}>
-                      <Ionicons name="chatbubble" size={32} color="white" />
-                      <Text style={styles.actionCount}>{reel.comments?.length || 0}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.actionButton}>
-                      <Ionicons name="send" size={32} color="white" />
-                      <Text style={styles.actionCount}>{reel.shareCount || 0}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.actionButton}>
-                      <Ionicons name="ellipsis-horizontal" size={32} color="white" />
-                    </TouchableOpacity>
-                    {user?.id === reel.userId && (
-                      <TouchableOpacity 
-                        style={styles.actionButton}
-                        onPress={() => handleDeleteReel(reel.id)}
-                      >
-                        <Ionicons name="trash" size={32} color="#ff4444" />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                  <TouchableOpacity 
-                    style={styles.createReelButton}
-                    onPress={() => router.push("/(create)/newReel")}
-                  >
-                    <LinearGradient
-                      colors={[COLORS.accent, '#FF9E40']}
-                      style={styles.createReelGradient}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                    >
-                      <Ionicons name="add" size={24} color="white" />
-                    </LinearGradient>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
-          </ScrollView>
-        ) : (
-          <View style={styles.emptyReels}>
-            <Ionicons name="videocam-off" size={60} color={COLORS.lightText} />
-            <Text style={styles.emptyReelsText}>No reels yet</Text>
-          </View>
-        )}
-        
         {/* Main Videos Button */}
         <TouchableOpacity
           style={{
@@ -369,6 +258,80 @@ export default function Videos() {
         >
           <Ionicons name="grid" size={28} color="#fff" />
         </TouchableOpacity>
+        {loadingReels ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <Text style={{ color: '#fff', fontSize: 18 }}>Loading reels...</Text>
+          </View>
+        ) : reels.length > 0 ? (
+          <ScrollView
+            ref={reelsScrollRef}
+            pagingEnabled
+            showsVerticalScrollIndicator={false}
+            onScroll={handleReelScroll}
+            scrollEventThrottle={16}
+          >
+            {reels.map((reel, index) => (
+              <View key={reel.id} style={styles.reelItem}>
+                <View style={styles.postMediaContainer}>
+                  {reel.mediaUrl ? (
+                    reel.mediaUrl.endsWith('.mp4') || reel.mediaUrl.endsWith('.mov') ? (
+                      <Video
+                        source={{ uri: reel.mediaUrl }}
+                        style={styles.postMedia}
+                        resizeMode={ResizeMode.CONTAIN}
+                        shouldPlay={index === currentReelIndex}
+                        isLooping
+                        isMuted={false}
+                        useNativeControls={false}
+                        onError={(error) => {
+                          console.error('Reel video error:', error);
+                        }}
+                      />
+                    ) : (
+                      <Image source={{ uri: reel.mediaUrl }} style={styles.postMedia} resizeMode="contain" />
+                    )
+                  ) : null}
+                </View>
+                {/* Reel Info */}
+                <View style={styles.postInfoContainer}>
+                  <View style={styles.postUserInfo}>
+                    <Image source={{ uri: reel.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} style={styles.reelAvatar} />
+                    <Text style={styles.reelUsername}>{reel.username}</Text>
+                    <TouchableOpacity style={styles.followButton}>
+                      <Text style={styles.followButtonText}>Follow</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.reelCaption}>{reel.caption}</Text>
+                </View>
+                {/* TikTok-style Action Buttons on the right */}
+                <View style={styles.tiktokActionBar}>
+                  <TouchableOpacity style={styles.tiktokActionButton}>
+                    <Ionicons name="heart" size={32} color="#fff" />
+                    <Text style={styles.tiktokActionCount}>{reel.likedBy?.length || 0}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.tiktokActionButton}>
+                    <Ionicons name="chatbubble" size={32} color="#fff" />
+                    <Text style={styles.tiktokActionCount}>{reel.comments?.length || 0}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.tiktokActionButton}>
+                    <Ionicons name="send" size={32} color="#fff" />
+                    <Text style={styles.tiktokActionCount}>{reel.shareCount || 0}</Text>
+                  </TouchableOpacity>
+                  {user?.id === reel.userId && (
+                    <TouchableOpacity style={styles.tiktokActionButton} onPress={() => handleDeleteReel(reel.id)}>
+                      <Ionicons name="trash" size={32} color="#ff4444" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        ) : (
+          <View style={styles.emptyReels}>
+            <Ionicons name="videocam-off" size={60} color={COLORS.lightText} />
+            <Text style={styles.emptyReelsText}>No reels yet</Text>
+          </View>
+        )}
       </View>
     );
   }
@@ -423,12 +386,12 @@ export default function Videos() {
               <View key={post.id} style={styles.reelItem}>
                 <View style={styles.postMediaContainer}>
                   {post.videoUrl ? (
-                    <Video 
-                      source={{ uri: post.videoUrl }} 
-                      style={styles.postMedia} 
+                    <Video
+                      source={{ uri: post.videoUrl }}
+                      style={styles.postMedia}
                       resizeMode={ResizeMode.CONTAIN}
-                      shouldPlay={index === currentPostIndex} 
-                      isLooping 
+                      shouldPlay={index === currentPostIndex}
+                      isLooping
                       isMuted={false}
                       useNativeControls={false}
                       onError={(error) => {
@@ -452,26 +415,26 @@ export default function Videos() {
                   <Text style={styles.reelCaption}>{post.content}</Text>
                 </View>
                 
-                {/* Action Counts Beneath Media */}
-                <View style={styles.postActionCounts}>
-                  <View style={styles.actionCountItem}>
-                    <Ionicons name="heart" size={20} color="white" />
-                    <Text style={styles.actionCountText}>{post.likedBy?.length || 0}</Text>
+                {/* TikTok-style Action Buttons on the right */}
+                <View style={styles.tiktokActionBar}>
+                  <View style={styles.tiktokActionButton}>
+                    <Ionicons name="heart" size={32} color="#fff" />
+                    <Text style={styles.tiktokActionCount}>{post.likedBy?.length || 0}</Text>
                   </View>
-                  <View style={styles.actionCountItem}>
-                    <Ionicons name="chatbubble" size={20} color="white" />
-                    <Text style={styles.actionCountText}>{post.comments?.length || 0}</Text>
+                  <View style={styles.tiktokActionButton}>
+                    <Ionicons name="chatbubble" size={32} color="#fff" />
+                    <Text style={styles.tiktokActionCount}>{post.comments?.length || 0}</Text>
                   </View>
-                  <View style={styles.actionCountItem}>
-                    <Ionicons name="send" size={20} color="white" />
-                    <Text style={styles.actionCountText}>{post.shareCount || 0}</Text>
+                  <View style={styles.tiktokActionButton}>
+                    <Ionicons name="send" size={32} color="#fff" />
+                    <Text style={styles.tiktokActionCount}>{post.shareCount || 0}</Text>
                   </View>
                   {user?.id === post.user.id && (
                     <TouchableOpacity 
-                      style={styles.actionCountItem}
+                      style={styles.tiktokActionButton}
                       onPress={() => handleDeletePost(post.id)}
                     >
-                      <Ionicons name="trash" size={20} color="#ff4444" />
+                      <Ionicons name="trash" size={32} color="#ff4444" />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -537,7 +500,22 @@ export default function Videos() {
             {stories.map((story, index) => (
               <View key={story.id} style={styles.reelItem}>
                 <View style={styles.postMediaContainer}>
-                  <Image source={{ uri: story.mediaUrl || 'https://via.placeholder.com/150' }} style={styles.postMedia} resizeMode="contain" />
+                  {story.mediaUrl && story.mediaUrl.endsWith('.mp4') ? (
+                    <Video
+                      source={{ uri: story.mediaUrl }}
+                      style={styles.postMedia}
+                      resizeMode={ResizeMode.CONTAIN}
+                      shouldPlay={index === currentStoryIndex}
+                      isLooping
+                      isMuted={false}
+                      useNativeControls={false}
+                      onError={(error) => {
+                        console.error('Story video error:', error);
+                      }}
+                    />
+                  ) : (
+                    <Image source={{ uri: story.mediaUrl || 'https://via.placeholder.com/150' }} style={styles.postMedia} resizeMode="contain" />
+                  )}
                 </View>
                 
                 {/* Story Info */}
@@ -552,26 +530,26 @@ export default function Videos() {
                   <Text style={styles.reelCaption}>{story.caption || 'No caption'}</Text>
                 </View>
                 
-                {/* Action Counts Beneath Media */}
-                <View style={styles.postActionCounts}>
-                  <View style={styles.actionCountItem}>
-                    <Ionicons name="heart" size={20} color="white" />
-                    <Text style={styles.actionCountText}>0</Text>
+                {/* TikTok-style Action Buttons on the right */}
+                <View style={styles.tiktokActionBar}>
+                  <View style={styles.tiktokActionButton}>
+                    <Ionicons name="heart" size={32} color="#fff" />
+                    <Text style={styles.tiktokActionCount}>0</Text>
                   </View>
-                  <View style={styles.actionCountItem}>
-                    <Ionicons name="chatbubble" size={20} color="white" />
-                    <Text style={styles.actionCountText}>0</Text>
+                  <View style={styles.tiktokActionButton}>
+                    <Ionicons name="chatbubble" size={32} color="#fff" />
+                    <Text style={styles.tiktokActionCount}>0</Text>
                   </View>
-                  <View style={styles.actionCountItem}>
-                    <Ionicons name="send" size={20} color="white" />
-                    <Text style={styles.actionCountText}>0</Text>
+                  <View style={styles.tiktokActionButton}>
+                    <Ionicons name="send" size={32} color="#fff" />
+                    <Text style={styles.tiktokActionCount}>0</Text>
                   </View>
                   {user?.id === story.userId && (
                     <TouchableOpacity 
-                      style={styles.actionCountItem}
+                      style={styles.tiktokActionButton}
                       onPress={() => handleDeleteStory(story.id)}
                     >
-                      <Ionicons name="trash" size={20} color="#ff4444" />
+                      <Ionicons name="trash" size={32} color="#ff4444" />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -702,23 +680,6 @@ export default function Videos() {
   );
 }
 
-function ReelsScreenWithButton() {
-  const { user } = useAuth();
-  const [loading, setLoading] = React.useState(false);
-  const router = useRouter();
-
-  // No need to fetch reels here, ReelsScreen does it
-
-  return (
-    <View style={{ flex: 1 }}>
-      <ReelsScreen />
-      <TouchableOpacity onPress={() => router.push('/screens/ReelsScreen')} style={{ position: 'absolute', top: 40, right: 20, backgroundColor: '#FF7F11', padding: 10, borderRadius: 20, zIndex: 10 }}>
-        <Text style={{ color: '#fff', fontWeight: 'bold' }}>Go to Reels Tab</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -754,9 +715,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tabsContainer: {
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.primary,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#0A2463',
   },
   tabsRow: {
     paddingHorizontal: 16,
@@ -769,11 +730,11 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   tabBtnActive: {
-    backgroundColor: '#e7f0fd',
+    backgroundColor: COLORS.accent,
   },
   tabText: {
     fontSize: 16,
-    color: COLORS.lightText,
+    color: COLORS.white,
     fontWeight: "500",
   },
   tabTextActive: {
@@ -1046,6 +1007,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginTop: 10,
   },
+  // ...other styles...
+  // Duplicate style keys removed. Only one definition per style key remains above.
   postMediaContainer: {
     width: '100%',
     height: '100%', // Full screen height
@@ -1089,6 +1052,74 @@ const styles = StyleSheet.create({
   },
   actionCountText: {
     color: COLORS.white,
+    fontSize: 14,
+    marginTop: 4,
+    fontWeight: 'bold',
+  },
+  playPauseOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  heartOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  progressBarBg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  progressBar: {
+    height: 4,
+    backgroundColor: '#fff',
+  },
+  gradientOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  overlayContent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  overlayTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  tiktokActionBar: {
+    position: 'absolute',
+    right: 20,
+    top: '35%',
+    zIndex: 200,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tiktokActionButton: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  tiktokActionCount: {
+    color: '#fff',
     fontSize: 14,
     marginTop: 4,
     fontWeight: 'bold',

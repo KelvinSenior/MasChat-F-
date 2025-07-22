@@ -49,8 +49,10 @@ export default function Stories() {
         {stories.map((story, idx) => (
           <View key={story.id} style={{ width: '100%', height: Dimensions.get('window').height, justifyContent: 'center', alignItems: 'center' }}>
             <Image source={{ uri: story.mediaUrl }} style={{ width: '100%', height: 320 }} />
-            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>{story.username}</Text>
-            <Text style={{ color: '#fff', fontSize: 16 }}>{story.caption}</Text>
+            <View style={{ marginBottom: 40, alignItems: 'center' }}>
+              <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>{story.username || ''}</Text>
+              <Text style={{ color: '#fff', fontSize: 16 }}>{story.caption || ''}</Text>
+            </View>
           </View>
         ))}
       </ScrollView>

@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Modal, TextInput } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import { fetchReels, deleteReel, Reel, likeReel, unlikeReel, addReelComment, shareReel, fetchReelComments, ReelComment } from '../lib/services/reelService';
+import { Video, ResizeMode } from 'expo-av';
+import CommentDialog from "../components/CommentDialog";
 
 const COLORS = {
   primary: '#0A2463',
@@ -15,15 +17,19 @@ const COLORS = {
   lightText: '#888888',
 };
 
+const LIKE_ACTIVE_COLOR = '#22c55e'; // Green
+const LIKE_INACTIVE_COLOR = COLORS.lightText;
+const { height: DEVICE_HEIGHT, width: DEVICE_WIDTH } = Dimensions.get('window');
+
 export default function ReelsScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const [reels, setReels] = useState<Reel[]>([]);
   const [loading, setLoading] = useState(true);
   const [commentModalReel, setCommentModalReel] = useState<Reel | null>(null);
-  const [commentText, setCommentText] = useState('');
-  const [commentLoading, setCommentLoading] = useState(false);
-  const [comments, setComments] = useState<ReelComment[]>([]);
+  const [optimisticLikes, setOptimisticLikes] = useState<{ [reelId: string]: string[] }>({});
+  const [currentReelIndex, setCurrentReelIndex] = useState(0);
+  const reelsScrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     fetchAllReels();
@@ -40,21 +46,29 @@ export default function ReelsScreen() {
   };
 
   const handleDelete = async (reelId: string) => {
+    if (!user?.id) return;
     Alert.alert('Delete Reel', 'Are you sure you want to delete this reel?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
-        await deleteReel(reelId, user?.id);
+        await deleteReel(reelId, user.id);
         fetchAllReels();
       }},
     ]);
   };
 
-  const handleLike = async (reel: Reel) => {
-    if (!user) return;
-    if (reel.likedBy?.includes(user.id)) {
-      await unlikeReel(reel.id, user.id);
+  const handleLikeReel = async (reel: Reel) => {
+    if (!user || typeof user.id !== 'string' || !user.id) return;
+    const alreadyLiked = (optimisticLikes[reel.id] || reel.likedBy || []).includes(user.id);
+    setOptimisticLikes(prev => ({
+      ...prev,
+      [reel.id]: alreadyLiked
+        ? (prev[reel.id] || reel.likedBy || []).filter(id => id !== user.id)
+        : [...(prev[reel.id] || reel.likedBy || []), user.id]
+    }));
+    if (alreadyLiked) {
+      await unlikeReel(reel.id, user.id as string);
     } else {
-      await likeReel(reel.id, user.id);
+      await likeReel(reel.id, user.id as string);
     }
     fetchAllReels();
   };
@@ -64,24 +78,18 @@ export default function ReelsScreen() {
     fetchAllReels();
   };
 
-  const handleAddComment = async () => {
-    if (!commentModalReel || !user || !commentText.trim()) return;
-    setCommentLoading(true);
-    await addReelComment(commentModalReel.id, user.id, commentText.trim());
-    setCommentText('');
-    setCommentLoading(false);
-    setCommentModalReel(null);
-    fetchAllReels();
+  const handleReelScroll = (event: any) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    const newIndex = Math.round(offsetY / DEVICE_HEIGHT);
+    setCurrentReelIndex(newIndex);
   };
 
-  const openCommentModal = async (reel: Reel) => {
-    setCommentModalReel(reel);
-    const data = await fetchReelComments(reel.id);
-    setComments(data);
-  };
+  // Get the current reel for header actions
+  const currentReel = reels[currentReelIndex] || null;
 
   return (
     <View style={styles.container}>
+      {/* Header (updates for current reel) */}
       <LinearGradient
         colors={[COLORS.primary, '#1A4B8C']}
         style={styles.header}
@@ -97,116 +105,66 @@ export default function ReelsScreen() {
         }} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Reels</Text>
-        <TouchableOpacity onPress={() => router.push('/(create)/newReel')} style={styles.addButton}>
-          <Ionicons name="add-circle" size={28} color={COLORS.accent} />
-        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Reel</Text>
+        {currentReel && user?.id === currentReel.userId ? (
+          <TouchableOpacity onPress={() => handleDelete(currentReel.id)} style={styles.deleteBtn}>
+            <Ionicons name="trash" size={24} color={COLORS.accent} />
+          </TouchableOpacity>
+        ) : <View style={{ width: 36 }} />}
       </LinearGradient>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {loading ? (
-          <Text style={styles.loadingText}>Loading...</Text>
-        ) : reels.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="film-outline" size={60} color={COLORS.lightText} />
-            <Text style={styles.emptyText}>No reels yet.</Text>
-            <TouchableOpacity style={styles.createBtn} onPress={() => router.push('/(create)/newReel')}>
-              <Text style={styles.createBtnText}>Create New Reel</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          reels.map(reel => (
-            <View key={reel.id} style={styles.reelCard}>
-              <TouchableOpacity
-                style={{ flex: 1 }}
-                onPress={() => router.push({ pathname: '/(tabs)/videos', params: { tab: 'Reels', reelId: reel.id } })}
-              >
-                <Image source={{ uri: reel.mediaUrl }} style={styles.reelImage} />
-                <View style={styles.reelInfo}>
-                  <Text style={styles.reelUser}>{reel.username}</Text>
-                  <Text style={styles.reelCaption}>{reel.caption}</Text>
-                  <Text style={styles.reelTime}>{new Date(reel.createdAt).toLocaleString()}</Text>
-                </View>
-              </TouchableOpacity>
-              <View style={styles.reelActions}>
-                <TouchableOpacity onPress={() => user && handleLike(reel)} style={styles.actionBtn}>
-                  <Ionicons name={reel.likedBy?.includes(user?.id || '') ? 'heart' : 'heart-outline'} size={22} color={reel.likedBy?.includes(user?.id || '') ? COLORS.accent : COLORS.lightText} />
-                  <Text style={styles.actionCount}>{reel.likedBy?.length || 0}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => openCommentModal(reel)} style={styles.actionBtn}>
-                  <Ionicons name="chatbubble-outline" size={22} color={COLORS.lightText} />
-                  <Text style={styles.actionCount}>{reel.comments?.length || 0}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleShare(reel.id)} style={styles.actionBtn}>
-                  <Ionicons name="share-social-outline" size={22} color={COLORS.lightText} />
-                  <Text style={styles.actionCount}>{reel.shareCount || 0}</Text>
-                </TouchableOpacity>
-                {user?.id === reel.userId && (
-                  <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(reel.id)}>
-                    <Ionicons name="trash" size={22} color={COLORS.accent} />
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-          ))
-        )}
-      </ScrollView>
-      {/* Comment Modal */}
-      {commentModalReel && (
-        <Modal
-          visible={!!commentModalReel}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setCommentModalReel(null)}
+      {loading ? (
+        <ActivityIndicator style={{ marginTop: 60 }} color={COLORS.primary} />
+      ) : reels.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="film-outline" size={60} color={COLORS.lightText} />
+          <Text style={styles.emptyText}>No reels yet.</Text>
+          <TouchableOpacity style={styles.createBtn} onPress={() => router.push('/(create)/newReel')}>
+            <Text style={styles.createBtnText}>Create New Reel</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <ScrollView
+          ref={reelsScrollRef}
+          pagingEnabled
+          showsVerticalScrollIndicator={false}
+          onScroll={handleReelScroll}
+          scrollEventThrottle={16}
         >
-          <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-            <View style={{
-              backgroundColor: COLORS.white,
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              padding: 24,
-              minHeight: 320,
-              maxHeight: '60%',
-              width: '100%',
-              alignSelf: 'flex-end',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: -2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 8,
-              elevation: 8,
-            }}>
-              <View style={{ alignItems: 'center', marginBottom: 12 }}>
-                <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: '#eee', marginBottom: 8 }} />
-                <Text style={styles.commentModalTitle}>Comments</Text>
+          {reels.map((reel, index) => (
+            <View key={reel.id} style={[styles.reelItem, { height: DEVICE_HEIGHT }]}> 
+              <View style={styles.mediaContainer}>
+                {reel.mediaUrl && reel.mediaUrl.endsWith('.mp4') ? (
+                  <Video
+                    source={{ uri: reel.mediaUrl }}
+                    style={styles.fullVideo}
+                    resizeMode={ResizeMode.CONTAIN}
+                    shouldPlay={index === currentReelIndex}
+                    isLooping
+                    useNativeControls
+                    onError={(error) => {
+                      console.error('Reel video error:', error);
+                    }}
+                  />
+                ) : reel.mediaUrl ? (
+                  <Image source={{ uri: reel.mediaUrl }} style={styles.fullImage} resizeMode="contain" />
+                ) : null}
               </View>
-              <ScrollView style={{ maxHeight: 180, width: '100%' }}>
-                {comments.length === 0 ? (
-                  <Text style={{ color: COLORS.lightText, textAlign: 'center', marginVertical: 12 }}>No comments yet.</Text>
-                ) : (
-                  comments.map(c => (
-                    <View key={c.id} style={{ marginBottom: 10 }}>
-                      <Text style={{ fontWeight: 'bold' }}>{c.username}</Text>
-                      <Text style={{ color: COLORS.text }}>{c.text}</Text>
-                      <Text style={{ color: COLORS.lightText, fontSize: 12 }}>{new Date(c.createdAt).toLocaleString()}</Text>
-                    </View>
-                  ))
-                )}
-              </ScrollView>
-              <TextInput
-                style={styles.commentInput}
-                placeholder="Write a comment..."
-                value={commentText}
-                onChangeText={setCommentText}
-                multiline
-              />
-              <TouchableOpacity style={styles.commentSendBtn} onPress={handleAddComment} disabled={commentLoading}>
-                <Text style={styles.commentSendText}>{commentLoading ? 'Posting...' : 'Send'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.commentCancelBtn} onPress={() => setCommentModalReel(null)}>
-                <Text style={styles.commentCancelText}>Cancel</Text>
-              </TouchableOpacity>
+              <View style={styles.infoOverlay}>
+                <Text style={styles.username}>{reel.username}</Text>
+                <Text style={styles.caption}>{reel.caption}</Text>
+                <Text style={styles.time}>{new Date(reel.createdAt).toLocaleString()}</Text>
+              </View>
             </View>
-          </View>
-        </Modal>
+          ))}
+        </ScrollView>
+      )}
+      {commentModalReel && user?.id && (
+        <CommentDialog
+          postId={commentModalReel.id}
+          userId={user.id}
+          onClose={() => setCommentModalReel(null)}
+          onComment={fetchAllReels}
+        />
       )}
     </View>
   );
@@ -242,20 +200,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: 'white',
   },
-  addButton: {
+  deleteBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  scrollContent: {
-    padding: 16,
-  },
-  loadingText: {
-    textAlign: 'center',
-    color: COLORS.lightText,
-    marginTop: 40,
   },
   emptyContainer: {
     flex: 1,
@@ -279,107 +229,50 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-  reelCard: {
-    flexDirection: 'row',
+  reelItem: {
+    flex: 1,
+    width: DEVICE_WIDTH,
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    marginBottom: 16,
-    padding: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
+    backgroundColor: COLORS.background,
   },
-  reelImage: {
-    width: 80,
-    height: 120,
-    borderRadius: 10,
-    marginRight: 16,
+  mediaContainer: {
+    width: DEVICE_WIDTH,
+    height: DEVICE_HEIGHT * 0.6,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#eee',
   },
-  reelInfo: {
-    flex: 1,
+  fullVideo: {
+    width: DEVICE_WIDTH,
+    height: DEVICE_HEIGHT * 0.6,
+    backgroundColor: '#eee',
   },
-  reelUser: {
+  fullImage: {
+    width: DEVICE_WIDTH,
+    height: DEVICE_HEIGHT * 0.6,
+    backgroundColor: '#eee',
+    borderRadius: 16,
+  },
+  infoOverlay: {
+    alignItems: 'center',
+    marginTop: 24,
+    paddingHorizontal: 16,
+  },
+  username: {
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 18,
     color: COLORS.text,
     marginBottom: 4,
   },
-  reelCaption: {
-    fontSize: 15,
+  caption: {
+    fontSize: 16,
     color: COLORS.text,
     marginBottom: 6,
+    textAlign: 'center',
   },
-  reelTime: {
-    fontSize: 12,
+  time: {
+    fontSize: 13,
     color: COLORS.lightText,
-  },
-  deleteBtn: {
-    marginLeft: 12,
-    padding: 6,
-  },
-  reelActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    gap: 12,
-  },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  actionCount: {
-    color: COLORS.lightText,
-    fontSize: 14,
-    marginLeft: 4,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  commentModalBox: {
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    padding: 24,
-    margin: 32,
-    alignItems: 'center',
-  },
-  commentModalTitle: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    marginBottom: 12,
-  },
-  commentInput: {
-    backgroundColor: '#f0f2f5',
-    borderRadius: 8,
-    padding: 12,
-    width: 240,
-    minHeight: 60,
-    fontSize: 15,
-    marginBottom: 12,
-  },
-  commentSendBtn: {
-    backgroundColor: COLORS.accent,
-    borderRadius: 8,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    marginBottom: 8,
-  },
-  commentSendText: {
-    color: COLORS.white,
-    fontWeight: 'bold',
-  },
-  commentCancelBtn: {
-    marginTop: 4,
-  },
-  commentCancelText: {
-    color: COLORS.lightText,
-    fontWeight: 'bold',
   },
 }); 

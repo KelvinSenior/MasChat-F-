@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
 import React, { useState, useEffect } from "react";
-import { FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View, StatusBar, Platform, ActivityIndicator, ScrollView } from "react-native";
+import { FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View, StatusBar, Platform, ActivityIndicator, ScrollView, Pressable } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import client from '../api/client';
 
@@ -95,6 +95,12 @@ export default function SearchScreen() {
   const showPosts = filter === 'all' || filter === 'posts';
   const showReels = filter === 'all' || filter === 'reels';
 
+  function highlight(text: string, term: string) {
+    if (!term) return <Text>{text}</Text>;
+    const parts = text.split(new RegExp(`(${term})`, 'gi'));
+    return <Text>{parts.map((part, i) => part.toLowerCase() === term.toLowerCase() ? <Text key={i} style={{ backgroundColor: '#ffe082', fontWeight: 'bold' }}>{part}</Text> : part)}</Text>;
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" translucent />
@@ -130,6 +136,11 @@ export default function SearchScreen() {
           onSubmitEditing={() => handleSearch()}
           returnKeyType="search"
         />
+        {query.length > 0 && (
+          <TouchableOpacity onPress={() => setQuery("")} style={{ marginLeft: 8 }}>
+            <Ionicons name="close-circle" size={20} color={COLORS.lightText} />
+          </TouchableOpacity>
+        )}
       </View>
       {/* Suggestions & Recent */}
       {isSearchFocused && !query.trim() && (
@@ -170,44 +181,48 @@ export default function SearchScreen() {
       </ScrollView>
       {/* Results */}
       {loading ? (
-        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 32 }} />
+        <View style={{ padding: 24 }}>
+          {[...Array(4)].map((_, i) => (
+            <View key={i} style={{ backgroundColor: '#e4e6eb', borderRadius: 16, height: 60, marginBottom: 16, opacity: 0.5 }} />
+          ))}
+        </View>
       ) : (
         <ScrollView style={styles.resultsScroll}>
           {/* Users */}
           {showUsers && users.length > 0 && <Text style={styles.sectionTitle}>Users</Text>}
           {showUsers && users.map(user => (
-            <TouchableOpacity key={user.id} style={styles.resultRow} onPress={() => handleResultPress('user', user)}>
+            <Pressable key={user.id} style={({ pressed }) => [styles.resultCard, pressed && { opacity: 0.7 }]} onPress={() => handleResultPress('user', user)}>
               <Image source={{ uri: user?.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} style={styles.avatar} />
               <View>
-                <Text style={styles.resultTitle}>{user.fullName || user.username}</Text>
-                <Text style={styles.resultSub}>{user.username}</Text>
+                <Text style={styles.resultTitle}>{highlight(user.fullName || user.username, query)}</Text>
+                <Text style={styles.resultSub}>{highlight(user.username, query)}</Text>
               </View>
-            </TouchableOpacity>
+            </Pressable>
           ))}
           {/* Posts */}
           {showPosts && posts.length > 0 && <Text style={styles.sectionTitle}>Posts</Text>}
           {showPosts && posts.map(post => (
-            <TouchableOpacity key={post.id} style={styles.resultRow} onPress={() => handleResultPress('post', post)}>
+            <Pressable key={post.id} style={({ pressed }) => [styles.resultCard, pressed && { opacity: 0.7 }]} onPress={() => handleResultPress('post', post)}>
               <Ionicons name="document-text" size={28} color={COLORS.primary} style={styles.iconResult} />
               <View>
-                <Text style={styles.resultTitle} numberOfLines={1}>{post.content}</Text>
-                <Text style={styles.resultSub}>{post.user?.username}</Text>
+                <Text style={styles.resultTitle} numberOfLines={1}>{highlight(post.content, query)}</Text>
+                <Text style={styles.resultSub}>{highlight(post.user?.username || '', query)}</Text>
               </View>
-            </TouchableOpacity>
+            </Pressable>
           ))}
           {/* Reels */}
           {showReels && reels.length > 0 && <Text style={styles.sectionTitle}>Reels</Text>}
           {showReels && reels.map(reel => (
-            <TouchableOpacity key={reel.id} style={styles.resultRow} onPress={() => handleResultPress('reel', reel)}>
+            <Pressable key={reel.id} style={({ pressed }) => [styles.resultCard, pressed && { opacity: 0.7 }]} onPress={() => handleResultPress('reel', reel)}>
               <Image source={{ uri: reel.mediaUrl || 'https://i.imgur.com/6XbK6bE.jpg' }} style={styles.avatar} />
               <View>
-                <Text style={styles.resultTitle} numberOfLines={1}>{reel.caption || reel.title}</Text>
-                <Text style={styles.resultSub}>{reel.user?.username}</Text>
+                <Text style={styles.resultTitle} numberOfLines={1}>{highlight(reel.caption || reel.title || '', query)}</Text>
+                <Text style={styles.resultSub}>{highlight(reel.user?.username || '', query)}</Text>
               </View>
-            </TouchableOpacity>
+            </Pressable>
           ))}
           {showUsers && users.length === 0 && showPosts && posts.length === 0 && showReels && reels.length === 0 && query.trim() !== '' && !loading && (
-            <Text style={styles.noResults}>No results found.</Text>
+            <Text style={styles.noResults}>No results found. Try a different keyword or check the suggestions above!</Text>
           )}
         </ScrollView>
       )}
@@ -240,7 +255,20 @@ const styles = StyleSheet.create({
   filterTextActive: { color: COLORS.white },
   resultsScroll: { flex: 1, paddingHorizontal: 8 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.text, marginTop: 16, marginBottom: 8 },
-  resultRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#eee', gap: 12 },
+  resultCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+    gap: 12,
+  },
   avatar: { width: 44, height: 44, borderRadius: 22, marginRight: 12, backgroundColor: '#eee' },
   iconResult: { marginRight: 12 },
   resultTitle: { fontWeight: 'bold', color: COLORS.text, fontSize: 16 },

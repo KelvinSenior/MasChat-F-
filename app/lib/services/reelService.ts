@@ -1,3 +1,15 @@
+
+
+export async function getReel(reelId: string) {
+  const res = await client.get(`/reels/${reelId}`);
+  // Map backend response to match Post type: videoUrl, imageUrl
+  const data = res.data;
+  return {
+    ...data,
+    videoUrl: data.videoUrl || (data.mediaUrl && data.mediaUrl.endsWith('.mp4') ? data.mediaUrl : undefined),
+    imageUrl: data.imageUrl || (data.mediaUrl && !data.mediaUrl.endsWith('.mp4') ? data.mediaUrl : undefined),
+  };
+}
 import client from '../../api/client';
 
 export type Reel = {
@@ -73,4 +85,5 @@ export default {
   addReelComment,
   shareReel,
   fetchReelComments
+  ,getReel
 }; 

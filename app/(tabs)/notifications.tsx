@@ -9,6 +9,8 @@ import {
   Text,
   TouchableOpacity,
   View,
+  RefreshControl,
+  Animated,
 } from "react-native";
 import { useAuth } from '../context/AuthContext';
 import { fetchNotifications, markNotificationRead, Notification, acceptFriendRequest, deleteFriendRequest, deleteNotification } from '../lib/services/userService';
@@ -34,6 +36,7 @@ export default function Notifications() {
   const [loading, setLoading] = React.useState(true);
   const { user } = useAuth();
   const { showBanner } = useNotification();
+  const [refreshing, setRefreshing] = React.useState(false);
 
   React.useEffect(() => {
     if (!user?.id) return;
@@ -89,6 +92,13 @@ export default function Notifications() {
     setNotifications(prev => prev.filter(n => n.id !== notificationId));
   };
 
+  const handleMarkAllRead = async () => {
+    for (const n of notifications.filter(n => !n.read)) {
+      await markNotificationRead(n.id);
+    }
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
   const renderRightActions = (notificationId: string) => (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', width: 120 }}>
       <TouchableOpacity 
@@ -128,15 +138,38 @@ export default function Notifications() {
         </TouchableOpacity>
       </LinearGradient>
 
-      {/* Notifications Title */}
+      {/* Notifications Title & Mark All as Read */}
       <View style={styles.notificationsHeader}>
         <Text style={styles.notificationsTitle}>Notifications</Text>
+        {notifications.some(n => !n.read) && (
+          <TouchableOpacity onPress={handleMarkAllRead} style={styles.markAllBtn}>
+            <Text style={styles.markAllText}>Mark all as read</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={async () => {
+            setRefreshing(true);
+            if (user?.id) {
+              const data = await fetchNotifications(user.id);
+              setNotifications(data);
+            }
+            setRefreshing(false);
+          }} />
+        }
+      >
         <Text style={styles.sectionLabel}>New</Text>
         {loading ? (
-          <Text style={{ textAlign: 'center', marginVertical: 24 }}>Loading...</Text>
+          <View style={{ padding: 24 }}>
+            {[...Array(4)].map((_, i) => (
+              <View key={i} style={[styles.card, { opacity: 0.5, backgroundColor: '#e4e6eb', marginBottom: 16 }]} />
+            ))}
+          </View>
         ) : notifications.length === 0 ? (
           <Text style={{ textAlign: 'center', marginVertical: 24 }}>No notifications yet.</Text>
         ) : notifications.map((item) => (
@@ -145,34 +178,46 @@ export default function Notifications() {
             renderRightActions={() => renderRightActions(item.id)}
             overshootRight={false}
           >
-            <TouchableOpacity style={[styles.card, !item.read && { backgroundColor: '#e6f0ff' }]} onPress={() => handleMarkRead(item.id)}>
-              <View style={styles.row}>
-                <View style={styles.avatarContainer}>
-                  {/* If item.avatar exists, show it, else show Ionicons */}
-                  {item.avatar ? (
-                    <Image source={{ uri: item.avatar }} style={styles.avatar} />
-                  ) : (
-                    <Ionicons name="notifications" size={20} color={item.read ? COLORS.lightText : COLORS.primary} />
-                  )}
+            <Animated.View style={[
+              styles.card,
+              !item.read && styles.unreadCard,
+              { borderLeftWidth: 5, borderLeftColor: !item.read ? COLORS.accent : 'transparent' }
+            ]}>
+              <TouchableOpacity style={{ flex: 1 }} onPress={() => handleMarkRead(item.id)}>
+                <View style={styles.row}>
+                  <View style={styles.avatarContainer}>
+                    {/* Use icon based on notification type */}
+                    {item.avatar ? (
+                      <Image source={{ uri: item.avatar }} style={styles.avatar} />
+                    ) : item.message?.toLowerCase().includes('friend request') ? (
+                      <Ionicons name="person-add" size={22} color={item.read ? COLORS.lightText : COLORS.primary} />
+                    ) : item.message?.toLowerCase().includes('like') ? (
+                      <Ionicons name="heart" size={22} color={item.read ? COLORS.lightText : '#22c55e'} />
+                    ) : item.message?.toLowerCase().includes('comment') ? (
+                      <Ionicons name="chatbubble" size={22} color={item.read ? COLORS.lightText : COLORS.accent} />
+                    ) : (
+                      <Ionicons name="notifications" size={20} color={item.read ? COLORS.lightText : COLORS.primary} />
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.messageText, !item.read && styles.bold]}>{item.message}</Text>
+                    <Text style={styles.time}>{new Date(item.createdAt).toLocaleString()}</Text>
+                    {/* Friend request actions */}
+                    {item.message?.toLowerCase().includes('friend request') && !item.read && (
+                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                        <TouchableOpacity style={[styles.actionBtn, styles.primaryAction]} onPress={() => handleConfirmFriendRequest(item.id)}>
+                          <Text style={[styles.actionText, styles.primaryText]}>Confirm</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.actionBtn, styles.secondaryAction]} onPress={() => handleDeleteFriendRequest(item.id)}>
+                          <Text style={[styles.actionText, styles.secondaryText]}>Delete</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                  {!item.read && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.accent, marginLeft: 8 }} />}
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.messageText}>{item.message}</Text>
-                  <Text style={styles.time}>{new Date(item.createdAt).toLocaleString()}</Text>
-                  {/* Friend request actions */}
-                  {item.message?.toLowerCase().includes('friend request') && !item.read && (
-                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                      <TouchableOpacity style={[styles.actionBtn, styles.primaryAction]} onPress={() => handleConfirmFriendRequest(item.id)}>
-                        <Text style={[styles.actionText, styles.primaryText]}>Confirm</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={[styles.actionBtn, styles.secondaryAction]} onPress={() => handleDeleteFriendRequest(item.id)}>
-                        <Text style={[styles.actionText, styles.secondaryText]}>Delete</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </View>
-                {!item.read && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.accent, marginLeft: 8 }} />}
-              </View>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            </Animated.View>
           </Swipeable>
         ))}
       </ScrollView>
@@ -315,5 +360,24 @@ const styles = StyleSheet.create({
   },
   secondaryText: {
     color: COLORS.text,
+  },
+  markAllBtn: {
+    backgroundColor: COLORS.accent,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginLeft: 12,
+  },
+  markAllText: {
+    color: COLORS.white,
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  unreadCard: {
+    shadowColor: COLORS.accent,
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
+    backgroundColor: '#fffbe6',
   },
 });

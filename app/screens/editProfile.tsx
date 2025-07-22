@@ -193,6 +193,11 @@ export default function EditProfile() {
     if (!user) return;
     setLoading(true);
     try {
+      if (!profileData.fullName || profileData.fullName.trim() === '') {
+        Alert.alert('Error', 'Full name cannot be empty.');
+        setLoading(false);
+        return;
+      }
       const updateData = {
         bio: profileData.bio,
         fullName: profileData.fullName,
@@ -241,6 +246,11 @@ export default function EditProfile() {
     if (!editingField || !user?.id) return;
     setLoading(true);
     try {
+      if (editingField === 'fullName' && (!tempValue || tempValue.trim() === '')) {
+        Alert.alert('Error', 'Full name cannot be empty.');
+        setLoading(false);
+        return;
+      }
       if (editingField.includes('.')) {
         const [parent, child] = editingField.split('.');
         const updatedUser = await updateProfile(user.id, {

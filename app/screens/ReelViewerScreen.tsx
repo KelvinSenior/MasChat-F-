@@ -3,10 +3,10 @@ import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, Ale
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { fetchReels, deleteReel, Reel } from '../lib/services/reelService';
+import { getReel, deleteReel } from '../lib/services/reelService';
 import { useAuth } from '../context/AuthContext';
 // TODO: Replace with expo-video when available in SDK 54
-import { Video } from 'expo-av';
+import { Video, ResizeMode } from 'expo-av';
 
 const COLORS = {
   primary: '#0A2463',
@@ -19,27 +19,28 @@ const COLORS = {
 
 export default function ReelViewerScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user } = useAuth() || {};
   const { reelId } = useLocalSearchParams<{ reelId: string }>();
-  const [reel, setReel] = useState<Reel | null>(null);
+  const [reel, setReel] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchReel();
+    fetchReelById();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reelId]);
 
-  const fetchReel = async () => {
+  const fetchReelById = async () => {
     setLoading(true);
     try {
-      const allReels = await fetchReels();
-      setReel(allReels.find(r => r.id === reelId) || null);
+      const r = await getReel(reelId);
+      setReel(r);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!reel) return;
+    if (!reel || !user?.id) return;
     Alert.alert('Delete Reel', 'Are you sure you want to delete this reel?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
@@ -67,7 +68,7 @@ export default function ReelViewerScreen() {
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Reel</Text>
-        {reel && user && user.id === reel.userId ? (
+        {reel && user?.id && user.id === reel.userId ? (
           <TouchableOpacity onPress={handleDelete} style={styles.deleteBtn}>
             <Ionicons name="trash" size={24} color={COLORS.accent} />
           </TouchableOpacity>
@@ -77,27 +78,27 @@ export default function ReelViewerScreen() {
         <ActivityIndicator style={{ marginTop: 60 }} color={COLORS.primary} />
       ) : !reel ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="film-outline" size={60} color={COLORS.lightText} />
+          <Ionicons name="image-outline" size={60} color={COLORS.lightText} />
           <Text style={styles.emptyText}>Reel not found.</Text>
         </View>
       ) : (
-        <View style={styles.reelContent}>
-          {reel.mediaUrl.endsWith('.mp4') ? (
+        <View style={styles.postContent}>
+          {reel.videoUrl ? (
             <Video
-              source={{ uri: reel.mediaUrl }}
-              style={styles.reelVideo}
+              source={{ uri: reel.videoUrl }}
+              style={styles.postVideo}
               useNativeControls
-              resizeMode="contain" as any
+              resizeMode={ResizeMode.CONTAIN}
               shouldPlay
               isLooping
             />
-          ) : (
-            <Image source={{ uri: reel.mediaUrl }} style={styles.reelImage} />
-          )}
-          <View style={styles.reelInfo}>
-            <Text style={styles.reelUser}>{reel.username}</Text>
-            <Text style={styles.reelCaption}>{reel.caption}</Text>
-            <Text style={styles.reelTime}>{new Date(reel.createdAt).toLocaleString()}</Text>
+          ) : reel.imageUrl ? (
+            <Image source={{ uri: reel.imageUrl }} style={styles.postImage} />
+          ) : null}
+          <View style={styles.postInfo}>
+            <Text style={styles.postUser}>{reel.username}</Text>
+            <Text style={styles.postCaption}>{reel.caption}</Text>
+            <Text style={styles.postTime}>{new Date(reel.createdAt).toLocaleString()}</Text>
           </View>
         </View>
       )}
@@ -142,41 +143,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  reelContent: {
+  postContent: {
     alignItems: 'center',
     marginTop: 32,
     paddingHorizontal: 16,
   },
-  reelVideo: {
+  postVideo: {
     width: '100%',
     height: 320,
     borderRadius: 16,
     marginBottom: 16,
     backgroundColor: '#eee',
   },
-  reelImage: {
+  postImage: {
     width: '100%',
     height: 320,
     borderRadius: 16,
     marginBottom: 16,
     backgroundColor: '#eee',
   },
-  reelInfo: {
+  postInfo: {
     alignItems: 'center',
   },
-  reelUser: {
+  postUser: {
     fontWeight: 'bold',
     fontSize: 16,
     color: COLORS.text,
     marginBottom: 4,
   },
-  reelCaption: {
+  postCaption: {
     fontSize: 15,
     color: COLORS.text,
     marginBottom: 6,
     textAlign: 'center',
   },
-  reelTime: {
+  postTime: {
     fontSize: 12,
     color: COLORS.lightText,
   },

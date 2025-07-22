@@ -15,8 +15,9 @@ import {
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { getUserProfile, getUserFriends, getUserPosts, Friend } from '../lib/services/userService';
-import { getPosts, Post } from '../lib/services/postService';
+import { getPosts, Post, likePost, unlikePost } from '../lib/services/postService';
 import { fetchReels, Reel } from '../lib/services/reelService';
+import CommentDialog from "../components/CommentDialog";
 
 // Color Palette
 const COLORS = {
@@ -32,6 +33,9 @@ const DEFAULT_COVER = "https://images.unsplash.com/photo-1506744038136-46273834b
 const DEFAULT_AVATAR = "https://randomuser.me/api/portraits/men/1.jpg";
 const DEFAULT_PROFILE_PHOTO = "https://randomuser.me/api/portraits/men/1.jpg";
 
+const LIKE_ACTIVE_COLOR = '#22c55e'; // Green
+const LIKE_INACTIVE_COLOR = COLORS.lightText;
+
 export default function Profile() {
   const router = useRouter();
   const { user, updateUser } = useAuth();
@@ -43,6 +47,8 @@ export default function Profile() {
   const [userReels, setUserReels] = useState<Reel[]>([]);
   const [userFriends, setUserFriends] = useState<Friend[]>([]);
   const [mediaModal, setMediaModal] = useState<{ type: 'photo' | 'video' | 'reel', uri: string, postId?: string, reelId?: string } | null>(null);
+  const [optimisticLikes, setOptimisticLikes] = useState<{ [postId: string]: string[] }>({});
+  const [commentModalPost, setCommentModalPost] = useState<Post | null>(null);
 
   const tabs = ['Posts', 'About', 'Videos', 'Photos'];
 
@@ -113,6 +119,25 @@ export default function Profile() {
     }
   };
 
+  const handleLikePost = async (post: Post) => {
+    if (!user) return;
+    const alreadyLiked = (optimisticLikes[post.id] || post.likedBy || []).includes(user.id);
+    // Optimistic UI update
+    setOptimisticLikes(prev => ({
+      ...prev,
+      [post.id]: alreadyLiked
+        ? (prev[post.id] || post.likedBy || []).filter(id => id !== user.id)
+        : [...(prev[post.id] || post.likedBy || []), user.id]
+    }));
+    // Backend update
+    if (alreadyLiked) {
+      await unlikePost(post.id, user.id);
+    } else {
+      await likePost(post.id, user.id);
+    }
+    fetchProfileData();
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -175,7 +200,7 @@ export default function Profile() {
         {/* Profile Info */}
         <View style={styles.infoContainer}>
           <Text style={styles.name}>
-            {profileData.fullName || 'User'}
+            {profileData.fullName || profileData.username || 'User'}
             {profileData.verified && (
               <Ionicons name="checkmark-circle" size={18} color={COLORS.primary} style={styles.verifiedBadge} />
             )}
@@ -237,9 +262,26 @@ export default function Profile() {
                     <Text style={{ color: COLORS.text }}>{post.content}</Text>
                     {post.imageUrl && <Image source={{ uri: post.imageUrl }} style={{ width: '100%', height: 200, borderRadius: 8, marginTop: 8 }} />}
                     {post.videoUrl && <Text style={{ color: COLORS.accent, marginTop: 8 }}>[Video attached]</Text>}
-                    <Text style={{ color: COLORS.lightText, fontSize: 12, marginTop: 8 }}>
-                      {post.likedBy?.length || 0} likes · {post.comments?.length || 0} comments
-                    </Text>
+                    <View style={styles.postActions}>
+                      <TouchableOpacity onPress={() => user && handleLikePost(post)} style={styles.actionBtn}>
+                        <View style={styles.actionIcon}>
+                          <Ionicons
+                            name={(optimisticLikes[post.id] || post.likedBy || []).includes(user.id) ? 'heart' : 'heart-outline'}
+                            size={22}
+                            color={(optimisticLikes[post.id] || post.likedBy || []).includes(user.id) ? LIKE_ACTIVE_COLOR : LIKE_INACTIVE_COLOR}
+                          />
+                        </View>
+                        <Text style={styles.actionText}>Like</Text>
+                        <Text style={styles.actionCount}>{(optimisticLikes[post.id] || post.likedBy || []).length}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => setCommentModalPost(post)} style={styles.actionBtn}>
+                        <View style={styles.actionIcon}>
+                          <Ionicons name="chatbubble" size={18} color={COLORS.primary} />
+                        </View>
+                        <Text style={styles.actionText}>Comment</Text>
+                        <Text style={styles.actionCount}>{post.comments?.length || 0}</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 ))
               )}
@@ -417,6 +459,15 @@ export default function Profile() {
           </View>
         </Modal>
       )}
+
+      {commentModalPost && user?.id && (
+        <CommentDialog
+          postId={commentModalPost.id}
+          userId={user.id}
+          onClose={() => setCommentModalPost(null)}
+          onComment={fetchProfileData}
+        />
+      )}
     </View>
   );
 }
@@ -570,5 +621,30 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     textAlign: 'center',
     fontWeight: '500',
+  },
+  postActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    borderWidth: 1,
+    borderColor: COLORS.lightText,
+    borderRadius: 8,
+  },
+  actionIcon: {
+    marginRight: 8,
+  },
+  actionText: {
+    color: COLORS.text,
+    fontWeight: '500',
+  },
+  actionCount: {
+    color: COLORS.text,
+    fontWeight: 'bold',
   },
 });
