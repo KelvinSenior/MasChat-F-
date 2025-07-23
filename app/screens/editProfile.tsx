@@ -366,7 +366,7 @@ export default function EditProfile() {
             if (router.canGoBack?.()) {
               router.back();
             } else {
-              router.replace('/(tabs)/home');
+              router.replace('/(tabs)/profile');
             }
           }} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="white" />

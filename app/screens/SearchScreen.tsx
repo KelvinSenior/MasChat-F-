@@ -115,7 +115,7 @@ export default function SearchScreen() {
           if (router.canGoBack?.()) {
             router.back();
           } else {
-            router.replace('/(tabs)/home');
+            router.replace('/(tabs)/menu');
           }
         }} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="white" />

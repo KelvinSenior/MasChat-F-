@@ -46,7 +46,7 @@ export default function StoryViewerScreen() {
           if (router.canGoBack?.()) {
             router.back();
           } else {
-            router.replace('/(tabs)/home');
+            router.replace('/(tabs)/videos');
           }
         }} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="white" />

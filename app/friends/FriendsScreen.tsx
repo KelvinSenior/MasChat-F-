@@ -123,7 +123,7 @@ export default function FriendsScreen() {
           if (router.canGoBack?.()) {
             router.back();
           } else {
-            router.replace('/(tabs)/home');
+            router.replace('/(tabs)/menu');
           }
         }} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="white" />

@@ -8,7 +8,13 @@ export default function MemoriesScreen() {
   const router = useRouter();
   return (
     <LinearGradient colors={['#f5f7fa', '#e4e8f0']} style={styles.container}>
-      <TouchableOpacity style={styles.backBtn} onPress={() => router.push('/(tabs)/menu')}>
+      <TouchableOpacity style={styles.backBtn} onPress={() => {
+        if (router.canGoBack?.()) {
+          router.back();
+        } else {
+          router.replace('/(tabs)/menu');
+        }
+      }}>
         <Ionicons name="arrow-back" size={24} color="#0A2463" />
       </TouchableOpacity>
       <Text style={styles.title}>Memories</Text>

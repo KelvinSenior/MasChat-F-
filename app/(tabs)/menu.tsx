@@ -96,7 +96,7 @@ export default function Menu() {
             style={styles.profileAvatar} 
           />
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{user?.fullName || 'User'}</Text>
+            <Text style={styles.profileName}>{user?.fullName || user?.username || 'User'}</Text>
             <Text style={styles.profileSubtext}>View your profile</Text>
           </View>
           <View style={styles.followerBadge}>
