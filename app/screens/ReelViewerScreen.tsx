@@ -8,14 +8,7 @@ import { useAuth } from '../context/AuthContext';
 // TODO: Replace with expo-video when available in SDK 54
 import { Video, ResizeMode } from 'expo-av';
 
-const COLORS = {
-  primary: '#0A2463',
-  accent: '#FF7F11',
-  background: '#F5F7FA',
-  white: '#FFFFFF',
-  text: '#333333',
-  lightText: '#888888',
-};
+import { Colors } from '../../constants/Colors';
 
 export default function ReelViewerScreen() {
   const router = useRouter();
@@ -53,7 +46,7 @@ export default function ReelViewerScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={[COLORS.primary, '#1A4B8C']}
+        colors={[Colors.light.primary, '#1A4B8C']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
@@ -65,20 +58,20 @@ export default function ReelViewerScreen() {
             router.replace('/(tabs)/videos');
           }
         }} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="white" />
+          <Ionicons name="arrow-back" size={24} color={Colors.light.surface} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Reel</Text>
         {reel && user?.id && user.id === reel.userId ? (
           <TouchableOpacity onPress={handleDelete} style={styles.deleteBtn}>
-            <Ionicons name="trash" size={24} color={COLORS.accent} />
+            <Ionicons name="trash" size={24} color={Colors.light.accent} />
           </TouchableOpacity>
         ) : <View style={{ width: 36 }} />}
       </LinearGradient>
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 60 }} color={COLORS.primary} />
+        <ActivityIndicator style={{ marginTop: 60 }} color={Colors.light.primary} />
       ) : !reel ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="image-outline" size={60} color={COLORS.lightText} />
+          <Ionicons name="image-outline" size={60} color={Colors.light.icon} />
           <Text style={styles.emptyText}>Reel not found.</Text>
         </View>
       ) : (
@@ -109,7 +102,7 @@ export default function ReelViewerScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: Colors.light.background,
   },
   header: {
     flexDirection: 'row',
@@ -134,7 +127,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: 'white',
+    color: Colors.light.surface,
   },
   deleteBtn: {
     width: 36,
@@ -168,18 +161,18 @@ const styles = StyleSheet.create({
   postUser: {
     fontWeight: 'bold',
     fontSize: 16,
-    color: COLORS.text,
+    color: Colors.light.text,
     marginBottom: 4,
   },
   postCaption: {
     fontSize: 15,
-    color: COLORS.text,
+    color: Colors.light.text,
     marginBottom: 6,
     textAlign: 'center',
   },
   postTime: {
     fontSize: 12,
-    color: COLORS.lightText,
+    color: Colors.light.icon,
   },
   emptyContainer: {
     flex: 1,
@@ -187,7 +180,7 @@ const styles = StyleSheet.create({
     marginTop: 60,
   },
   emptyText: {
-    color: COLORS.lightText,
+    color: Colors.light.icon,
     fontSize: 16,
     marginTop: 16,
   },

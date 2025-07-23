@@ -5,14 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { fetchStories, Story } from '../lib/services/storyService';
 
-const COLORS = {
-  primary: '#0A2463',
-  accent: '#FF7F11',
-  background: '#F5F7FA',
-  white: '#FFFFFF',
-  text: '#333333',
-  lightText: '#888888',
-};
+import { Colors } from '../../constants/Colors';
 
 export default function StoryViewerScreen() {
   const router = useRouter();

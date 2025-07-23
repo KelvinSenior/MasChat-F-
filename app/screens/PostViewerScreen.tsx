@@ -4,16 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getPost, deletePost, Post } from '../lib/services/postService';
 import { useAuth } from '../context/AuthContext';
-import { Video, ResizeMode } from 'expo-av';
 
-const COLORS = {
-  primary: '#0A2463',
-  accent: '#FF7F11',
-  background: '#F5F7FA',
-  white: '#FFFFFF',
-  text: '#333333',
-  lightText: '#888888',
-};
+import { Colors } from '../../constants/Colors';
 
 export default function PostViewerScreen() {
   const router = useRouter();
@@ -49,15 +41,15 @@ export default function PostViewerScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.reelItem, { backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center' }]}> 
-        <ActivityIndicator color={COLORS.white} size="large" />
+      <View style={[styles.reelItem, { backgroundColor: Colors.light.primary, justifyContent: 'center', alignItems: 'center' }]}> 
+        <ActivityIndicator color={Colors.light.white} size="large" />
       </View>
     );
   }
   if (!post) {
     return (
-      <View style={[styles.reelItem, { backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center' }]}> 
-        <Ionicons name="image-outline" size={60} color={COLORS.lightText} />
+      <View style={[styles.reelItem, { backgroundColor: Colors.light.primary, justifyContent: 'center', alignItems: 'center' }]}> 
+        <Ionicons name="image-outline" size={60} color={Colors.light.lightText} />
         <Text style={styles.emptyText}>Post not found.</Text>
       </View>
     );
@@ -103,30 +95,30 @@ export default function PostViewerScreen() {
       <View style={styles.postInfoContainer}>
         <View style={styles.postUserInfo}>
           <Image source={{ uri: post.user?.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} style={styles.reelAvatar} />
-          <Text style={styles.reelUsername}>{post.user?.username || 'Anonymous'}</Text>
-          <TouchableOpacity style={styles.followButton}>
-            <Text style={styles.followButtonText}>Follow</Text>
+          <Text style={[styles.reelUsername, { color: Colors.light.white }]}>{post.user?.username || 'Anonymous'}</Text>
+          <TouchableOpacity style={[styles.followButton, { backgroundColor: Colors.light.white }] }>
+            <Text style={[styles.followButtonText, { color: Colors.light.primary }]}>Follow</Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.reelCaption}>{post.content}</Text>
+        <Text style={[styles.reelCaption, { color: Colors.light.white }]}>{post.content}</Text>
       </View>
       {/* TikTok-style Action Buttons on the right */}
       <View style={styles.tiktokActionBar}>
         <View style={styles.tiktokActionButton}>
-          <Ionicons name="heart" size={32} color="#fff" />
-          <Text style={styles.tiktokActionCount}>{post.likedBy?.length || 0}</Text>
+          <Ionicons name="heart" size={32} color={Colors.light.white} />
+          <Text style={[styles.tiktokActionCount, { color: Colors.light.white }]}>{post.likedBy?.length || 0}</Text>
         </View>
         <View style={styles.tiktokActionButton}>
-          <Ionicons name="chatbubble" size={32} color="#fff" />
-          <Text style={styles.tiktokActionCount}>{post.comments?.length || 0}</Text>
+          <Ionicons name="chatbubble" size={32} color={Colors.light.white} />
+          <Text style={[styles.tiktokActionCount, { color: Colors.light.white }]}>{post.comments?.length || 0}</Text>
         </View>
         <View style={styles.tiktokActionButton}>
-          <Ionicons name="send" size={32} color="#fff" />
-          <Text style={styles.tiktokActionCount}>{post.shareCount || 0}</Text>
+          <Ionicons name="send" size={32} color={Colors.light.white} />
+          <Text style={[styles.tiktokActionCount, { color: Colors.light.white }]}>{post.shareCount || 0}</Text>
         </View>
-        {user?.id === post.userId && (
+        {user?.id === post.user?.id && (
           <TouchableOpacity style={styles.tiktokActionButton} onPress={handleDelete}>
-            <Ionicons name="trash" size={32} color="#ff4444" />
+            <Ionicons name="trash" size={32} color={Colors.light.accent} />
           </TouchableOpacity>
         )}
       </View>
@@ -175,24 +167,24 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   reelUsername: {
-    color: COLORS.white,
+    color: Colors.light.white,
     fontWeight: 'bold',
     fontSize: 16,
     marginRight: 10,
   },
   followButton: {
-    backgroundColor: COLORS.white,
+    backgroundColor: Colors.light.white,
     paddingVertical: 5,
     paddingHorizontal: 10,
     borderRadius: 15,
   },
   followButtonText: {
-    color: COLORS.primary,
+    color: Colors.light.primary,
     fontWeight: 'bold',
     fontSize: 14,
   },
   reelCaption: {
-    color: COLORS.white,
+    color: Colors.light.white,
     fontSize: 14,
     marginBottom: 5,
   },
@@ -209,13 +201,13 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   tiktokActionCount: {
-    color: '#fff',
+    color: Colors.light.white,
     fontSize: 14,
     marginTop: 4,
     fontWeight: 'bold',
   },
   emptyText: {
-    color: COLORS.lightText,
+    color: Colors.light.lightText,
     fontSize: 16,
     marginTop: 16,
   },

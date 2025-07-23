@@ -2,10 +2,11 @@
 
 export async function getReel(reelId: string) {
   const res = await client.get(`/reels/${reelId}`);
-  // Map backend response to match Post type: videoUrl, imageUrl
   const data = res.data;
+  if (!data.id) throw new Error('Reel missing id');
   return {
     ...data,
+    id: String(data.id),
     videoUrl: data.videoUrl || (data.mediaUrl && data.mediaUrl.endsWith('.mp4') ? data.mediaUrl : undefined),
     imageUrl: data.imageUrl || (data.mediaUrl && !data.mediaUrl.endsWith('.mp4') ? data.mediaUrl : undefined),
   };
@@ -13,7 +14,7 @@ export async function getReel(reelId: string) {
 import client from '../../api/client';
 
 export type Reel = {
-  id: string;
+  id: string; // always string, never undefined/null
   userId: string;
   username: string;
   profilePicture?: string;
@@ -26,7 +27,7 @@ export type Reel = {
 };
 
 export type ReelComment = {
-  id: string;
+  id: string; // always string, never undefined/null
   userId: string;
   username: string;
   profilePicture?: string;
@@ -36,7 +37,14 @@ export type ReelComment = {
 
 export async function fetchReels() {
   const res = await client.get('/reels');
-  return res.data as Reel[];
+  return (res.data as Reel[])
+    .filter(data => data.id !== undefined && data.id !== null && data.id !== '')
+    .map(data => ({
+      ...data,
+      id: String(data.id),
+      videoUrl: (data as any).videoUrl || (data.mediaUrl && data.mediaUrl.endsWith('.mp4') ? data.mediaUrl : undefined),
+      imageUrl: (data as any).imageUrl || (data.mediaUrl && !data.mediaUrl.endsWith('.mp4') ? data.mediaUrl : undefined),
+    })) as (Reel & { videoUrl?: string; imageUrl?: string })[];
 }
 
 export async function createReel(reel: { mediaUrl: string; caption?: string }, userId: string) {
