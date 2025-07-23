@@ -30,7 +30,7 @@ export default function StoryViewerScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={[COLORS.primary, '#1A4B8C']}
+        colors={[Colors.light.primary, '#1A4B8C']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
@@ -48,10 +48,10 @@ export default function StoryViewerScreen() {
         <View style={{ width: 36 }} />
       </LinearGradient>
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 60 }} color={COLORS.primary} />
+        <ActivityIndicator style={{ marginTop: 60 }} color={Colors.light.primary} />
       ) : !story ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="image-outline" size={60} color={COLORS.lightText} />
+          <Ionicons name="image-outline" size={60} color={Colors.light.icon} />
           <Text style={styles.emptyText}>Story not found.</Text>
         </View>
       ) : (
@@ -71,7 +71,7 @@ export default function StoryViewerScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: Colors.light.background,
   },
   header: {
     flexDirection: 'row',
@@ -116,18 +116,18 @@ const styles = StyleSheet.create({
   storyUser: {
     fontWeight: 'bold',
     fontSize: 16,
-    color: COLORS.text,
+    color: Colors.light.text,
     marginBottom: 4,
   },
   storyCaption: {
     fontSize: 15,
-    color: COLORS.text,
+    color: Colors.light.text,
     marginBottom: 6,
     textAlign: 'center',
   },
   storyTime: {
     fontSize: 12,
-    color: COLORS.lightText,
+    color: Colors.light.icon,
   },
   emptyContainer: {
     flex: 1,
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
     marginTop: 60,
   },
   emptyText: {
-    color: COLORS.lightText,
+    color: Colors.light.icon,
     fontSize: 16,
     marginTop: 16,
   },
