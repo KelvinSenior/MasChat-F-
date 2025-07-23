@@ -1,4 +1,4 @@
-import { Slot } from "expo-router";
+import { Slot, Stack } from "expo-router";
 import { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
@@ -25,7 +25,16 @@ export default function RootLayout() {
           <NotificationBanner />
           <FloatingAIButton onPress={() => setShowChat(true)} />
           <AuthProvider>
-            <Slot />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                animation: 'slide_from_right',
+                gestureEnabled: true,
+                gestureDirection: 'horizontal',
+              }}
+            >
+              <Slot />
+            </Stack>
           </AuthProvider>
           <AIChatModal visible={showChat} onClose={() => setShowChat(false)} />
         </NotificationProvider>

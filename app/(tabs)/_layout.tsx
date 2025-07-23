@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import React, { useRef } from 'react';
+import React from 'react';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { View, Dimensions } from 'react-native';
+import { View } from 'react-native';
 
 const COLORS = {
   primary: '#0A2463', // Deep Blue
@@ -14,22 +14,15 @@ const COLORS = {
   lightText: '#888888',
 };
 
-// Fix: Use a function component with correct props typing
 function AnimatedTabIcon({ name, color, focused }: { name: any; color: string; focused: boolean }) {
-  // Fix: useSharedValue must be called only once, not on every render
   const scale = useSharedValue(1);
-
-  // Fix: useEffect to animate on focused change
   React.useEffect(() => {
     scale.value = withTiming(focused ? 1.2 : 1, { duration: 300 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focused]);
-
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
     opacity: focused ? 1 : 0.7,
   }));
-
   return (
     <Animated.View style={animatedStyle}>
       {focused && (
@@ -50,40 +43,10 @@ function AnimatedTabIcon({ name, color, focused }: { name: any; color: string; f
   );
 }
 
-const TAB_KEYS = [
-  'home',
-  'videos',
-  'marketplace',
-  'notifications',
-  'profile',
-  'menu',
-];
-
-type SlideTransitionProps = {
-  position: Animated.SharedValue<number>;
-  children: React.ReactNode;
-  direction: 'left' | 'right';
-};
-
-function SlideTransition({ position, children, direction }: SlideTransitionProps) {
-  const width = Dimensions.get('window').width;
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{
-      translateX: withTiming(position.value * width * (direction === 'left' ? 1 : -1), { duration: 350 })
-    }],
-  }));
-  return <Animated.View style={[{ flex: 1, position: 'absolute', width: '100%', height: '100%' }, animatedStyle]}>{children}</Animated.View>;
-}
-
 export default function TabLayout() {
-  const prevTab = useRef(0);
-  const currentTab = useRef(0);
-  const position = useSharedValue(0);
-
   return (
     <Tabs
       screenOptions={({ route }) => {
-        const tabIndex = TAB_KEYS.indexOf(route.name);
         return {
           tabBarShowLabel: false,
           headerShown: false,
@@ -163,5 +126,5 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
-  )
+  );
 }
