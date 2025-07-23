@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { getPost, deletePost, Post } from '../lib/services/postService';
+import { getPost, deletePost, Post, likePost, unlikePost } from '../lib/services/postService';
 import { useAuth } from '../context/AuthContext';
+import { Video, ResizeMode } from 'expo-av';
 
 import { Colors } from '../../constants/Colors';
 
@@ -13,10 +14,15 @@ export default function PostViewerScreen() {
   const { postId } = useLocalSearchParams<{ postId: string }>();
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
+  const [optimisticLikes, setOptimisticLikes] = useState<string[]>([]);
 
   useEffect(() => {
     fetchPost();
   }, [postId]);
+
+  useEffect(() => {
+    if (post && post.likedBy) setOptimisticLikes(post.likedBy.map(String));
+  }, [post]);
 
   const fetchPost = async () => {
     setLoading(true);
@@ -33,23 +39,44 @@ export default function PostViewerScreen() {
     Alert.alert('Delete Post', 'Are you sure you want to delete this post?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
+        if (!user) return;
         await deletePost(post.id, user.id);
         router.back();
       }},
     ]);
   };
 
+  const handleLike = async () => {
+    if (!user || !post) return;
+    const alreadyLiked = optimisticLikes.includes(user.id);
+    setOptimisticLikes(prev => alreadyLiked ? prev.filter(id => id !== user.id) : [...prev, user.id]);
+    try {
+      if (alreadyLiked) {
+        await unlikePost(post.id, user.id);
+      } else {
+        await likePost(post.id, user.id);
+      }
+    } catch (err) {
+      // Optionally revert UI
+    }
+  };
+
+  const handleOpenComments = () => {
+    // Implement comment modal or navigation as needed
+    Alert.alert('Comments', 'Open comments modal here.');
+  };
+
   if (loading) {
     return (
-      <View style={[styles.reelItem, { backgroundColor: Colors.light.primary, justifyContent: 'center', alignItems: 'center' }]}> 
-        <ActivityIndicator color={Colors.light.white} size="large" />
+      <View style={[styles.reelItem, { backgroundColor: '#111', justifyContent: 'center', alignItems: 'center' }]}> 
+        <ActivityIndicator color="#fff" size="large" />
       </View>
     );
   }
   if (!post) {
     return (
-      <View style={[styles.reelItem, { backgroundColor: Colors.light.primary, justifyContent: 'center', alignItems: 'center' }]}> 
-        <Ionicons name="image-outline" size={60} color={Colors.light.lightText} />
+      <View style={[styles.reelItem, { backgroundColor: '#111', justifyContent: 'center', alignItems: 'center' }]}> 
+        <Ionicons name="image-outline" size={60} color="#aaa" />
         <Text style={styles.emptyText}>Post not found.</Text>
       </View>
     );
@@ -57,12 +84,16 @@ export default function PostViewerScreen() {
 
   return (
     <View style={[styles.reelItem, { backgroundColor: '#111' }]}> 
+      {/* Top Bar with 'Posts' label */}
+      <View style={{ position: 'absolute', top: 48, left: 20, zIndex: 100 }}>
+        <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 32, letterSpacing: 1 }}>Posts</Text>
+      </View>
       {/* Back Button */}
       <TouchableOpacity
         style={{
           position: 'absolute',
           top: 50,
-          left: 20,
+          right: 20,
           zIndex: 100,
           backgroundColor: 'rgba(0,0,0,0.5)',
           borderRadius: 20,
@@ -83,7 +114,7 @@ export default function PostViewerScreen() {
             isLooping
             isMuted={false}
             useNativeControls={false}
-            onError={(error) => {
+            onError={() => {
               Alert.alert('Video error', 'Could not load video.');
             }}
           />
@@ -95,30 +126,30 @@ export default function PostViewerScreen() {
       <View style={styles.postInfoContainer}>
         <View style={styles.postUserInfo}>
           <Image source={{ uri: post.user?.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} style={styles.reelAvatar} />
-          <Text style={[styles.reelUsername, { color: Colors.light.white }]}>{post.user?.username || 'Anonymous'}</Text>
-          <TouchableOpacity style={[styles.followButton, { backgroundColor: Colors.light.white }] }>
+          <Text style={[styles.reelUsername, { color: '#fff' }]}>{post.user?.username || 'Anonymous'}</Text>
+          <TouchableOpacity style={[styles.followButton, { backgroundColor: '#fff' }] }>
             <Text style={[styles.followButtonText, { color: Colors.light.primary }]}>Follow</Text>
           </TouchableOpacity>
         </View>
-        <Text style={[styles.reelCaption, { color: Colors.light.white }]}>{post.content}</Text>
+        <Text style={[styles.reelCaption, { color: '#fff', fontSize: 18 }]}>{post.content}</Text>
       </View>
-      {/* TikTok-style Action Buttons on the right */}
+      {/* Action Buttons on the right, outline icons, orange for comment count */}
       <View style={styles.tiktokActionBar}>
+        <TouchableOpacity style={styles.tiktokActionButton} onPress={handleLike}>
+          <Ionicons name={optimisticLikes.includes(user?.id || '') ? 'heart' : 'heart-outline'} size={32} color={optimisticLikes.includes(user?.id || '') ? '#FF3040' : '#fff'} />
+          <Text style={[styles.tiktokActionCount, { color: '#fff' }]}>{optimisticLikes.length}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.tiktokActionButton} onPress={handleOpenComments}>
+          <Ionicons name="chatbubble-outline" size={32} color="#fff" />
+          <Text style={[styles.tiktokActionCount, { color: '#fff' }]}>{post.comments?.length || 0}</Text>
+        </TouchableOpacity>
         <View style={styles.tiktokActionButton}>
-          <Ionicons name="heart" size={32} color={Colors.light.white} />
-          <Text style={[styles.tiktokActionCount, { color: Colors.light.white }]}>{post.likedBy?.length || 0}</Text>
-        </View>
-        <View style={styles.tiktokActionButton}>
-          <Ionicons name="chatbubble" size={32} color={Colors.light.white} />
-          <Text style={[styles.tiktokActionCount, { color: Colors.light.white }]}>{post.comments?.length || 0}</Text>
-        </View>
-        <View style={styles.tiktokActionButton}>
-          <Ionicons name="send" size={32} color={Colors.light.white} />
-          <Text style={[styles.tiktokActionCount, { color: Colors.light.white }]}>{post.shareCount || 0}</Text>
+          <Ionicons name="send-outline" size={32} color="#fff" />
+          <Text style={[styles.tiktokActionCount, { color: '#fff' }]}>{post.shareCount || 0}</Text>
         </View>
         {user?.id === post.user?.id && (
           <TouchableOpacity style={styles.tiktokActionButton} onPress={handleDelete}>
-            <Ionicons name="trash" size={32} color={Colors.light.accent} />
+            <Ionicons name="trash-outline" size={32} color={Colors.light.accent} />
           </TouchableOpacity>
         )}
       </View>
@@ -167,13 +198,13 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   reelUsername: {
-    color: Colors.light.white,
+    color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
     marginRight: 10,
   },
   followButton: {
-    backgroundColor: Colors.light.white,
+    backgroundColor: '#fff',
     paddingVertical: 5,
     paddingHorizontal: 10,
     borderRadius: 15,
@@ -184,7 +215,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   reelCaption: {
-    color: Colors.light.white,
+    color: '#fff',
     fontSize: 14,
     marginBottom: 5,
   },
@@ -201,13 +232,13 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   tiktokActionCount: {
-    color: Colors.light.white,
+    color: '#fff',
     fontSize: 14,
     marginTop: 4,
     fontWeight: 'bold',
   },
   emptyText: {
-    color: Colors.light.lightText,
+    color: '#aaa',
     fontSize: 16,
     marginTop: 16,
   },

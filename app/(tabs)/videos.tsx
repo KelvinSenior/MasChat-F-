@@ -280,7 +280,7 @@ export default function Videos() {
                   style={styles.actionButton}
                 >
                   <Ionicons name="chatbubble-outline" size={34} color="#fff" />
-                  <Text style={styles.actionCount}>{formatNumber((reel as any).commentCount || 0)}</Text>
+                  <Text style={[styles.actionCount, { color: '#fff' }]}>{reel.comments ? reel.comments.length : 0}</Text>
                 </TouchableOpacity>
 
                 {/* Share Button */}
@@ -501,5 +501,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 6,
     fontWeight: 'bold',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
 });

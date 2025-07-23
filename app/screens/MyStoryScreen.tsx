@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, Image, TouchableOpacity, StyleSheet, Alert, ScrollView, Dimensions, FlatList } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -20,6 +20,8 @@ export default function MyStoryScreen() {
   const { user } = useAuth();
   const [myStories, setMyStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const flatListRef = useRef<FlatList<any>>(null);
 
   useEffect(() => {
     fetchMyStories();
@@ -45,6 +47,11 @@ export default function MyStoryScreen() {
     ]);
   };
 
+  const handleScroll = (event: any) => {
+    const index = Math.round(event.nativeEvent.contentOffset.x / Dimensions.get('window').width);
+    setCurrentIndex(index);
+  };
+
   return (
     <View style={styles.container}>
       <LinearGradient
@@ -67,32 +74,56 @@ export default function MyStoryScreen() {
           <Ionicons name="add-circle" size={28} color={COLORS.accent} />
         </TouchableOpacity>
       </LinearGradient>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {loading ? (
-          <Text style={styles.loadingText}>Loading...</Text>
-        ) : myStories.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="image-outline" size={60} color={COLORS.lightText} />
-            <Text style={styles.emptyText}>You have no stories yet.</Text>
-            <TouchableOpacity style={styles.createBtn} onPress={() => router.push('/(create)/newStory')}>
-              <Text style={styles.createBtnText}>Create New Story</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          myStories.map(story => (
-            <View key={story.id} style={styles.storyCard}>
-              <Image source={{ uri: story.mediaUrl }} style={styles.storyImage} />
-              <View style={styles.storyInfo}>
-                <Text style={styles.storyCaption}>{story.caption}</Text>
-                <Text style={styles.storyTime}>{new Date(story.createdAt).toLocaleString()}</Text>
+      {/* Dashes at the top */}
+      <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 16, marginBottom: 8 }}>
+        {myStories.map((_, idx) => (
+          <View
+            key={idx}
+            style={{
+              width: 32,
+              height: 4,
+              borderRadius: 2,
+              marginHorizontal: 4,
+              backgroundColor: idx === currentIndex ? COLORS.accent : '#fff',
+              opacity: idx === currentIndex ? 1 : 0.5,
+            }}
+          />
+        ))}
+      </View>
+      {loading ? (
+        <Text style={styles.loadingText}>Loading...</Text>
+      ) : myStories.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="image-outline" size={60} color={COLORS.lightText} />
+          <Text style={styles.emptyText}>You have no stories yet.</Text>
+          <TouchableOpacity style={styles.createBtn} onPress={() => router.push('/(create)/newStory')}>
+            <Text style={styles.createBtnText}>Create New Story</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          ref={flatListRef}
+          data={myStories}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          keyExtractor={item => item.id}
+          renderItem={({ item, index }) => (
+            <View style={{ width: Dimensions.get('window').width, flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <Image source={{ uri: item.mediaUrl }} style={{ width: '100%', height: 500, borderRadius: 16, backgroundColor: '#eee' }} resizeMode="cover" />
+              <View style={{ position: 'absolute', bottom: 80, left: 24, right: 24, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 10, padding: 16 }}>
+                <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold', marginBottom: 8 }}>{item.caption}</Text>
+                <Text style={{ color: '#fff', fontSize: 13 }}>{new Date(item.createdAt).toLocaleString()}</Text>
               </View>
-              <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(story.id)}>
-                <Ionicons name="trash" size={22} color={COLORS.accent} />
+              <TouchableOpacity style={{ position: 'absolute', top: 40, right: 24, zIndex: 2 }} onPress={() => handleDelete(item.id)}>
+                <Ionicons name="trash" size={28} color={COLORS.accent} />
               </TouchableOpacity>
             </View>
-          ))
-        )}
-      </ScrollView>
+          )}
+        />
+      )}
     </View>
   );
 }

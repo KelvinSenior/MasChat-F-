@@ -94,12 +94,16 @@ export default function HomeScreen() {
         : [...(prev[post.id] || post.likedBy || []), user.id]
     }));
     // Backend update
-    if (alreadyLiked) {
-      await unlikePost(post.id, user.id);
-    } else {
-      await likePost(post.id, user.id);
+    try {
+      if (alreadyLiked) {
+        await unlikePost(post.id, user.id);
+      } else {
+        await likePost(post.id, user.id);
+      }
+      // Do not call fetchPosts here to avoid resetting the scroll position
+    } catch (err) {
+      console.error('Like error:', err);
     }
-    fetchPosts();
   };
 
   const handleSharePost = async (postId: string) => {
@@ -275,7 +279,7 @@ export default function HomeScreen() {
           {/* User's story first */}
           <TouchableOpacity
             style={styles.storyItem}
-            onPress={() => router.push({ pathname: '/screens/MyStoryScreen' })}
+            onPress={() => router.push({ pathname: '/screens/MyStoryScreen', params: { storyId: userStory?.id } })}
           >
             <View style={styles.storyImageContainer}>
               {userStory ? (
@@ -291,7 +295,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               key={story.id}
               style={styles.storyItem}
-              onPress={() => router.push({ pathname: '/(tabs)/videos', params: { tab: 'Stories', storyId: story.id } })}
+              onPress={() => router.push({ pathname: '/screens/MyStoryScreen', params: { storyId: story.id } })}
             >
               <View style={styles.storyImageContainer}>
                 <Image source={{ uri: story.mediaUrl }} style={styles.storyImage} />
@@ -337,7 +341,7 @@ export default function HomeScreen() {
               </View>
               <Text style={styles.postText}>{post.content}</Text>
               {(post.imageUrl || post.videoUrl) && (
-                <TouchableOpacity onPress={() => router.push({ pathname: '/(tabs)/videos', params: { tab: 'Posts', postId: post.id } })}>
+                <TouchableOpacity onPress={() => router.push({ pathname: '/screens/PostViewerScreen', params: { postId: post.id } })}>
                   {post.imageUrl ? (
                     <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
                   ) : post.videoUrl ? (
@@ -370,38 +374,28 @@ export default function HomeScreen() {
               {/* Enhanced Action Buttons */}
               <View style={styles.postActions}>
                 <TouchableOpacity onPress={() => user && handleLikePost(post)} style={styles.actionBtn}>
-                  <View style={styles.actionIcon}>
-                    <Ionicons
-                      name={(optimisticLikes[post.id] || post.likedBy || []).includes(user.id) ? 'heart' : 'heart-outline'}
-                      size={22}
-                      color={(optimisticLikes[post.id] || post.likedBy || []).includes(user.id) ? LIKE_ACTIVE_COLOR : LIKE_INACTIVE_COLOR}
-                    />
-                  </View>
-                  <Text style={styles.actionText}>Like</Text>
-                  <Text style={styles.actionCount}>{(optimisticLikes[post.id] || post.likedBy || []).length}</Text>
+                  <Ionicons
+                    name={(optimisticLikes[post.id] || post.likedBy || []).includes(user.id) ? 'heart' : 'heart-outline'}
+                    size={22}
+                    color={(optimisticLikes[post.id] || post.likedBy || []).includes(user.id) ? '#FF3040' : '#fff'}
+                  />
+                  <Text style={[styles.actionText, (optimisticLikes[post.id] || post.likedBy || []).includes(user.id) && { color: '#FF3040' }]}>Like</Text>
+                  <Text style={[styles.actionCount, { color: '#fff', backgroundColor: '#FF7F11' }]}>{(optimisticLikes[post.id] || post.likedBy || []).length}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity onPress={() => openCommentModal(post)} style={styles.actionBtn}>
-                  <View style={styles.actionIcon}>
-                    <Ionicons name="chatbubble" size={18} color={COLORS.primary} />
-                  </View>
-                  <Text style={styles.actionText}>Comment</Text>
-                  {post.comments?.length ? (
-                    <Text style={styles.actionCount}>{post.comments.length}</Text>
-                  ) : null}
+                  <Ionicons name="chatbubble-outline" size={18} color="#FF7F11" />
+                  <Text style={[styles.actionText, { color: '#FF7F11' }]}>Comment</Text>
+                  <Text style={[styles.actionCount, { color: '#fff', backgroundColor: '#FF7F11' }]}>{post.comments?.length || 0}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.actionBtn}>
-                  <View style={styles.actionIcon}>
-                    <Ionicons name="send" size={18} color={COLORS.primary} />
-                  </View>
+                  <Ionicons name="send-outline" size={18} color={COLORS.primary} />
                   <Text style={styles.actionText}>Send</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity onPress={() => handleSharePost(post.id)} style={styles.actionBtn}>
-                  <View style={styles.actionIcon}>
-                    <Ionicons name="arrow-redo" size={18} color={COLORS.primary} />
-                  </View>
+                  <Ionicons name="arrow-redo-outline" size={18} color={COLORS.primary} />
                   <Text style={styles.actionText}>Share</Text>
                   {post.shareCount ? (
                     <Text style={styles.actionCount}>{post.shareCount}</Text>
@@ -848,19 +842,10 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
 
-  likedActionIcon: {
-    backgroundColor: COLORS.primary,
-  },
-
   actionText: {
     color: COLORS.lightText,
     fontWeight: '500',
     fontSize: 14,
-  },
-
-  likedActionText: {
-    color: COLORS.primary,
-    fontWeight: '600',
   },
 
   actionCount: {
