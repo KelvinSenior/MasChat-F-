@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import client, { BASE_URL } from '../api/client';
@@ -44,6 +44,10 @@ export default function SuggestionCard({ suggestion }: Props) {
   };
 
   const handleViewProfile = () => {
+    if (!suggestion?.id) {
+      Alert.alert('Error', 'User information is missing.');
+      return;
+    }
     router.push({
       pathname: "/screens/FriendsProfileScreen",
       params: { userId: suggestion.id }
@@ -51,9 +55,21 @@ export default function SuggestionCard({ suggestion }: Props) {
   };
 
   const handleMessage = () => {
+    if (!suggestion?.id) {
+      Alert.alert('Error', 'User information is missing.');
+      return;
+    }
+    const recipient = {
+      id: suggestion.id,
+      username: suggestion.username,
+      name: suggestion.fullName || suggestion.username,
+      image: suggestion.profilePicture || '',
+      profilePicture: suggestion.profilePicture || '',
+      fullName: suggestion.fullName || '',
+    };
     router.push({
       pathname: "/screens/ChatScreen",
-      params: { recipient: JSON.stringify(suggestion) }
+      params: { recipient: JSON.stringify(recipient) }
     });
   };
 

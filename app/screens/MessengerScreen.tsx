@@ -2,9 +2,11 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useFocusEffect } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View, StatusBar, Platform, ActivityIndicator } from "react-native";
+import { FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View, StatusBar, Platform, ActivityIndicator, Alert } from "react-native";
 import { useAuth } from '../context/AuthContext';
 import { messageService, RecentChat } from '../lib/services/messageService';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 
 // Color Palette (matching home screen)
 const COLORS = {
@@ -40,6 +42,20 @@ export default function MessengerScreen() {
   useEffect(() => {
     if (!user?.id) return;
     loadRecentChats();
+    // WebSocket subscription for real-time updates
+    const socket = new SockJS('http://10.132.74.85:8080/ws-chat');
+    const client = new Client({
+      webSocketFactory: () => socket,
+      debug: str => console.log(str),
+      onConnect: () => {
+        client.subscribe(`/user/${user.id}/queue/messages`, message => {
+          // On any new message, refresh recent chats
+          loadRecentChats();
+        });
+      },
+    });
+    client.activate();
+    return () => { client.deactivate(); };
   }, [user?.id]);
 
   // Refresh chats when screen comes into focus
@@ -59,19 +75,33 @@ export default function MessengerScreen() {
   };
 
   const handleChatPress = async (chat: RecentChat) => {
+    if (!chat?.id) {
+      Alert.alert('Error', 'This chat is missing user information and cannot be opened.');
+      return;
+    }
     // Mark messages as read when opening chat
     await markAsRead(chat.id);
-    
+    // Defensive: always pass a full recipient object
+    const recipient = {
+      id: chat.id,
+      username: chat.username,
+      name: chat.fullName || chat.username,
+      image: chat.profilePicture || '',
+      profilePicture: chat.profilePicture || '',
+      fullName: chat.fullName || '',
+    };
     router.push({ 
       pathname: "/screens/ChatScreen", 
-      params: { recipient: JSON.stringify(chat) } 
+      params: { recipient: JSON.stringify(recipient) } 
     });
   };
 
-  const filteredChats = chats.filter(chat => 
-    chat.fullName?.toLowerCase().includes(search.toLowerCase()) ||
-    chat.username?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredChats = chats
+    .filter(chat => 
+      chat.fullName?.toLowerCase().includes(search.toLowerCase()) ||
+      chat.username?.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => new Date(b.lastMessageTime || 0).getTime() - new Date(a.lastMessageTime || 0).getTime());
 
   const renderChatItem = ({ item }: { item: RecentChat }) => (
     <TouchableOpacity

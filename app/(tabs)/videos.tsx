@@ -214,13 +214,8 @@ export default function Videos() {
                     useNativeControls={false}
                     isMuted={muted}
                     rate={videoSpeed}
-                    onError={(error) => {
-                      if (typeof error === 'object' && error !== null && 'error' in error) {
-                        const errObj = error as any;
-                        if (errObj.error?.code === -17913 || (errObj.error?.domain && errObj.error?.domain.includes('AVFoundation'))) {
-                          Alert.alert('Video Error', 'This video cannot be played. Please try another reel.');
-                        }
-                      }
+                    onError={error => {
+                      Alert.alert('Video Error', 'This video cannot be played. Please try another reel.');
                       console.error('Reel video error:', error);
                     }}
                   />

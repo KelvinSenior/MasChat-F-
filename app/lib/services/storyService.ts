@@ -24,6 +24,11 @@ export async function deleteStory(storyId: string, userId: string) {
   return client.delete(`/stories/${storyId}?userId=${userId}`);
 }
 
+export async function fetchStoriesByUser(userId: string) {
+  const res = await client.get(`/stories/user/${userId}`);
+  return res.data as Story[];
+}
+
 // Default export to fix warning
 export default {
   fetchStories,

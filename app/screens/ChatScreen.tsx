@@ -22,12 +22,22 @@ export default function ChatScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { user: currentUser } = useAuth();
-  const recipient = params.recipient ? JSON.parse(params.recipient as string) : {
-    username: "Unknown",
-    image: "https://randomuser.me/api/portraits/men/5.jpg",
-    id: "1",
-    name: "Test User"
-  };
+  let recipient: any = undefined;
+  try {
+    recipient = params.recipient ? JSON.parse(params.recipient as string) : null;
+  } catch (e) {
+    recipient = null;
+  }
+
+  if (!currentUser?.id || !recipient?.id) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+        <Text style={{ color: 'red', fontSize: 18, textAlign: 'center' }}>
+          Error: Unable to load chat. User or recipient information is missing or invalid.
+        </Text>
+      </View>
+    );
+  }
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState('');
@@ -38,6 +48,17 @@ export default function ChatScreen() {
   const pendingMessages = useRef<Message[]>([]);
   const stompClient = useRef<any>(null);
 
+  // Deduplicate messages by id before setting state
+  const dedupeMessages = (msgs: Message[]) => {
+    const seen = new Set();
+    return msgs.filter(msg => {
+      if (!msg.id || seen.has(msg.id)) return false;
+      seen.add(msg.id);
+      return true;
+    });
+  };
+
+  // When loading messages from backend
   const loadMessages = async () => {
     if (isLoading || !currentUser?.id) return;
     setIsLoading(true);
@@ -50,9 +71,9 @@ export default function ChatScreen() {
         const uniqueMessages = allMessages.filter(
           (msg, index, self) => index === self.findIndex(m => m.id === msg.id)
         );
-        setMessages(uniqueMessages.sort((a, b) => 
+        setMessages(dedupeMessages(uniqueMessages.sort((a, b) => 
           new Date(a.sentAt || 0).getTime() - new Date(b.sentAt || 0).getTime()
-        ));
+        )));
       }
     } catch (err) {
       console.log("Error loading messages:", err);
@@ -65,6 +86,10 @@ export default function ChatScreen() {
 
   useEffect(() => {
     loadMessages();
+    return () => {
+      setMessages([]); // Clear messages on unmount
+      pendingMessages.current = [];
+    };
   }, [recipient?.id]);
 
   useEffect(() => {
@@ -76,19 +101,10 @@ export default function ChatScreen() {
       onConnect: () => {
         client.subscribe(`/user/${currentUser.id}/queue/messages`, message => {
           const msg = JSON.parse(message.body);
-          if (
-            (msg.senderId === currentUser.id && msg.recipientId === recipient.id) ||
-            (msg.senderId === recipient.id && msg.recipientId === currentUser.id)
-          ) {
-            setMessages(prev => [...prev, {
-              id: msg.timestamp || `${Date.now()}`,
-              sender: { id: msg.senderId },
-              recipient: { id: msg.recipientId },
-              content: msg.content,
-              sentAt: msg.timestamp,
-              time: new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            }]);
-          }
+          setMessages(prev => {
+            if (prev.some(m => m.id === msg.id)) return prev;
+            return dedupeMessages([...prev, msg]);
+          });
         });
       },
     });
@@ -204,68 +220,74 @@ export default function ChatScreen() {
     );
   };
 
-  const renderMessage = ({ item }: { item: Message }) => (
-    <TouchableOpacity 
-      style={[
-        styles.messageRow,
-        item.sender.id === currentUser?.id ? styles.rowRight : styles.rowLeft
-      ]}
-      onLongPress={() => {
-        if (item.sender.id === currentUser?.id) {
-          deleteMessage(item.id);
-        }
-      }}
-    >
-      {item.sender.id !== currentUser?.id && (
-        <Image 
-          source={{ uri: recipient?.image || "https://randomuser.me/api/portraits/men/5.jpg" }} 
-          style={styles.bubbleProfilePic} 
-        />
-      )}
-      <LinearGradient
-        colors={
-          item.sender.id === currentUser?.id 
-            ? [COLORS.primary, '#1A4B8C'] 
-            : ['#f0f2f5', '#e4e6eb']
-        }
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+  const renderMessage = ({ item }: { item: Message }) => {
+    if (!item?.sender?.id || !item?.recipient?.id) {
+      // Skip rendering this message if sender or recipient is missing
+      return null;
+    }
+    return (
+      <TouchableOpacity 
         style={[
-          styles.messageBubble,
-          item.sender.id === currentUser?.id ? styles.sent : styles.received,
-          item.failed && styles.failedMessage,
-          item.isPending && styles.pendingMessage
+          styles.messageRow,
+          item.sender.id === currentUser?.id ? styles.rowRight : styles.rowLeft
         ]}
+        onLongPress={() => {
+          if (item.sender.id === currentUser?.id) {
+            deleteMessage(item.id);
+          }
+        }}
       >
-        {item.content && (
-          <Text style={[
-            styles.messageText,
-            item.sender.id === currentUser?.id ? styles.sentText : styles.receivedText
-          ]}>
-            {item.content}
-          </Text>
+        {item.sender.id !== currentUser?.id && (
+          <Image 
+            source={{ uri: recipient?.image || recipient?.profilePicture || "https://randomuser.me/api/portraits/men/5.jpg" }} 
+            style={styles.bubbleProfilePic} 
+          />
         )}
-        {item.image && <Image source={item.image} style={styles.messageImage} />}
-        <View style={styles.messageStatus}>
-          {item.time && (
+        <LinearGradient
+          colors={
+            item.sender.id === currentUser?.id 
+              ? [COLORS.primary, '#1A4B8C'] 
+              : ['#f0f2f5', '#e4e6eb']
+          }
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[
+            styles.messageBubble,
+            item.sender.id === currentUser?.id ? styles.sent : styles.received,
+            item.failed && styles.failedMessage,
+            item.isPending && styles.pendingMessage
+          ]}
+        >
+          {item.content && (
             <Text style={[
-              styles.timeText,
-              item.sender.id === currentUser?.id ? styles.sentTime : styles.receivedTime
+              styles.messageText,
+              item.sender.id === currentUser?.id ? styles.sentText : styles.receivedText
             ]}>
-              {item.time}
+              {item.content}
             </Text>
           )}
-          {item.failed ? (
-            <Ionicons name="warning" size={16} color="#ff4444" style={styles.statusIcon} />
-          ) : item.isPending ? (
-            <ActivityIndicator size="small" color={item.sender.id === currentUser?.id ? "#fff" : "#888"} style={styles.statusIcon} />
-          ) : item.sender.id === currentUser?.id ? (
-            <Ionicons name="checkmark-done" size={16} color="#fff" style={styles.statusIcon} />
-          ) : null}
-        </View>
-      </LinearGradient>
-    </TouchableOpacity>
-  );
+          {item.image && <Image source={item.image} style={styles.messageImage} />}
+          <View style={styles.messageStatus}>
+            {item.time && (
+              <Text style={[
+                styles.timeText,
+                item.sender.id === currentUser?.id ? styles.sentTime : styles.receivedTime
+              ]}>
+                {item.time}
+              </Text>
+            )}
+            {item.failed ? (
+              <Ionicons name="warning" size={16} color="#ff4444" style={styles.statusIcon} />
+            ) : item.isPending ? (
+              <ActivityIndicator size="small" color={item.sender.id === currentUser?.id ? "#fff" : "#888"} style={styles.statusIcon} />
+            ) : item.sender.id === currentUser?.id ? (
+              <Ionicons name="checkmark-done" size={16} color="#fff" style={styles.statusIcon} />
+            ) : null}
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>

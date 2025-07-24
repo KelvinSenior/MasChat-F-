@@ -11,13 +11,16 @@ import {
   Text,
   TouchableOpacity,
   View,
-  Modal
+  Modal,
+  Alert
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { getUserProfile, getUserFriends, getUserPosts, Friend } from '../lib/services/userService';
 import { getPosts, Post, likePost, unlikePost } from '../lib/services/postService';
 import { fetchReels, Reel } from '../lib/services/reelService';
 import CommentDialog from "../components/CommentDialog";
+import { useFocusEffect } from 'expo-router';
+import { Video, ResizeMode } from 'expo-av';
 
 // Color Palette
 const COLORS = {
@@ -49,6 +52,11 @@ export default function Profile() {
   const [mediaModal, setMediaModal] = useState<{ type: 'photo' | 'video' | 'reel', uri: string, postId?: string, reelId?: string } | null>(null);
   const [optimisticLikes, setOptimisticLikes] = useState<{ [postId: string]: string[] }>({});
   const [commentModalPost, setCommentModalPost] = useState<Post | null>(null);
+  const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
+  const [fullscreenMedia, setFullscreenMedia] = useState<{ type: 'photo' | 'video', uri: string } | null>(null);
+  const [fullscreenVideoPaused, setFullscreenVideoPaused] = useState(false);
+  const [fullscreenVideoMuted, setFullscreenVideoMuted] = useState(false);
+  const fullscreenVideoRef = React.useRef<any>(null);
 
   const tabs = ['Posts', 'About', 'Videos', 'Photos'];
 
@@ -75,7 +83,12 @@ export default function Profile() {
     }
   };
 
-  useEffect(() => { fetchProfileData(); }, [user?.id]);
+  // Refresh on focus to show new posts
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchProfileData();
+    }, [user?.id])
+  );
 
   if (!user) {
     return (
@@ -153,12 +166,14 @@ export default function Profile() {
         }
         contentContainerStyle={{ paddingBottom: 80 }}
       >
-        {/* Cover Photo */}
+        {/* Cover Photo (add onPress for fullscreen) */}
         <View style={styles.coverContainer}>
-          <Image
-            source={{ uri: profileData.coverPhoto || DEFAULT_COVER }}
-            style={styles.coverPhoto}
-          />
+          <TouchableOpacity onPress={() => setFullscreenMedia({ type: 'photo', uri: profileData.coverPhoto || DEFAULT_COVER || '' })}>
+            <Image
+              source={{ uri: profileData.coverPhoto || DEFAULT_COVER || '' }}
+              style={styles.coverPhoto}
+            />
+          </TouchableOpacity>
           <View style={styles.headerActions}>
             <TouchableOpacity 
               style={styles.actionButton}
@@ -168,7 +183,7 @@ export default function Profile() {
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.actionButton}
-              onPress={() => router.push("../screens/editProfile")}
+              onPress={() => router.push("../screens/SettingsScreen")}
             >
               <Ionicons name="settings" size={20} color="white" />
             </TouchableOpacity>
@@ -181,14 +196,16 @@ export default function Profile() {
           </View> 
         </View>
 
-        {/* Profile Picture */}
+        {/* Profile Picture (add onPress for fullscreen) */}
         <View style={styles.profilePicContainer}>
-          <View style={styles.orangeRing}>
-            <Image
-              source={{ uri: profileData.profilePicture || DEFAULT_AVATAR }}
-              style={styles.profilePic}
-            />
-          </View>
+          <TouchableOpacity onPress={() => setFullscreenMedia({ type: 'photo', uri: profileData.profilePicture || DEFAULT_AVATAR || '' })}>
+            <View style={styles.orangeRing}>
+              <Image
+                source={{ uri: profileData.profilePicture || DEFAULT_AVATAR || '' }}
+                style={styles.profilePic}
+              />
+            </View>
+          </TouchableOpacity>
           <TouchableOpacity 
             style={styles.cameraButton}
             onPress={() => router.push("../screens/editProfile")}
@@ -250,7 +267,7 @@ export default function Profile() {
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                       <TouchableOpacity onPress={() => navigateToProfile(post.user.id)}>
                         <Image 
-                          source={{ uri: post.user.profilePicture || DEFAULT_PROFILE_PHOTO }} 
+                          source={{ uri: post.user.profilePicture || DEFAULT_PROFILE_PHOTO || '' }} 
                           style={{ width: 32, height: 32, borderRadius: 16, marginRight: 8 }} 
                         />
                       </TouchableOpacity>
@@ -260,8 +277,50 @@ export default function Profile() {
                       </View>
                     </View>
                     <Text style={{ color: COLORS.text }}>{post.content}</Text>
-                    {post.imageUrl && <Image source={{ uri: post.imageUrl }} style={{ width: '100%', height: 200, borderRadius: 8, marginTop: 8 }} />}
-                    {post.videoUrl && <Text style={{ color: COLORS.accent, marginTop: 8 }}>[Video attached]</Text>}
+                    {post.imageUrl && (
+                      <TouchableOpacity onPress={() => setFullscreenMedia({ type: 'photo', uri: post.imageUrl || '' })}>
+                        <Image source={{ uri: post.imageUrl || '' }} style={{ width: '100%', height: 200, borderRadius: 8, marginTop: 8 }} />
+                      </TouchableOpacity>
+                    )}
+                    {post.videoUrl && (
+                      <View style={{ width: '100%', height: 220, marginTop: 8, borderRadius: 8, overflow: 'hidden', backgroundColor: '#000' }}>
+                        <TouchableOpacity
+                          activeOpacity={1}
+                          onPress={() => setPlayingVideoId(post.id)}
+                          style={{ width: '100%', height: '100%' }}
+                        >
+                          <Video
+                            source={{ uri: post.videoUrl || '' }}
+                            style={{ width: '100%', height: 220 }}
+                            resizeMode={ResizeMode.COVER}
+                            shouldPlay={playingVideoId === post.id}
+                            isLooping
+                            isMuted={false}
+                            onError={e => Alert.alert('Video Error', 'This video cannot be played.')}
+                          />
+                          {/* Play/Pause button overlay */}
+                          <TouchableOpacity
+                            style={{ position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -24 }, { translateY: -24 }], zIndex: 2 }}
+                            onPress={e => {
+                              e.stopPropagation();
+                              setPlayingVideoId(playingVideoId === post.id ? null : post.id);
+                            }}
+                          >
+                            <Ionicons name={playingVideoId === post.id ? 'pause-circle' : 'play-circle'} size={48} color="#fff" />
+                          </TouchableOpacity>
+                          {/* Expand button for fullscreen */}
+                          <TouchableOpacity
+                            style={{ position: 'absolute', top: 10, right: 10, zIndex: 2 }}
+                            onPress={e => {
+                              e.stopPropagation();
+                              setFullscreenMedia({ type: 'video', uri: post.videoUrl || '' });
+                            }}
+                          >
+                            <Ionicons name="expand" size={28} color="#fff" />
+                          </TouchableOpacity>
+                        </TouchableOpacity>
+                      </View>
+                    )}
                     <View style={styles.postActions}>
                       <TouchableOpacity onPress={() => user && handleLikePost(post)} style={styles.actionBtn}>
                         <View style={styles.actionIcon}>
@@ -294,8 +353,8 @@ export default function Profile() {
                 <Text style={{ fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginBottom: 12 }}>Profile Pictures</Text>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   {profileData.profilePicture && (
-                    <TouchableOpacity onPress={() => setMediaModal({ type: 'photo', uri: profileData.profilePicture })}>
-                      <Image source={{ uri: profileData.profilePicture }} style={{ width: 80, height: 80, borderRadius: 8 }} />
+                    <TouchableOpacity onPress={() => setMediaModal({ type: 'photo', uri: profileData.profilePicture || '' })}>
+                      <Image source={{ uri: profileData.profilePicture || '' }} style={{ width: 80, height: 80, borderRadius: 8 }} />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -306,8 +365,8 @@ export default function Profile() {
                 <Text style={{ fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginBottom: 12 }}>Cover Photos</Text>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   {profileData.coverPhoto && (
-                    <TouchableOpacity onPress={() => setMediaModal({ type: 'photo', uri: profileData.coverPhoto })}>
-                      <Image source={{ uri: profileData.coverPhoto }} style={{ width: 80, height: 80, borderRadius: 8 }} />
+                    <TouchableOpacity onPress={() => setMediaModal({ type: 'photo', uri: profileData.coverPhoto || '' })}>
+                      <Image source={{ uri: profileData.coverPhoto || '' }} style={{ width: 80, height: 80, borderRadius: 8 }} />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -322,7 +381,7 @@ export default function Profile() {
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                     {userPosts.filter(p => p.imageUrl).map(post => (
                       <TouchableOpacity key={post.id} onPress={() => setMediaModal({ type: 'photo', uri: post.imageUrl!, postId: post.id })}>
-                        <Image source={{ uri: post.imageUrl! }} style={{ width: '48%', height: 160, borderRadius: 8, marginBottom: 8 }} />
+                        <Image source={{ uri: post.imageUrl! || '' }} style={{ width: '48%', height: 160, borderRadius: 8, marginBottom: 8 }} />
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -337,20 +396,66 @@ export default function Profile() {
               ) : (
                 <>
                   {userPosts.filter(p => p.videoUrl).map(post => (
-                    <TouchableOpacity key={post.id} onPress={() => setMediaModal({ type: 'video', uri: post.videoUrl!, postId: post.id })}>
-                      <View style={{ width: '48%', height: 160, backgroundColor: '#eee', borderRadius: 8, marginBottom: 8, justifyContent: 'center', alignItems: 'center' }}>
-                        <Ionicons name="videocam" size={40} color={COLORS.accent} />
-                        <Text style={{ color: COLORS.text, fontSize: 13, marginTop: 8 }}>[Post Video]</Text>
-                      </View>
-                    </TouchableOpacity>
+                    <View key={post.id} style={{ width: '48%', height: 160, backgroundColor: '#eee', borderRadius: 8, marginBottom: 8, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+                      <TouchableOpacity
+                        activeOpacity={1}
+                        onPress={() => setPlayingVideoId(post.id)}
+                        style={{ width: '100%', height: '100%' }}
+                      >
+                        <Video
+                          source={{ uri: post.videoUrl || '' }}
+                          style={{ width: '100%', height: 160 }}
+                          resizeMode={ResizeMode.COVER}
+                          shouldPlay={playingVideoId === post.id}
+                          isLooping
+                          isMuted={false}
+                          onError={e => Alert.alert('Video Error', 'This video cannot be played.')}
+                        />
+                        {/* Play/Pause button overlay */}
+                        <TouchableOpacity
+                          style={{ position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -24 }, { translateY: -24 }], zIndex: 2 }}
+                          onPress={e => {
+                            e.stopPropagation();
+                            setPlayingVideoId(playingVideoId === post.id ? null : post.id);
+                          }}
+                        >
+                          <Ionicons name={playingVideoId === post.id ? 'pause-circle' : 'play-circle'} size={48} color="#fff" />
+                        </TouchableOpacity>
+                        {/* Expand button for fullscreen */}
+                        <TouchableOpacity
+                          style={{ position: 'absolute', top: 10, right: 10, zIndex: 2 }}
+                          onPress={e => {
+                            e.stopPropagation();
+                            setFullscreenMedia({ type: 'video', uri: post.videoUrl || '' });
+                          }}
+                        >
+                          <Ionicons name="expand" size={28} color="#fff" />
+                        </TouchableOpacity>
+                      </TouchableOpacity>
+                    </View>
                   ))}
                   {userReels.map(reel => (
-                    <TouchableOpacity key={reel.id} onPress={() => setMediaModal({ type: 'reel', uri: reel.mediaUrl, reelId: reel.id })}>
-                      <View style={{ width: '48%', height: 160, backgroundColor: '#eee', borderRadius: 8, marginBottom: 8, justifyContent: 'center', alignItems: 'center' }}>
-                        <Ionicons name="film" size={40} color={COLORS.primary} />
-                        <Text style={{ color: COLORS.text, fontSize: 13, marginTop: 8 }}>[Reel]</Text>
-                      </View>
-                    </TouchableOpacity>
+                    <View key={reel.id} style={{ width: '48%', height: 160, backgroundColor: '#eee', borderRadius: 8, marginBottom: 8, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+                      <TouchableOpacity
+                        activeOpacity={1}
+                        onPress={() => setFullscreenMedia({ type: 'video', uri: reel.mediaUrl || '' })}
+                        style={{ width: '100%', height: '100%' }}
+                      >
+                        <Video
+                          source={{ uri: reel.mediaUrl || '' }}
+                          style={{ width: '100%', height: 160 }}
+                          resizeMode={ResizeMode.COVER}
+                          shouldPlay={false}
+                          isLooping
+                          isMuted={true}
+                          onError={e => Alert.alert('Video Error', 'This video cannot be played.')}
+                        />
+                        {/* Play button overlay for reels */}
+                        <View style={{ position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -24 }, { translateY: -24 }], zIndex: 2 }}>
+                          <Ionicons name={'play-circle'} size={48} color="#fff" />
+                        </View>
+                      </TouchableOpacity>
+                    </View>
                   ))}
                 </>
               )}
@@ -420,7 +525,7 @@ export default function Profile() {
                         onPress={() => navigateToProfile(friend.id)}
                       >
                         <Image 
-                          source={{ uri: friend.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} 
+                          source={{ uri: friend.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' || '' }} 
                           style={styles.friendAvatar} 
                         />
                         <Text style={styles.friendName}>{friend.fullName || friend.username}</Text>
@@ -455,6 +560,39 @@ export default function Profile() {
                 <Ionicons name="play-circle" size={80} color={COLORS.primary} />
                 <Text style={{ color: '#fff', marginTop: 16 }}>Tap to view reel</Text>
               </TouchableOpacity>
+            )}
+          </View>
+        </Modal>
+      )}
+
+      {/* Media Modal for fullscreen images/videos */}
+      {fullscreenMedia && (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setFullscreenMedia(null)}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' }}>
+            <TouchableOpacity style={{ position: 'absolute', top: 40, right: 24, zIndex: 2 }} onPress={() => setFullscreenMedia(null)}>
+              <Ionicons name="close" size={36} color="#fff" />
+            </TouchableOpacity>
+            {fullscreenMedia.type === 'photo' && (
+              <Image source={{ uri: fullscreenMedia.uri }} style={{ width: 320, height: 320, borderRadius: 12 }} resizeMode="contain" />
+            )}
+            {fullscreenMedia.type === 'video' && (
+              <View style={{ width: '100%', height: 320, justifyContent: 'center', alignItems: 'center' }}>
+                <Video
+                  ref={fullscreenVideoRef}
+                  source={{ uri: fullscreenMedia.uri }}
+                  style={{ width: '100%', height: 320 }}
+                  resizeMode={ResizeMode.CONTAIN}
+                  shouldPlay={!fullscreenVideoPaused}
+                  isLooping
+                  isMuted={fullscreenVideoMuted}
+                  useNativeControls={true}
+                  onError={e => Alert.alert('Video Error', 'This video cannot be played.')}
+                />
+                {/* Mute button at top left */}
+                <TouchableOpacity style={{ position: 'absolute', top: 40, left: 20 }} onPress={() => setFullscreenVideoMuted(m => !m)}>
+                  <Ionicons name={fullscreenVideoMuted ? "volume-mute" : "volume-high"} size={36} color="#fff" />
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         </Modal>

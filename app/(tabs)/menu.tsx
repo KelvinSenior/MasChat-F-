@@ -117,9 +117,9 @@ export default function Menu() {
 
         {/* Menu Grid */}
         <View style={styles.menuGrid}>
-          {menuOptions.map((item) => (
+          {menuOptions.map((item, idx) => (
             <TouchableOpacity
-              key={item.label}
+              key={item.label + '-' + idx}
               style={styles.menuItem}
               onPress={() => {
                 if (item.label === 'Friends') router.push('/friends/FriendsScreen');

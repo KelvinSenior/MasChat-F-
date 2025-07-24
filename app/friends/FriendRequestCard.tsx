@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import client, { BASE_URL } from '../api/client';
@@ -57,6 +57,10 @@ export default function FriendRequestCard({ request, onAccepted }: Props) {
   };
 
   const handleViewProfile = () => {
+    if (!request?.sender?.id) {
+      Alert.alert('Error', 'User information is missing.');
+      return;
+    }
     router.push({
       pathname: "/screens/FriendsProfileScreen",
       params: { userId: request.sender.id }
@@ -64,9 +68,21 @@ export default function FriendRequestCard({ request, onAccepted }: Props) {
   };
 
   const handleMessage = () => {
+    if (!request?.sender?.id) {
+      Alert.alert('Error', 'User information is missing.');
+      return;
+    }
+    const recipient = {
+      id: request.sender.id,
+      username: request.sender.username,
+      name: request.sender.fullName || request.sender.username,
+      image: request.sender.profilePicture || '',
+      profilePicture: request.sender.profilePicture || '',
+      fullName: request.sender.fullName || '',
+    };
     router.push({
       pathname: "/screens/ChatScreen",
-      params: { recipient: JSON.stringify(request.sender) }
+      params: { recipient: JSON.stringify(recipient) }
     });
   };
 

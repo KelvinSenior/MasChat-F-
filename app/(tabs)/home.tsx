@@ -1,14 +1,14 @@
 import { Feather, FontAwesome, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from "react";
-import { Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, KeyboardAvoidingView, Platform, Dimensions, TouchableWithoutFeedback } from "react-native";
+import React, { useEffect, useState, useRef } from "react";
+import { Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, KeyboardAvoidingView, Platform, Dimensions, TouchableWithoutFeedback, PanResponder, Animated, FlatList } from "react-native";
 // TODO: Replace with expo-video when available in SDK 54
 import { Video, ResizeMode } from 'expo-av';
 import CommentDialog from "../components/CommentDialog";
 import { useAuth } from '../context/AuthContext';
 import { getPosts, deletePost, Post, likePost, unlikePost, addComment, sharePost, fetchPostComments, PostComment } from '../lib/services/postService';
-import { fetchStories, Story } from '../lib/services/storyService';
+import { fetchStories, Story, fetchStoriesByUser } from '../lib/services/storyService';
 
 // Color Palette
 const COLORS = {
@@ -44,6 +44,73 @@ export default function HomeScreen() {
   const [optimisticLikes, setOptimisticLikes] = useState<{ [postId: string]: string[] }>({});
   const [showIntroVideo, setShowIntroVideo] = useState(false);
   const [videoKey, setVideoKey] = useState(0); // To reset video
+  // 1. Ensure unique keys for all mapped elements
+  // 2. Add fullscreen modal state
+  const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
+  const [fullscreenMedia, setFullscreenMedia] = useState<{ type: 'image' | 'video', uri: string, id?: string } | null>(null);
+  const [fullscreenIndex, setFullscreenIndex] = useState<number>(0);
+  const [showFullscreenControls, setShowFullscreenControls] = useState(false);
+  const fullscreenVideoRef = useRef<any>(null);
+  const fullscreenPan = useRef(new Animated.ValueXY()).current;
+  const [fullscreenVideoPaused, setFullscreenVideoPaused] = useState(false);
+  const [fullscreenVideoMuted, setFullscreenVideoMuted] = useState(false);
+  const [fullscreenScrollIndex, setFullscreenScrollIndex] = useState(0);
+  const fullscreenScrollRef = useRef<any>(null);
+  const [storyViewerVisible, setStoryViewerVisible] = useState(false);
+  const [currentStoryUser, setCurrentStoryUser] = useState<{ userId: string, username: string, profilePicture?: string } | null>(null);
+  const [currentUserStories, setCurrentUserStories] = useState<Story[]>([]);
+  const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
+
+  // Group stories by user
+  const storiesByUser = stories.reduce((acc, story) => {
+    if (!acc[story.userId]) acc[story.userId] = [];
+    acc[story.userId].push(story);
+    return acc;
+  }, {} as { [userId: string]: Story[] });
+  const uniqueStoryUsers = Object.values(storiesByUser).map(stories => stories[0]);
+
+  const openUserStories = async (userId: string, username: string, profilePicture?: string) => {
+    const userStories = await fetchStoriesByUser(userId);
+    setCurrentUserStories(userStories);
+    setCurrentStoryUser({ userId, username, profilePicture });
+    setCurrentStoryIndex(0);
+    setStoryViewerVisible(true);
+  };
+
+  // PanResponder for swipe-to-close (vertical) and horizontal for next/prev
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 20 || Math.abs(gestureState.dx) > 20,
+      onPanResponderMove: Animated.event([
+        null,
+        { dx: fullscreenPan.x, dy: fullscreenPan.y }
+      ], { useNativeDriver: false }),
+      onPanResponderRelease: (_, gestureState) => {
+        if (Math.abs(gestureState.dy) > 60) {
+          setFullscreenMedia(null);
+          fullscreenPan.setValue({ x: 0, y: 0 });
+        } else if (gestureState.dx > 60 && fullscreenIndex > 0) {
+          // Swipe right: previous
+          goToFullscreenIndex(fullscreenIndex - 1);
+          fullscreenPan.setValue({ x: 0, y: 0 });
+        } else if (gestureState.dx < -60 && fullscreenIndex < posts.length - 1) {
+          // Swipe left: next
+          goToFullscreenIndex(fullscreenIndex + 1);
+          fullscreenPan.setValue({ x: 0, y: 0 });
+        } else {
+          Animated.spring(fullscreenPan, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
+        }
+      },
+    })
+  ).current;
+
+  // Feed: auto-pause video when scrolled off screen
+  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
+    if (viewableItems.length > 0) {
+      const firstVisible = viewableItems[0].item;
+      setPlayingVideoId(firstVisible.videoUrl ? firstVisible.id : null);
+    }
+  }).current;
 
   useEffect(() => {
     fetchPosts();
@@ -150,6 +217,30 @@ export default function HomeScreen() {
     } else {
       router.push({ pathname: '../screens/FriendsProfileScreen', params: { userId } });
     }
+  };
+
+  // Helper to play only one video at a time in feed
+  const handlePlayPause = (postId: string) => {
+    setPlayingVideoId(prev => prev === postId ? null : postId);
+  };
+
+  // Helper to open fullscreen and set index
+  const handleOpenFullscreen = (type: 'image' | 'video', uri: string, id?: string, idx?: number) => {
+    setFullscreenMedia({ type, uri, id });
+    setFullscreenIndex(idx ?? 0);
+    setShowFullscreenControls(false);
+  };
+
+  const goToFullscreenIndex = (idx: number) => {
+    const post = posts[idx];
+    if (!post) return;
+    if (post.imageUrl) {
+      setFullscreenMedia({ type: 'image', uri: post.imageUrl, id: post.id });
+    } else if (post.videoUrl) {
+      setFullscreenMedia({ type: 'video', uri: post.videoUrl, id: post.id });
+    }
+    setFullscreenIndex(idx);
+    setShowFullscreenControls(false);
   };
 
   if (!user) {
@@ -291,6 +382,26 @@ export default function HomeScreen() {
         </TouchableWithoutFeedback>
       </Modal>
 
+      {/* Story Viewer Modal */}
+      {storyViewerVisible && (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setStoryViewerVisible(false)}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' }}>
+            {currentUserStories.length > 0 && (
+              <>
+                <Image source={{ uri: currentUserStories[currentStoryIndex].mediaUrl }} style={{ width: '100%', height: '100%', resizeMode: 'contain' }} />
+                {/* Left/right tap/swipe to move stories */}
+                <TouchableOpacity style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '40%' }} onPress={() => setCurrentStoryIndex(i => Math.max(0, i - 1))} />
+                <TouchableOpacity style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '40%' }} onPress={() => setCurrentStoryIndex(i => Math.min(currentUserStories.length - 1, i + 1))} />
+                {/* Close button */}
+                <TouchableOpacity style={{ position: 'absolute', top: 40, right: 20 }} onPress={() => setStoryViewerVisible(false)}>
+                  <Ionicons name="close" size={36} color="#fff" />
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </Modal>
+      )}
+
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80, paddingHorizontal: 0 }}>
         {/* Status Update */}
         <View style={styles.statusContainer}>
@@ -317,7 +428,13 @@ export default function HomeScreen() {
           {/* User's story first */}
           <TouchableOpacity
             style={styles.storyItem}
-            onPress={() => router.push({ pathname: '/screens/MyStoryScreen', params: { storyId: userStory?.id } })}
+            onPress={() => {
+              if (!userStory) {
+                router.push('/(create)/newStory');
+              } else {
+                openUserStories(user?.id, user?.username, user?.profilePicture);
+              }
+            }}
           >
             <View style={styles.storyImageContainer}>
               {userStory ? (
@@ -328,12 +445,12 @@ export default function HomeScreen() {
             </View>
             <Text style={styles.storyLabel}>{userStory ? 'Your Story' : 'Create Story'}</Text>
           </TouchableOpacity>
-          {/* Friends' stories */}
-          {friendsStories.map(story => (
+          {/* Friends' stories, grouped by user */}
+          {uniqueStoryUsers.filter(s => s.userId !== user?.id).map(story => (
             <TouchableOpacity
-              key={story.id}
+              key={story.userId}
               style={styles.storyItem}
-              onPress={() => router.push({ pathname: '/screens/MyStoryScreen', params: { storyId: story.id } })}
+              onPress={() => openUserStories(story.userId, story.username, story.profilePicture)}
             >
               <View style={styles.storyImageContainer}>
                 <Image source={{ uri: story.mediaUrl }} style={styles.storyImage} />
@@ -355,11 +472,8 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         ) : (
-          posts.map(post => (
-            <View key={post.id} style={[
-              styles.postCard,
-              post.videoUrl ? styles.videoPostCard : {}
-            ]}>
+          posts.map((post, idx) => (
+            <View key={post.id} style={[styles.postCard, post.videoUrl ? styles.videoPostCard : {}]}>
               <View style={styles.postHeader}>
                 <TouchableOpacity onPress={() => navigateToProfile(post.user.id)}>
                   <Image
@@ -379,35 +493,49 @@ export default function HomeScreen() {
               </View>
               <Text style={styles.postText}>{post.content}</Text>
               {(post.imageUrl || post.videoUrl) && (
-                <TouchableOpacity onPress={() => router.push({ pathname: '/screens/PostViewerScreen', params: { postId: post.id } })}>
-                  {post.imageUrl ? (
-                    <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
-                  ) : post.videoUrl ? (
-                    <View style={styles.videoContainer}>
+                post.videoUrl ? (
+                  <View style={styles.videoContainer}>
+                    <TouchableOpacity
+                      activeOpacity={1}
+                      onPress={() => setPlayingVideoId(post.id)}
+                      style={{ width: '100%', height: '100%' }}
+                    >
                       <Video
-                        source={{ uri: post.videoUrl }}
+                        source={{ uri: post.videoUrl || '' }}
                         style={styles.postVideo}
                         resizeMode={ResizeMode.COVER}
-                        shouldPlay={isVideoPlaying(post.id)}
+                        shouldPlay={playingVideoId === post.id}
                         isLooping
                         isMuted={false}
+                        onError={e => Alert.alert('Video Error', 'This video cannot be played.')}
                       />
-                      <TouchableOpacity 
-                        style={styles.playPauseButton}
-                        onPress={(e) => {
+                      {/* Play/Pause button overlay */}
+                      <TouchableOpacity
+                        style={{ position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -24 }, { translateY: -24 }], zIndex: 2 }}
+                        onPress={e => {
                           e.stopPropagation();
-                          toggleVideoPlayback(post.id);
+                          setPlayingVideoId(playingVideoId === post.id ? null : post.id);
                         }}
                       >
-                        <Ionicons 
-                          name={isVideoPlaying(post.id) ? "pause" : "play"} 
-                          size={32} 
-                          color="white" 
-                        />
+                        <Ionicons name={playingVideoId === post.id ? 'pause-circle' : 'play-circle'} size={48} color="#fff" />
                       </TouchableOpacity>
-                    </View>
-                  ) : null}
-                </TouchableOpacity>
+                      {/* Expand button for fullscreen */}
+                      <TouchableOpacity
+                        style={{ position: 'absolute', top: 10, right: 10, zIndex: 2 }}
+                        onPress={e => {
+                          e.stopPropagation();
+                          handleOpenFullscreen('video', post.videoUrl || '', post.id, idx);
+                        }}
+                      >
+                        <Ionicons name="expand" size={28} color="#fff" />
+                      </TouchableOpacity>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity onPress={() => handleOpenFullscreen('image', post.imageUrl || '', post.id, idx)}>
+                    <Image source={{ uri: post.imageUrl || '' }} style={styles.postImage} />
+                  </TouchableOpacity>
+                )
               )}
               {/* Enhanced Action Buttons */}
               <View style={styles.postActions}>
@@ -463,6 +591,51 @@ export default function HomeScreen() {
           onClose={() => setCommentModalPost(null)}
           onComment={fetchPosts}
         />
+      )}
+
+      {/* Fullscreen Modal for images/videos */}
+      {fullscreenMedia && (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setFullscreenMedia(null)}>
+          <Animated.View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center', transform: fullscreenPan.getTranslateTransform() }} {...panResponder.panHandlers}>
+            {fullscreenMedia.type === 'image' ? (
+              <>
+                <Image source={{ uri: fullscreenMedia.uri || '' }} style={{ width: '100%', height: '100%', resizeMode: 'contain' }} />
+                {/* Exit button for images */}
+                <TouchableOpacity style={{ position: 'absolute', top: 40, right: 20, zIndex: 10 }} onPress={() => setFullscreenMedia(null)}>
+                  <Ionicons name="close" size={36} color="#fff" />
+                </TouchableOpacity>
+              </>
+            ) : (
+              <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
+                <Video
+                  ref={fullscreenVideoRef}
+                  source={{ uri: fullscreenMedia.uri || '' }}
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode={ResizeMode.CONTAIN}
+                  shouldPlay={!fullscreenVideoPaused}
+                  isLooping
+                  useNativeControls={false}
+                  isMuted={fullscreenVideoMuted}
+                  onError={e => Alert.alert('Video Error', 'This video cannot be played.')}
+                />
+                {/* Mute button at top left */}
+                <TouchableOpacity style={{ position: 'absolute', top: 40, left: 20 }} onPress={() => setFullscreenVideoMuted(m => !m)}>
+                  <Ionicons name={fullscreenVideoMuted ? "volume-mute" : "volume-high"} size={36} color="#fff" />
+                </TouchableOpacity>
+                {/* Center play/pause button, only visible when tapped */}
+                {showFullscreenControls && (
+                  <TouchableOpacity style={{ position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -18 }, { translateY: -18 }] }} onPress={() => setFullscreenVideoPaused(p => !p)}>
+                    <Ionicons name={fullscreenVideoPaused ? "play" : "pause"} size={36} color="#fff" />
+                  </TouchableOpacity>
+                )}
+                {/* Close button at top right */}
+                <TouchableOpacity style={{ position: 'absolute', top: 40, right: 20 }} onPress={() => setFullscreenMedia(null)}>
+                  <Ionicons name="close" size={36} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            )}
+          </Animated.View>
+        </Modal>
       )}
     </View>
   );

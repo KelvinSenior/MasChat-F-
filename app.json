@@ -8,8 +8,18 @@
     "scheme": "maschat",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/GROUP 88-MasChat.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A2463"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "splash": {
+        "image": "./assets/GROUP 88-MasChat.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#0A2463"
+      }
     },
     "android": {
       "adaptiveIcon": {
