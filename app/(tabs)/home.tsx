@@ -2,7 +2,7 @@ import { Feather, FontAwesome, Ionicons, MaterialIcons } from "@expo/vector-icon
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from "react";
-import { Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, KeyboardAvoidingView, Platform, Dimensions } from "react-native";
+import { Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, KeyboardAvoidingView, Platform, Dimensions, TouchableWithoutFeedback } from "react-native";
 // TODO: Replace with expo-video when available in SDK 54
 import { Video, ResizeMode } from 'expo-av';
 import CommentDialog from "../components/CommentDialog";
@@ -42,6 +42,8 @@ export default function HomeScreen() {
   const [comments, setComments] = useState<PostComment[]>([]);
   const [playingVideos, setPlayingVideos] = useState<Set<string>>(new Set());
   const [optimisticLikes, setOptimisticLikes] = useState<{ [postId: string]: string[] }>({});
+  const [showIntroVideo, setShowIntroVideo] = useState(false);
+  const [videoKey, setVideoKey] = useState(0); // To reset video
 
   useEffect(() => {
     fetchPosts();
@@ -169,9 +171,14 @@ export default function HomeScreen() {
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
       >
-        <Text style={styles.logo}>
-          Mas<Text style={{ color: COLORS.accent }}>Chat</Text>
-        </Text>
+        <TouchableOpacity onPress={() => {
+          setShowIntroVideo(true);
+          setVideoKey(prev => prev + 1); // Reset video
+        }}>
+          <Text style={styles.logo}>
+            Mas<Text style={{ color: COLORS.accent }}>Chat</Text>
+          </Text>
+        </TouchableOpacity>
         <View style={styles.headerIcons}>
           <TouchableOpacity
             style={styles.iconBtn}
@@ -251,6 +258,37 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      {/* Intro Video Modal */}
+      <Modal
+        visible={showIntroVideo}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowIntroVideo(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowIntroVideo(false)}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center' }}>
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <View style={{ width: '90%', aspectRatio: 16/9, backgroundColor: 'black', borderRadius: 12, overflow: 'hidden' }}>
+                <Video
+                  key={videoKey}
+                  source={require('../../assets/GROUP 88-MasChat.mp4')}
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode={ResizeMode.CONTAIN}
+                  shouldPlay
+                  useNativeControls={false}
+                  isLooping={false}
+                  onPlaybackStatusUpdate={status => {
+                    if (status.isLoaded && 'didJustFinish' in status && status.didJustFinish) {
+                      setShowIntroVideo(false);
+                    }
+                  }}
+                />
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80, paddingHorizontal: 0 }}>
@@ -475,6 +513,7 @@ const styles = StyleSheet.create({
   headerIcons: {
     flexDirection: 'row',
     gap: 12,
+    marginLeft: 'auto', // This will push the icons to the right
   },
   iconBtn: {
     width: 36,
