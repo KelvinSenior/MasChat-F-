@@ -14,7 +14,7 @@ import {
   Alert
 } from "react-native";
 import { useAuth } from '../context/AuthContext';
-import { getBestFriends, Friend } from '../lib/services/userService';
+import { getBestFriends, Friend, getUserFriends } from '../lib/services/userService';
 
 // Color Palette
 const COLORS = {
@@ -49,14 +49,17 @@ export default function Menu() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [bestFriends, setBestFriends] = useState<Friend[]>([]);
+  const [friendCount, setFriendCount] = useState(0);
 
   useEffect(() => {
     if (user) {
       setLoading(false);
-      // Fetch best friends
       getBestFriends(user.id)
         .then(setBestFriends)
         .catch(() => setBestFriends([]));
+      getUserFriends(user.id)
+        .then(friends => setFriendCount(friends.length))
+        .catch(() => setFriendCount(0));
     }
   }, [user]);
 
@@ -67,6 +70,9 @@ export default function Menu() {
       </View>
     );
   }
+
+  // Deduplicate bestFriends before slicing for shortcuts
+  const uniqueBestFriends = Array.from(new Map(bestFriends.map(f => [f.id, f])).values());
 
   return (
     <View style={styles.container}>
@@ -100,14 +106,14 @@ export default function Menu() {
             <Text style={styles.profileSubtext}>View your profile</Text>
           </View>
           <View style={styles.followerBadge}>
-            <Text style={styles.followerText}>{user?.details?.followerCount || 0}+</Text>
+            <Text style={styles.followerText}>{friendCount} Friends</Text>
           </View>
         </TouchableOpacity>
 
         {/* Shortcuts */}
         <Text style={styles.sectionTitle}>Your Shortcuts</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.shortcutsContainer}>
-          {bestFriends.map((friend) => (
+          {uniqueBestFriends.slice(0, 5).map((friend) => (
             <TouchableOpacity key={friend.id} style={styles.shortcutItem} onPress={() => router.push({ pathname: '/screens/FriendsProfileScreen', params: { userId: friend.id } })}>
               <Image source={{ uri: friend.profilePicture || 'https://i.imgur.com/6XbK6bE.jpg' }} style={styles.shortcutAvatar} />
               <Text style={styles.shortcutName}>{friend.fullName || friend.username}</Text>

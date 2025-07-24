@@ -15,7 +15,7 @@ import {
   Alert
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { getUserProfile } from '../lib/services/userService';
+import { getUserProfile, getUserPosts, unfriend } from '../lib/services/userService';
 import { getPosts, Post, likePost, unlikePost } from '../lib/services/postService';
 import { fetchReels, Reel } from '../lib/services/reelService';
 import { friendService } from '../lib/services/friendService';
@@ -54,6 +54,11 @@ export default function FriendsProfileScreen() {
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const [optimisticLikes, setOptimisticLikes] = useState<{ [postId: string]: string[] }>({});
   const [commentModalPost, setCommentModalPost] = useState<Post | null>(null);
+  const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
+  const [fullscreenMedia, setFullscreenMedia] = useState<{ type: 'photo' | 'video', uri: string } | null>(null);
+  const [fullscreenVideoPaused, setFullscreenVideoPaused] = useState(false);
+  const [fullscreenVideoMuted, setFullscreenVideoMuted] = useState(false);
+  const fullscreenVideoRef = React.useRef<any>(null);
 
   const tabs = ['Posts', 'About', 'Videos', 'Photos'];
   const targetUserId = params.userId as string;
@@ -64,10 +69,9 @@ export default function FriendsProfileScreen() {
       setLoading(true);
       const data = await getUserProfile(targetUserId);
       setProfileData(data);
-      
       // Fetch posts and reels for this user
-      const allPosts = await getPosts();
-      setUserPosts(allPosts.filter((p: Post) => p.user.id === targetUserId));
+      const posts = await getUserPosts(targetUserId);
+      setUserPosts(posts);
       const allReels = await fetchReels();
       setUserReels(allReels.filter((r: Reel) => r.userId === targetUserId));
     } catch (error) {
@@ -110,22 +114,34 @@ export default function FriendsProfileScreen() {
   };
 
   const handleLikePost = async (post: Post) => {
-    if (!user) return;
-    const alreadyLiked = (optimisticLikes[post.id] || post.likedBy || []).includes(user.id);
+    if (!user?.id) return;
+    const alreadyLiked = (optimisticLikes[post.id] || post.likedBy || []).includes(user?.id || '');
     // Optimistic UI update
     setOptimisticLikes(prev => ({
       ...prev,
       [post.id]: alreadyLiked
-        ? (prev[post.id] || post.likedBy || []).filter(id => id !== user.id)
-        : [...(prev[post.id] || post.likedBy || []), user.id]
+        ? (prev[post.id] || post.likedBy || []).filter(id => id !== user?.id || '')
+        : [...(prev[post.id] || post.likedBy || []), user?.id || '']
     }));
     // Backend update
     if (alreadyLiked) {
-      await unlikePost(post.id, user.id);
+      await unlikePost(post.id, user?.id || '');
     } else {
-      await likePost(post.id, user.id);
+      await likePost(post.id, user?.id || '');
     }
     fetchProfile();
+  };
+
+  const handleUnfriend = async () => {
+    if (!user?.id || !targetUserId) return;
+    Alert.alert('Unfriend', 'Are you sure you want to remove this friend?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Unfriend', style: 'destructive', onPress: async () => {
+        await unfriend(user.id, targetUserId);
+        setIsFriend(false);
+        fetchProfile();
+      }}
+    ]);
   };
 
   useEffect(() => { fetchProfile(); fetchFriendStatus(); }, [targetUserId, user?.id]);
@@ -262,9 +278,9 @@ export default function FriendsProfileScreen() {
                       <TouchableOpacity onPress={() => user && handleLikePost(post)} style={styles.actionBtn}>
                         <View style={styles.actionIcon}>
                           <Ionicons
-                            name={(optimisticLikes[post.id] || post.likedBy || []).includes(user.id) ? 'heart' : 'heart-outline'}
+                            name={(optimisticLikes[post.id] || post.likedBy || []).includes(user?.id || '') ? 'heart' : 'heart-outline'}
                             size={22}
-                            color={(optimisticLikes[post.id] || post.likedBy || []).includes(user.id) ? LIKE_ACTIVE_COLOR : LIKE_INACTIVE_COLOR}
+                            color={(optimisticLikes[post.id] || post.likedBy || []).includes(user?.id || '') ? LIKE_ACTIVE_COLOR : LIKE_INACTIVE_COLOR}
                           />
                         </View>
                         <Text style={styles.actionText}>Like</Text>
@@ -401,6 +417,14 @@ export default function FriendsProfileScreen() {
             onPress={handleStartChat}
           >
             <Text style={{ color: 'white', fontWeight: 'bold' }}>Message Friend</Text>
+          </TouchableOpacity>
+        )}
+        {isFriend && (
+          <TouchableOpacity
+            style={{ backgroundColor: '#ff4444', padding: 12, borderRadius: 8, marginVertical: 12, alignItems: 'center' }}
+            onPress={handleUnfriend}
+          >
+            <Text style={{ color: 'white', fontWeight: 'bold' }}>Unfriend</Text>
           </TouchableOpacity>
         )}
       </ScrollView>

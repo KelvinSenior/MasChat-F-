@@ -55,7 +55,8 @@ export default function FriendsScreen() {
     }, [user?.id])
   );
 
-  const filteredFriends = friends.filter(f => 
+  const uniqueFriends = Array.from(new Map(friends.map(f => [f.id, f])).values());
+  const filteredFriends = uniqueFriends.filter(f => 
     f.fullName?.toLowerCase().includes(search.toLowerCase()) ||
     f.username?.toLowerCase().includes(search.toLowerCase())
   );
@@ -95,15 +96,17 @@ export default function FriendsScreen() {
     }
     return filteredFriends.map(friend => (
       <View key={friend.id} style={styles.friendItem}>
-        <Image 
-          source={{ uri: friend.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} 
-          style={styles.friendAvatar} 
-        />
+        <TouchableOpacity onPress={() => router.push({ pathname: '/screens/FriendsProfileScreen', params: { userId: friend.id } })}>
+          <Image 
+            source={{ uri: friend.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} 
+            style={styles.friendAvatar} 
+          />
+        </TouchableOpacity>
         <View style={styles.friendInfo}>
           <Text style={styles.friendName}>{friend.fullName || friend.username}</Text>
           <Text style={styles.friendUsername}>@{friend.username}</Text>
         </View>
-        <TouchableOpacity style={styles.messageButton}>
+        <TouchableOpacity style={styles.messageButton} onPress={() => router.push({ pathname: '/screens/ChatScreen', params: { recipient: JSON.stringify({ id: friend.id, username: friend.username, fullName: friend.fullName, profilePicture: friend.profilePicture }) } })}>
           <Ionicons name="chatbubble-outline" size={20} color={COLORS.primary} />
         </TouchableOpacity>
       </View>

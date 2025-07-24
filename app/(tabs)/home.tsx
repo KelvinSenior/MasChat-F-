@@ -387,17 +387,33 @@ export default function HomeScreen() {
         <Modal visible transparent animationType="fade" onRequestClose={() => setStoryViewerVisible(false)}>
           <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' }}>
             {currentUserStories.length > 0 && (
-              <>
-                <Image source={{ uri: currentUserStories[currentStoryIndex].mediaUrl }} style={{ width: '100%', height: '100%', resizeMode: 'contain' }} />
-                {/* Left/right tap/swipe to move stories */}
-                <TouchableOpacity style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '40%' }} onPress={() => setCurrentStoryIndex(i => Math.max(0, i - 1))} />
-                <TouchableOpacity style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '40%' }} onPress={() => setCurrentStoryIndex(i => Math.min(currentUserStories.length - 1, i + 1))} />
-                {/* Close button */}
-                <TouchableOpacity style={{ position: 'absolute', top: 40, right: 20 }} onPress={() => setStoryViewerVisible(false)}>
-                  <Ionicons name="close" size={36} color="#fff" />
-                </TouchableOpacity>
-              </>
+              <FlatList
+                data={currentUserStories}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={item => item.id}
+                initialScrollIndex={currentStoryIndex}
+                renderItem={({ item }) => (
+                  item.mediaUrl.endsWith('.mp4') || item.mediaUrl.endsWith('.mov') ? (
+                    <Video
+                      source={{ uri: item.mediaUrl }}
+                      style={{ width: Dimensions.get('window').width, height: Dimensions.get('window').height * 0.7 }}
+                      resizeMode={ResizeMode.CONTAIN}
+                      shouldPlay
+                      isLooping
+                      useNativeControls
+                    />
+                  ) : (
+                    <Image source={{ uri: item.mediaUrl }} style={{ width: Dimensions.get('window').width, height: Dimensions.get('window').height * 0.7, resizeMode: 'contain' }} />
+                  )
+                )}
+              />
             )}
+            {/* Close button */}
+            <TouchableOpacity style={{ position: 'absolute', top: 40, right: 20 }} onPress={() => setStoryViewerVisible(false)}>
+              <Ionicons name="close" size={36} color="#fff" />
+            </TouchableOpacity>
           </View>
         </Modal>
       )}

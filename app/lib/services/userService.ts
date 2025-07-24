@@ -123,6 +123,10 @@ export async function deleteFriendRequest(requestId: string, userId: string) {
   await client.delete('/users/request', { data: { fromUserId: requestId, toUserId: userId } });
 }
 
+export async function unfriend(userId: string, friendId: string): Promise<void> {
+  await client.delete(`/friends/remove?userId=${userId}&friendId=${friendId}`);
+}
+
 export type Friend = {
   id: string;
   username: string;

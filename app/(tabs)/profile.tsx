@@ -21,6 +21,7 @@ import { fetchReels, Reel } from '../lib/services/reelService';
 import CommentDialog from "../components/CommentDialog";
 import { useFocusEffect } from 'expo-router';
 import { Video, ResizeMode } from 'expo-av';
+import client from '../api/client';
 
 // Color Palette
 const COLORS = {
@@ -150,6 +151,8 @@ export default function Profile() {
     }
     fetchProfileData();
   };
+
+  const uniqueFriends = Array.from(new Map(userFriends.map(f => [f.id, f])).values());
 
   return (
     <View style={styles.container}>
@@ -514,11 +517,11 @@ export default function Profile() {
               {/* Friends Section */}
               <View style={{ marginTop: 24 }}>
                 <Text style={{ fontSize: 18, fontWeight: 'bold', color: COLORS.text, marginBottom: 16 }}>Friends</Text>
-                {userFriends.length === 0 ? (
+                {uniqueFriends.length === 0 ? (
                   <Text style={{ textAlign: 'center', color: COLORS.lightText, marginVertical: 12 }}>No friends yet.</Text>
                 ) : (
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-                    {userFriends.map(friend => (
+                    {uniqueFriends.map(friend => (
                       <TouchableOpacity 
                         key={friend.id} 
                         style={styles.friendItem} 
@@ -534,6 +537,22 @@ export default function Profile() {
                   </View>
                 )}
               </View>
+              {user?.id === profileData.id && (
+                <TouchableOpacity style={{ backgroundColor: '#ff4444', padding: 12, borderRadius: 8, marginVertical: 12, alignItems: 'center' }}
+                  onPress={async () => {
+                    Alert.alert('Delete Account', 'Are you sure you want to delete your account? This cannot be undone.', [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Delete', style: 'destructive', onPress: async () => {
+                        await client.delete(`/users/${user.id}`);
+                        updateUser(undefined);
+                        router.replace('/login');
+                      }}
+                    ]);
+                  }}
+                >
+                  <Text style={{ color: 'white', fontWeight: 'bold' }}>Delete Account</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </View>
