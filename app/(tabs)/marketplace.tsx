@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, TextInput, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, TextInput, ActivityIndicator, ScrollView, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import marketplaceService, { MarketplaceItem, MarketplaceCategory } from '../lib/services/marketplaceService';
 
 const COLORS = {
-  primary: '#0A2463',
+  primary: '#3A8EFF',
   accent: '#FF7F11',
   background: '#F5F7FA',
   white: '#FFFFFF',
@@ -29,13 +29,30 @@ export default function MarketplaceScreen() {
   const fetchData = async () => {
     setLoading(true);
     setSelectedCategory(null);
-    const [itemData, catData] = await Promise.all([
-      marketplaceService.getItems(),
-      marketplaceService.getCategories(),
-    ]);
-    setItems(itemData);
-    setCategories(catData);
-    setLoading(false);
+    try {
+      console.log('=== MARKETPLACE: Starting to fetch data ===');
+      const [itemData, catData] = await Promise.all([
+        marketplaceService.getItems(),
+        marketplaceService.getCategories(),
+      ]);
+      console.log('=== MARKETPLACE: Successfully fetched data ===');
+      console.log('Items:', itemData.length, 'Categories:', catData.length);
+      setItems(itemData);
+      setCategories(catData);
+    } catch (error) {
+      console.error('=== MARKETPLACE ERROR: Failed to fetch data ===');
+      console.error('Error:', error);
+      Alert.alert(
+        'Error',
+        'Failed to load marketplace items. Please check your connection and try again.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Retry', onPress: fetchData }
+        ]
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSearch = async () => {
@@ -60,13 +77,30 @@ export default function MarketplaceScreen() {
       <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text>
       <Text style={styles.itemPrice}>${item.price}{item.negotiable ? ' (neg.)' : ''}</Text>
       <Text style={styles.itemLocation}>{item.location}</Text>
+      {/* Seller Information */}
+      {item.seller && (
+        <View style={styles.sellerInfo}>
+          <Image 
+            source={{ uri: item.seller.profilePicture || 'https://via.placeholder.com/30' }} 
+            style={styles.sellerAvatar} 
+          />
+          <Text style={styles.sellerName} numberOfLines={1}>
+            {item.seller.fullName || item.seller.username}
+          </Text>
+        </View>
+      )}
+      <View style={styles.itemStatus}>
+        <Text style={[styles.statusText, { color: item.status === 'active' ? '#4CAF50' : '#FF9800' }]}>
+          {item.status === 'active' ? 'Available' : item.status}
+        </Text>
+      </View>
     </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
       {/* Header */}
-      <LinearGradient colors={[COLORS.primary, '#1A4B8C']} style={styles.header}>
+      <LinearGradient colors={[COLORS.primary, '#2B6CD9']} style={styles.header}>
         <Text style={styles.logo}>Marketplace</Text>
         <TouchableOpacity style={styles.sellBtn} onPress={() => router.push('/marketplace/SellItemScreen')}>
           <Ionicons name="add-circle" size={24} color={COLORS.accent} />
@@ -152,4 +186,9 @@ const styles = StyleSheet.create({
   itemTitle: { fontWeight: 'bold', fontSize: 15, color: COLORS.text, marginBottom: 2 },
   itemPrice: { color: COLORS.accent, fontWeight: 'bold', fontSize: 15, marginBottom: 2 },
   itemLocation: { color: COLORS.lightText, fontSize: 13 },
+  sellerInfo: { flexDirection: 'row', alignItems: 'center', marginTop: 8, marginBottom: 4 },
+  sellerAvatar: { width: 24, height: 24, borderRadius: 12, marginRight: 8 },
+  sellerName: { fontWeight: 'bold', fontSize: 13, color: COLORS.text },
+  itemStatus: { backgroundColor: '#f0f0f0', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
+  statusText: { fontWeight: 'bold', fontSize: 12 },
 });

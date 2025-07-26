@@ -35,8 +35,8 @@ export default function RootLayout() {
             >
               <Slot />
             </Stack>
+            <AIChatModal visible={showChat} onClose={() => setShowChat(false)} />
           </AuthProvider>
-          <AIChatModal visible={showChat} onClose={() => setShowChat(false)} />
         </NotificationProvider>
       </GestureHandlerRootView>
     </ThemeProvider>

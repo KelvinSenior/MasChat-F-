@@ -7,10 +7,12 @@ import { useAuth } from '../context/AuthContext';
 import { messageService, Message } from '../lib/services/messageService';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
+import * as ImagePicker from 'expo-image-picker';
+import { uploadImage } from '../lib/services/userService';
 
 // Color Palette (matching Home screen)
 const COLORS = {
-  primary: '#0A2463',  // Deep Blue
+  primary: '#3A8EFF',  // New Blue
   accent: '#FF7F11',   // Vibrant Orange
   background: '#F5F7FA',
   white: '#FFFFFF',
@@ -47,6 +49,7 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList>(null);
   const pendingMessages = useRef<Message[]>([]);
   const stompClient = useRef<any>(null);
+  const [imageSending, setImageSending] = useState(false);
 
   // Deduplicate messages by id before setting state
   const dedupeMessages = (msgs: Message[]) => {
@@ -94,7 +97,7 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (!currentUser?.id || !recipient?.id) return;
-    const socket = new SockJS('http://10.132.74.85:8080/ws-chat');
+    const socket = new SockJS('http://10.94.219.125:8080/ws-chat');
     const client = new Client({
       webSocketFactory: () => socket,
       debug: str => console.log(str),
@@ -172,6 +175,34 @@ export default function ChatScreen() {
     }
   };
 
+  // Image picker and send logic
+  const pickAndSendImage = async () => {
+    if (imageSending || !currentUser?.id) return;
+    setImageSending(true);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaType.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const imageUri = result.assets[0].uri;
+        const uploadedUrl = await uploadImage(imageUri);
+        
+        if (uploadedUrl) {
+          await messageService.sendImageMessage(currentUser.id, recipient.id, uploadedUrl, '');
+        }
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image');
+    } finally {
+      setImageSending(false);
+    }
+  };
+
   const deleteMessage = async (messageId: string) => {
     if (!currentUser?.id) return;
     
@@ -246,7 +277,7 @@ export default function ChatScreen() {
         <LinearGradient
           colors={
             item.sender.id === currentUser?.id 
-              ? [COLORS.primary, '#1A4B8C'] 
+              ? [COLORS.primary, '#3A8EFF'] 
               : ['#f0f2f5', '#e4e6eb']
           }
           start={{ x: 0, y: 0 }}
@@ -293,7 +324,7 @@ export default function ChatScreen() {
     <View style={styles.container}>
       {/* Header */}
       <LinearGradient
-        colors={[COLORS.primary, '#1A4B8C']}
+        colors={[COLORS.primary, '#2B6CD9']}
         style={[styles.header, { paddingTop: Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 0) + 10 }]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
@@ -377,7 +408,7 @@ export default function ChatScreen() {
         <View style={styles.inputContainer}>
           <View style={styles.inputRow}>
             <View style={styles.leftIcons}>
-              <TouchableOpacity style={styles.iconBtn}>
+              <TouchableOpacity style={styles.iconBtn} onPress={pickAndSendImage} disabled={imageSending}>
                 <Ionicons name="image" size={24} color={COLORS.primary} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.iconBtn}>

@@ -60,6 +60,28 @@ export const messageService = {
     }
   },
 
+  // Send an image message
+  async sendImageMessage(senderId: string, recipientId: string, imageUrl: string, content?: string): Promise<Message | null> {
+    try {
+      console.log('Sending image message:', { senderId, recipientId, imageUrl, content });
+      const response = await client.post('/messages/send-image', {
+        senderId,
+        recipientId,
+        imageUrl,
+        content,
+      });
+      console.log('Image message sent successfully:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error sending image message:', error);
+      if (error.response) {
+        console.error('Response status:', error.response.status);
+        console.error('Response data:', error.response.data);
+      }
+      return null;
+    }
+  },
+
   // Mark messages as read
   async markAsRead(userId: string, partnerId: string): Promise<void> {
     try {
@@ -88,6 +110,21 @@ export const messageService = {
       });
     } catch (error) {
       console.error('Error deleting conversation:', error);
+    }
+  },
+
+  // Test image column functionality
+  async testImageColumn(): Promise<any> {
+    try {
+      const response = await client.get('/messages/test-image-column');
+      return response.data;
+    } catch (error: any) {
+      console.error('Error testing image column:', error);
+      if (error.response) {
+        console.error('Response status:', error.response.status);
+        console.error('Response data:', error.response.data);
+      }
+      throw error;
     }
   }
 };

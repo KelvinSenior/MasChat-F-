@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { createStory } from '../lib/services/storyService';
 
 const COLORS = {
-  primary: '#0A2463',
+  primary: '#3A8EFF',
   accent: '#FF7F11',
   background: '#F5F7FA',
   white: '#FFFFFF',
@@ -23,6 +23,7 @@ export default function NewStory() {
   const [caption, setCaption] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [mediaType, setMediaType] = useState<'image' | 'video' | 'audio' | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const pickMedia = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -58,11 +59,44 @@ export default function NewStory() {
     }
   };
 
+  // AI image generation
+  const generateAIImage = async () => {
+    if (!caption.trim()) {
+      Alert.alert('Error', 'Please enter a caption to generate an image.');
+      return;
+    }
+    setAiLoading(true);
+    try {
+      const url = 'https://open-ai21.p.rapidapi.com/texttoimage2';
+      const options = {
+        method: 'POST',
+        headers: {
+          'x-rapidapi-key': '355060685fmsh742abd58eb438d7p1f4d66jsn22cd506769c9',
+          'x-rapidapi-host': 'open-ai21.p.rapidapi.com',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: caption }),
+      };
+      const response = await fetch(url, options);
+      const result = await response.json();
+      if (result && result.generated_image) {
+        setMedia(result.generated_image);
+        setMediaType('image');
+      } else {
+        Alert.alert('Error', 'Failed to generate image.');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to generate image.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <LinearGradient
-        colors={[COLORS.primary, '#1A4B8C']}
+        colors={[COLORS.primary, '#2B6CD9']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
@@ -97,6 +131,10 @@ export default function NewStory() {
             <Text style={styles.mediaPlaceholderText}>Tap to select image, video, or audio</Text>
           </View>
         )}
+      </TouchableOpacity>
+      <TouchableOpacity onPress={generateAIImage} style={[styles.mediaPicker, { marginTop: 0, height: 60, justifyContent: 'center', alignItems: 'center', flexDirection: 'row' }]} disabled={aiLoading}>
+        <Ionicons name="sparkles" size={24} color={COLORS.primary} />
+        <Text style={{ color: COLORS.primary, fontWeight: 'bold', marginLeft: 8 }}>{aiLoading ? 'Generating...' : 'AI Image'}</Text>
       </TouchableOpacity>
 
       {/* Caption Input */}

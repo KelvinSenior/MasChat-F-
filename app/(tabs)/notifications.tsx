@@ -11,6 +11,7 @@ import {
   View,
   RefreshControl,
   Animated,
+  Dimensions,
 } from "react-native";
 import { useAuth } from '../context/AuthContext';
 import { fetchNotifications, markNotificationRead, Notification, acceptFriendRequest, deleteFriendRequest, deleteNotification } from '../lib/services/userService';
@@ -20,14 +21,43 @@ import SockJS from 'sockjs-client';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useNotification } from '../context/NotificationContext';
 
-// Color Palette (matching home screen)
+// Modern Color Palette
 const COLORS = {
-  primary: '#0A2463',  // Deep Blue
-  accent: '#FF7F11',   // Vibrant Orange
-  background: '#F5F7FA',
-  white: '#FFFFFF',
-  text: '#333333',
-  lightText: '#888888',
+  primary: '#4361EE',    // Vibrant Blue
+  secondary: '#3A0CA3',  // Deep Purple
+  accent: '#FF7F11',     // Orange
+  background: '#F8F9FA',  // Light Gray
+  card: '#FFFFFF',       // White
+  white: '#FFFFFF',      // White
+  text: '#212529',       // Dark Gray
+  lightText: '#6C757D',  // Medium Gray
+  border: '#E9ECEF',     // Light Border
+  success: '#4CC9F0',    // Teal
+  danger: '#FF3040',     // Red
+  warning: '#FFC107',    // Yellow
+  dark: '#1A1A2E',       // Dark Blue
+};
+
+const DEVICE_WIDTH = Dimensions.get('window').width;
+
+const formatTimeAgo = (date: Date): string => {
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  
+  if (diffInSeconds < 60) {
+    return 'Just now';
+  } else if (diffInSeconds < 3600) {
+    const minutes = Math.floor(diffInSeconds / 60);
+    return `${minutes}m ago`;
+  } else if (diffInSeconds < 86400) {
+    const hours = Math.floor(diffInSeconds / 3600);
+    return `${hours}h ago`;
+  } else if (diffInSeconds < 2592000) {
+    const days = Math.floor(diffInSeconds / 86400);
+    return `${days}d ago`;
+  } else {
+    return date.toLocaleDateString();
+  }
 };
 
 export default function Notifications() {
@@ -46,7 +76,7 @@ export default function Notifications() {
       .finally(() => setLoading(false));
 
     // WebSocket for real-time notifications
-    const socket = new SockJS('http://10.132.74.85:8080/ws-chat');
+    const socket = new SockJS('http://10.94.219.125:8080/ws-chat');
     const client = new Client({
       webSocketFactory: () => socket,
       debug: str => console.log(str),
@@ -122,28 +152,45 @@ export default function Notifications() {
     <View style={styles.container}>
       {/* Header */}
       <LinearGradient
-        colors={[COLORS.primary, '#1A4B8C']}
+        colors={[COLORS.primary, COLORS.secondary]}
         style={styles.header}
         start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
+        end={{ x: 1, y: 1 }}
       >
-        <Text style={styles.logo}>
-          Mas<Text style={{ color: COLORS.accent }}>Chat</Text>
-        </Text>
-        <TouchableOpacity
-          onPress={() => router.push("../screens/SearchScreen")}
-          style={styles.iconBtn}
-        >
-          <Ionicons name="search" size={24} color="white" />
-        </TouchableOpacity>
+        <View style={styles.headerContent}>
+          <Text style={styles.logo}>Notifications</Text>
+          <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.headerIconBtn}>
+              <Ionicons name="search" size={24} color="white" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.headerIconBtn}>
+              <Ionicons name="ellipsis-horizontal" size={24} color="white" />
+            </TouchableOpacity>
+          </View>
+        </View>
       </LinearGradient>
 
       {/* Notifications Title & Mark All as Read */}
-      <View style={styles.notificationsHeader}>
-        <Text style={styles.notificationsTitle}>Notifications</Text>
+      <View style={styles.statsContainer}>
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>{notifications.filter(n => !n.read).length}</Text>
+            <Text style={styles.statLabel}>Unread</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>{notifications.length}</Text>
+            <Text style={styles.statLabel}>Total</Text>
+          </View>
+        </View>
         {notifications.some(n => !n.read) && (
           <TouchableOpacity onPress={handleMarkAllRead} style={styles.markAllBtn}>
-            <Text style={styles.markAllText}>Mark all as read</Text>
+            <LinearGradient
+              colors={[COLORS.accent, '#FF6B35']}
+              style={styles.markAllGradient}
+            >
+              <Ionicons name="checkmark-done" size={16} color="white" />
+              <Text style={styles.markAllText}>Mark all read</Text>
+            </LinearGradient>
           </TouchableOpacity>
         )}
       </View>
@@ -181,40 +228,79 @@ export default function Notifications() {
             <Animated.View style={[
               styles.card,
               !item.read && styles.unreadCard,
-              { borderLeftWidth: 5, borderLeftColor: !item.read ? COLORS.accent : 'transparent' }
+              { borderLeftWidth: 4, borderLeftColor: !item.read ? COLORS.accent : 'transparent' }
             ]}>
               <TouchableOpacity style={{ flex: 1 }} onPress={() => handleMarkRead(item.id)}>
                 <View style={styles.row}>
-                  <View style={styles.avatarContainer}>
+                  <View style={[styles.avatarContainer, !item.read && styles.unreadAvatar]}>
                     {/* Use icon based on notification type */}
                     {item.avatar ? (
                       <Image source={{ uri: item.avatar }} style={styles.avatar} />
                     ) : item.message?.toLowerCase().includes('friend request') ? (
-                      <Ionicons name="person-add" size={22} color={item.read ? COLORS.lightText : COLORS.primary} />
+                      <LinearGradient
+                        colors={[COLORS.primary, COLORS.secondary]}
+                        style={styles.iconGradient}
+                      >
+                        <Ionicons name="person-add" size={20} color="white" />
+                      </LinearGradient>
                     ) : item.message?.toLowerCase().includes('like') ? (
-                      <Ionicons name="heart" size={22} color={item.read ? COLORS.lightText : '#22c55e'} />
+                      <LinearGradient
+                        colors={[COLORS.danger, '#FF6B6B']}
+                        style={styles.iconGradient}
+                      >
+                        <Ionicons name="heart" size={20} color="white" />
+                      </LinearGradient>
                     ) : item.message?.toLowerCase().includes('comment') ? (
-                      <Ionicons name="chatbubble" size={22} color={item.read ? COLORS.lightText : COLORS.accent} />
+                      <LinearGradient
+                        colors={[COLORS.accent, '#FF6B35']}
+                        style={styles.iconGradient}
+                      >
+                        <Ionicons name="chatbubble" size={20} color="white" />
+                      </LinearGradient>
                     ) : (
-                      <Ionicons name="notifications" size={20} color={item.read ? COLORS.lightText : COLORS.primary} />
+                      <LinearGradient
+                        colors={[COLORS.success, '#4CC9F0']}
+                        style={styles.iconGradient}
+                      >
+                        <Ionicons name="notifications" size={20} color="white" />
+                      </LinearGradient>
                     )}
                   </View>
-                  <View style={{ flex: 1 }}>
+                  <View style={styles.notificationContent}>
                     <Text style={[styles.messageText, !item.read && styles.bold]}>{item.message}</Text>
-                    <Text style={styles.time}>{new Date(item.createdAt).toLocaleString()}</Text>
+                    <Text style={styles.time}>{formatTimeAgo(new Date(item.createdAt))}</Text>
                     {/* Friend request actions */}
                     {item.message?.toLowerCase().includes('friend request') && !item.read && (
-                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                        <TouchableOpacity style={[styles.actionBtn, styles.primaryAction]} onPress={() => handleConfirmFriendRequest(item.id)}>
-                          <Text style={[styles.actionText, styles.primaryText]}>Confirm</Text>
+                      <View style={styles.actionButtons}>
+                        <TouchableOpacity style={styles.confirmBtn} onPress={() => handleConfirmFriendRequest(item.id)}>
+                          <LinearGradient
+                            colors={[COLORS.success, '#4CC9F0']}
+                            style={styles.actionGradient}
+                          >
+                            <Ionicons name="checkmark" size={16} color="white" />
+                            <Text style={styles.actionText}>Accept</Text>
+                          </LinearGradient>
                         </TouchableOpacity>
-                        <TouchableOpacity style={[styles.actionBtn, styles.secondaryAction]} onPress={() => handleDeleteFriendRequest(item.id)}>
-                          <Text style={[styles.actionText, styles.secondaryText]}>Delete</Text>
+                        <TouchableOpacity style={styles.declineBtn} onPress={() => handleDeleteFriendRequest(item.id)}>
+                          <LinearGradient
+                            colors={[COLORS.danger, '#FF6B6B']}
+                            style={styles.actionGradient}
+                          >
+                            <Ionicons name="close" size={16} color="white" />
+                            <Text style={styles.actionText}>Decline</Text>
+                          </LinearGradient>
                         </TouchableOpacity>
                       </View>
                     )}
                   </View>
-                  {!item.read && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.accent, marginLeft: 8 }} />}
+                  {!item.read && (
+                    <View style={styles.unreadDot}>
+                      <LinearGradient
+                        colors={[COLORS.accent, '#FF6B35']}
+                        style={styles.dotGradient}
+                      />
+                    </View>
+                  )}
                 </View>
               </TouchableOpacity>
             </Animated.View>
@@ -242,6 +328,23 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 5,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  headerIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   logo: {
     fontSize: 24,
@@ -282,7 +385,7 @@ const styles = StyleSheet.create({
     marginLeft: 16,
   },
   card: {
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     marginHorizontal: 16,
     marginBottom: 12,
@@ -295,6 +398,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   row: {
     flexDirection: "row",
@@ -307,7 +412,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
-    backgroundColor: '#e4e6eb',
+    backgroundColor: COLORS.background,
     overflow: 'hidden',
   },
   avatar: {
@@ -362,7 +467,6 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   markAllBtn: {
-    backgroundColor: COLORS.accent,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -372,12 +476,99 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontWeight: 'bold',
     fontSize: 14,
+    marginLeft: 4,
   },
   unreadCard: {
     shadowColor: COLORS.accent,
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 4,
-    backgroundColor: '#fffbe6',
+    backgroundColor: '#FFF8E1',
+    borderColor: COLORS.accent,
+  },
+  statsContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: COLORS.card,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 10,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: COLORS.lightText,
+    marginTop: 4,
+  },
+  markAllGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  unreadAvatar: {
+    backgroundColor: '#f0f0f0', // Slightly lighter background for unread
+  },
+  iconGradient: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notificationContent: {
+    flex: 1,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  confirmBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  declineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  actionGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  unreadDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginLeft: 8,
+  },
+  dotGradient: {
+    flex: 1,
+    borderRadius: 5,
   },
 });

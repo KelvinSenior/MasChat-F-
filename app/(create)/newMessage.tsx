@@ -1,14 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
-import { Text, View, TextInput, TouchableOpacity, Image, ScrollView, StyleSheet, StatusBar, Platform, FlatList, ActivityIndicator } from 'react-native';
+import { Text, View, TextInput, TouchableOpacity, Image, ScrollView, StyleSheet, StatusBar, Platform, FlatList, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import { friendService, User } from '../lib/services/friendService';
 
 // Color Palette (matching home/friends screens)
 const COLORS = {
-  primary: '#0A2463',  // Deep Blue
+  primary: '#3A8EFF',  // Deep Blue
   accent: '#FF7F11',   // Vibrant Orange
   background: '#F5F7FA',
   white: '#FFFFFF',
@@ -23,6 +23,7 @@ export default function NewMessage() {
   const [suggestions, setSuggestions] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const router = useRouter();
   const { user } = useAuth();
 
@@ -96,10 +97,46 @@ export default function NewMessage() {
     });
   };
 
+  // AI image generation for direct message
+  const generateAIImageAndSend = async (recipient: User) => {
+    Alert.prompt('AI Image Message', 'Describe the image to send:', async (prompt) => {
+      if (!prompt) return;
+      setAiLoading(true);
+      try {
+        const url = 'https://open-ai21.p.rapidapi.com/texttoimage2';
+        const options = {
+          method: 'POST',
+          headers: {
+            'x-rapidapi-key': '355060685fmsh742abd58eb438d7p1f4d66jsn22cd506769c9',
+            'x-rapidapi-host': 'open-ai21.p.rapidapi.com',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ text: prompt }),
+        };
+        const response = await fetch(url, options);
+        const result = await response.json();
+        if (result && result.generated_image) {
+          // Navigate to chat screen with the generated image
+          router.push({
+            pathname: '/screens/ChatScreen',
+            params: { recipient: JSON.stringify(recipient), aiImage: result.generated_image }
+          });
+        } else {
+          Alert.alert('Error', 'Failed to generate image.');
+        }
+      } catch (error) {
+        Alert.alert('Error', 'Failed to generate image.');
+      } finally {
+        setAiLoading(false);
+      }
+    });
+  };
+
   const renderUserItem = ({ item }: { item: User }) => (
     <TouchableOpacity 
       style={styles.userItem}
       onPress={() => startConversation(item)}
+      onLongPress={() => generateAIImageAndSend(item)}
     >
       <Image 
         source={{ uri: item.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} 
@@ -133,7 +170,7 @@ export default function NewMessage() {
       
       {/* Header */}
       <LinearGradient
-        colors={[COLORS.primary, '#1A4B8C']}
+        colors={[COLORS.primary, '#2B6CD9']}
         style={[styles.header, { paddingTop: Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 0) + 10 }]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}

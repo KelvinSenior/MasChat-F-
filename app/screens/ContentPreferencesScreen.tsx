@@ -19,7 +19,7 @@ import { settingsService, UserSettings } from '../lib/services/settingsService';
 
 // Color Palette
 const COLORS = {
-  primary: '#0A2463',
+  primary: '#3A8EFF',
   accent: '#FF7F11',
   background: '#F5F7FA',
   white: '#FFFFFF',
@@ -238,7 +238,7 @@ export default function ContentPreferencesScreen() {
       
       {/* Header */}
       <LinearGradient
-        colors={[COLORS.primary, '#1A4B8C']}
+        colors={[COLORS.primary, '#2B6CD9']}
         style={[styles.header, { paddingTop: Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 0) + 10 }]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}

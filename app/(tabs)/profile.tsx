@@ -25,7 +25,7 @@ import client from '../api/client';
 
 // Color Palette
 const COLORS = {
-  primary: '#0A2463',  // Deep Blue
+  primary: '#3A8EFF',  // New Blue
   accent: '#FF7F11',   // Vibrant Orange
   background: '#F5F7FA',
   white: '#FFFFFF',
@@ -58,6 +58,7 @@ export default function Profile() {
   const [fullscreenVideoPaused, setFullscreenVideoPaused] = useState(false);
   const [fullscreenVideoMuted, setFullscreenVideoMuted] = useState(false);
   const fullscreenVideoRef = React.useRef<any>(null);
+  const [videoLoading, setVideoLoading] = useState<{ [key: string]: boolean }>({});
 
   const tabs = ['Posts', 'About', 'Videos', 'Photos'];
 
@@ -292,15 +293,27 @@ export default function Profile() {
                           onPress={() => setPlayingVideoId(post.id)}
                           style={{ width: '100%', height: '100%' }}
                         >
-                          <Video
-                            source={{ uri: post.videoUrl || '' }}
-                            style={{ width: '100%', height: 220 }}
-                            resizeMode={ResizeMode.COVER}
-                            shouldPlay={playingVideoId === post.id}
-                            isLooping
-                            isMuted={false}
-                            onError={e => Alert.alert('Video Error', 'This video cannot be played.')}
-                          />
+                          {videoLoading[post.id] && (
+                            <ActivityIndicator size="large" color="#fff" style={{ position: 'absolute', top: '50%', left: '50%', zIndex: 10 }} />
+                          )}
+                          {post.videoUrl ? (
+                            <Video
+                              source={{ uri: post.videoUrl || '' }}
+                              style={{ width: '100%', height: 220 }}
+                              resizeMode={ResizeMode.COVER}
+                              shouldPlay={playingVideoId === post.id}
+                              isLooping
+                              isMuted={true}
+                              onLoadStart={() => setVideoLoading(v => ({ ...v, [post.id]: true }))}
+                              onReadyForDisplay={() => setVideoLoading(v => ({ ...v, [post.id]: false }))}
+                              onError={e => {
+                                setVideoLoading(v => ({ ...v, [post.id]: false }));
+                                Alert.alert('Video Error', 'This video cannot be played.');
+                              }}
+                            />
+                          ) : (
+                            <Text style={{ color: '#fff', textAlign: 'center', marginTop: 40 }}>Video unavailable</Text>
+                          )}
                           {/* Play/Pause button overlay */}
                           <TouchableOpacity
                             style={{ position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -24 }, { translateY: -24 }], zIndex: 2 }}
@@ -605,8 +618,16 @@ export default function Profile() {
                   isLooping
                   isMuted={fullscreenVideoMuted}
                   useNativeControls={true}
-                  onError={e => Alert.alert('Video Error', 'This video cannot be played.')}
+                  onLoadStart={() => setVideoLoading(v => ({ ...v, fullscreen: true }))}
+                  onReadyForDisplay={() => setVideoLoading(v => ({ ...v, fullscreen: false }))}
+                  onError={e => {
+                    setVideoLoading(v => ({ ...v, fullscreen: false }));
+                    Alert.alert('Video Error', 'This video cannot be played.');
+                  }}
                 />
+                {videoLoading.fullscreen && (
+                  <ActivityIndicator size="large" color="#fff" style={{ position: 'absolute', top: '50%', left: '50%', zIndex: 10 }} />
+                )}
                 {/* Mute button at top left */}
                 <TouchableOpacity style={{ position: 'absolute', top: 40, left: 20 }} onPress={() => setFullscreenVideoMuted(m => !m)}>
                   <Ionicons name={fullscreenVideoMuted ? "volume-mute" : "volume-high"} size={36} color="#fff" />

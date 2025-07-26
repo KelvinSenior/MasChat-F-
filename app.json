@@ -11,20 +11,25 @@
     "splash": {
       "image": "./assets/GROUP 88-MasChat.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0A2463"
+      "backgroundColor": "#4361EE"
     },
     "ios": {
       "supportsTablet": true,
       "splash": {
         "image": "./assets/GROUP 88-MasChat.png",
         "resizeMode": "contain",
-        "backgroundColor": "#0A2463"
+        "backgroundColor": "#4361EE"
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#4361EE"
+      },
+      "splash": {
+        "image": "./assets/GROUP 88-MasChat.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#4361EE"
       },
       "edgeToEdgeEnabled": true
     },
@@ -38,9 +43,9 @@
       [
         "expo-splash-screen",
         {
-          "image": "",
+          "image": "./assets/GROUP 88-MasChat.png",
           "resizeMode": "contain",
-          "backgroundColor": "#F5F7FA"
+          "backgroundColor": "#4361EE"
         }
       ],
       [

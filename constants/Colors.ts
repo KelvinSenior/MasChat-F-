@@ -10,13 +10,13 @@ export const Colors = {
   light: {
     text: '#11181C',
     background: '#F8FAFC',
-    tint: '#2563eb', // Modern blue
+    tint: '#2563eb', // Modern blue OR 3A8Eff
     icon: '#64748B',
     tabIconDefault: '#94A3B8',
     tabIconSelected: '#2563eb',
-    primary: '#2563eb', // Blue
+    primary: '#2563eb', // Blue OR 3A8Eff
     secondary: '#7c3aed', // Purple
-    accent: '#f59e42', // Orange
+    accent: '#f59e42', // Orange or FF9C43
     surface: '#fff',
     card: '#f1f5f9',
     border: '#e2e8f0',
@@ -35,9 +35,9 @@ export const Colors = {
     icon: '#9BA1A6',
     tabIconDefault: '#64748B',
     tabIconSelected: '#60a5fa',
-    primary: '#60a5fa', // Blue
+    primary: '#60a5fa', // Blue 
     secondary: '#a78bfa', // Purple
-    accent: '#fbbf24', // Orange
+    accent: '#fbbf24', // Orange 
     surface: '#23272F',
     card: '#1e293b',
     border: '#334155',

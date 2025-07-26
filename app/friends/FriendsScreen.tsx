@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Image } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Image, Alert } from 'react-native';
 import FriendCard from './FriendCard';
 import { useAuth } from '../context/AuthContext';
 import { friendService } from '../lib/services/friendService';
@@ -10,7 +10,7 @@ import { useFocusEffect } from '@react-navigation/native';
 
 // Color Palette (matching home screen)
 const COLORS = {
-  primary: '#0A2463',  // Deep Blue
+  primary: '#3A8EFF',  // Deep Blue
   accent: '#FF7F11',   // Vibrant Orange
   background: '#F5F7FA',
   white: '#FFFFFF',
@@ -29,6 +29,8 @@ export default function FriendsScreen() {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiImage, setAiImage] = useState<string | null>(null);
   const router = useRouter();
   const { user } = useAuth();
 
@@ -113,11 +115,42 @@ export default function FriendsScreen() {
     ));
   };
 
+  // AI image generation for friendship badge
+  const generateAIFriendBadge = async () => {
+    Alert.prompt('AI Friendship Badge', 'Describe a fun badge or image for your friends:', async (prompt) => {
+      if (!prompt) return;
+      setAiLoading(true);
+      try {
+        const url = 'https://open-ai21.p.rapidapi.com/texttoimage2';
+        const options = {
+          method: 'POST',
+          headers: {
+            'x-rapidapi-key': '355060685fmsh742abd58eb438d7p1f4d66jsn22cd506769c9',
+            'x-rapidapi-host': 'open-ai21.p.rapidapi.com',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ text: prompt }),
+        };
+        const response = await fetch(url, options);
+        const result = await response.json();
+        if (result && result.generated_image) {
+          setAiImage(result.generated_image);
+        } else {
+          Alert.alert('Error', 'Failed to generate image.');
+        }
+      } catch (error) {
+        Alert.alert('Error', 'Failed to generate image.');
+      } finally {
+        setAiLoading(false);
+      }
+    });
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <LinearGradient
-        colors={[COLORS.primary, '#1A4B8C']}
+        colors={[COLORS.primary, '#2B6CD9']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
@@ -181,6 +214,10 @@ export default function FriendsScreen() {
           >
             <Text style={styles.tabText}>Requests</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.tabButton} onPress={generateAIFriendBadge} disabled={aiLoading}>
+            <Ionicons name="sparkles" size={18} color={COLORS.accent} />
+            <Text style={styles.tabText}>AI Badge</Text>
+          </TouchableOpacity>
         </ScrollView>
       </View>
 
@@ -194,6 +231,12 @@ export default function FriendsScreen() {
       {/* Friends List */}
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         {renderContent()}
+        {aiImage && (
+          <View style={{ alignItems: 'center', marginVertical: 16 }}>
+            <Text style={{ color: COLORS.primary, fontWeight: 'bold', marginBottom: 8 }}>Your AI Badge</Text>
+            <Image source={{ uri: aiImage }} style={{ width: 120, height: 120, borderRadius: 60, borderWidth: 2, borderColor: COLORS.accent }} />
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -272,6 +315,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   tabButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 8,
     paddingHorizontal: 20,
     borderRadius: 20,

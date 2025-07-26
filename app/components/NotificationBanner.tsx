@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { useNotification } from '../context/NotificationContext';
 
 const COLORS = {
-  primary: '#0A2463',
+  primary: '#3A8EFF',
   accent: '#FF7F11',
   white: '#FFFFFF',
   text: '#333333',

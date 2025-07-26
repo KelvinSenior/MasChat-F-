@@ -46,7 +46,7 @@ export default function ReelViewerScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={[Colors.light.primary, '#1A4B8C']}
+        colors={[Colors.light.primary, '#2B6CD9']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}

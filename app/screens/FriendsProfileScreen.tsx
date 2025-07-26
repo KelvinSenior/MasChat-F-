@@ -24,7 +24,7 @@ import CommentDialog from "../components/CommentDialog";
 
 // Color Palette
 const COLORS = {
-  primary: '#0A2463',  // Deep Blue
+  primary: '#3A8EFF',  // Deep Blue
   accent: '#FF7F11',   // Vibrant Orange
   background: '#F5F7FA',
   white: '#FFFFFF',

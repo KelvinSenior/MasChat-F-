@@ -6,12 +6,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { View } from 'react-native';
 
 const COLORS = {
-  primary: '#0A2463', // Deep Blue
-  accent: '#FF7F11', // Vibrant Orange
-  gradientEnd: '#1A4B8C',
+  primary: '#3A8EFF', // New Blue
+  accent: '#FF7F11',
+  background: '#F5F7FA',
   white: '#FFFFFF',
   text: '#333333',
   lightText: '#888888',
+  gradientEnd: '#2B6CD9', // Darker shade of the new blue for gradient
 };
 
 function AnimatedTabIcon({ name, color, focused }: { name: any; color: string; focused: boolean }) {

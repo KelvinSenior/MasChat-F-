@@ -11,7 +11,7 @@ import client, { BASE_URL, testConnection } from '../api/client';
 
 // Color Palette (matching home screen)
 const COLORS = {
-  primary: '#0A2463',  // Deep Blue
+  primary: '#3A8EFF',  // New Blue
   accent: '#FF7F11',   // Vibrant Orange
   background: '#F5F7FA',
   white: '#FFFFFF',
@@ -118,19 +118,27 @@ export default function Signup() {
       );
 
       if (response.data && response.data.token && response.data.userId) {
-        const { token, userId, username: responseUsername } = response.data;
+        const { token, user, userId, username: responseUsername } = response.data;
         
-        const user = {
+        // Create user object with proper structure
+        const userObj = {
           id: userId,
-          username: responseUsername,
-          token: token,
-          ...(response.data.user || {})
+          username: responseUsername || user?.username,
+          email: user?.email,
+          fullName: user?.fullName,
+          profilePicture: user?.profilePicture,
+          coverPhoto: user?.coverPhoto,
+          bio: user?.bio,
+          createdAt: user?.createdAt,
+          updatedAt: user?.updatedAt,
+          verified: user?.verified,
+          ...user // Include any additional fields
         };
 
-        await signIn(token, user);
+        await signIn(token, userObj);
         await AsyncStorage.setItem('userToken', token);
-        await AsyncStorage.setItem('user', JSON.stringify(user));
-        await AsyncStorage.setItem('username', responseUsername);
+        await AsyncStorage.setItem('user', JSON.stringify(userObj));
+        await AsyncStorage.setItem('username', userObj.username);
         
         Toast.show({
           type: 'success',
@@ -194,10 +202,10 @@ export default function Signup() {
       
       {/* Header matching home screen */}
       <LinearGradient
-        colors={[COLORS.primary, '#1A4B8C']}
+        colors={[COLORS.primary, '#2B6CD9']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
+        end={{ x: 1, y: 1 }}
       >
         <Text style={styles.logo}>
           Mas<Text style={{ color: COLORS.accent }}>Chat</Text>

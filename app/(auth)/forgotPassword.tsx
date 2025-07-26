@@ -9,7 +9,7 @@ import client from '../api/client';
 
 // Color Palette (matching login screen)
 const COLORS = {
-  primary: '#0A2463',  // Deep Blue
+  primary: '#3A8EFF',  // New Blue
   accent: '#FF7F11',   // Vibrant Orange
   background: '#F5F7FA',
   white: '#FFFFFF',
@@ -90,7 +90,7 @@ export default function ForgotPassword() {
       
       {/* Header matching login screen */}
       <LinearGradient
-        colors={[COLORS.primary, '#1A4B8C']}
+        colors={[COLORS.primary, '#2B6CD9']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
@@ -130,7 +130,7 @@ export default function ForgotPassword() {
             disabled={loading}
           >
             <LinearGradient
-              colors={loading ? ['#ccc', '#ccc'] : [COLORS.primary, '#1A4B8C']}
+              colors={loading ? ['#ccc', '#ccc'] : [COLORS.primary, '#2B6CD9']}
               style={styles.buttonGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}

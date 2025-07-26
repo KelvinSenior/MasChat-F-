@@ -9,7 +9,7 @@ import { Video, ResizeMode } from 'expo-av';
 import CommentDialog from "../components/CommentDialog";
 
 const COLORS = {
-  primary: '#0A2463',
+  primary: '#3A8EFF',
   accent: '#FF7F11',
   background: '#F5F7FA',
   white: '#FFFFFF',
@@ -30,6 +30,7 @@ export default function ReelsScreen() {
   const [optimisticLikes, setOptimisticLikes] = useState<{ [reelId: string]: string[] }>({});
   const [currentReelIndex, setCurrentReelIndex] = useState(0);
   const reelsScrollRef = useRef<ScrollView>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
     fetchAllReels();
@@ -87,11 +88,42 @@ export default function ReelsScreen() {
   // Get the current reel for header actions
   const currentReel = reels[currentReelIndex] || null;
 
+  // AI image generation for new reel
+  const generateAIReelImage = async () => {
+    Alert.prompt('AI Reel Image', 'Describe the image for your reel:', async (prompt) => {
+      if (!prompt) return;
+      setAiLoading(true);
+      try {
+        const url = 'https://open-ai21.p.rapidapi.com/texttoimage2';
+        const options = {
+          method: 'POST',
+          headers: {
+            'x-rapidapi-key': '355060685fmsh742abd58eb438d7p1f4d66jsn22cd506769c9',
+            'x-rapidapi-host': 'open-ai21.p.rapidapi.com',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ text: prompt }),
+        };
+        const response = await fetch(url, options);
+        const result = await response.json();
+        if (result && result.generated_image) {
+          router.push({ pathname: '/(create)/newReel', params: { aiImage: result.generated_image } });
+        } else {
+          Alert.alert('Error', 'Failed to generate image.');
+        }
+      } catch (error) {
+        Alert.alert('Error', 'Failed to generate image.');
+      } finally {
+        setAiLoading(false);
+      }
+    });
+  };
+
   return (
     <View style={styles.container}>
       {/* Header (updates for current reel) */}
       <LinearGradient
-        colors={[COLORS.primary, '#1A4B8C']}
+        colors={[COLORS.primary, '#2B6CD9']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
@@ -120,6 +152,10 @@ export default function ReelsScreen() {
           <Text style={styles.emptyText}>No reels yet.</Text>
           <TouchableOpacity style={styles.createBtn} onPress={() => router.push('/(create)/newReel')}>
             <Text style={styles.createBtnText}>Create New Reel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.createBtn} onPress={generateAIReelImage} disabled={aiLoading}>
+            <Ionicons name="sparkles" size={24} color={COLORS.accent} />
+            <Text style={styles.createBtnText}>{aiLoading ? 'Generating...' : 'AI Reel'}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -223,11 +259,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 24,
     paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
   },
   createBtnText: {
     color: COLORS.white,
     fontWeight: 'bold',
     fontSize: 16,
+    marginLeft: 8,
   },
   reelItem: {
     flex: 1,

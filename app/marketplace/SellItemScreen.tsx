@@ -4,9 +4,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import marketplaceService, { MarketplaceCategory } from '../lib/services/marketplaceService';
+import { useAuth } from '../context/AuthContext';
 
 const COLORS = {
-  primary: '#0A2463',
+  primary: '#3A8EFF',
   accent: '#FF7F11',
   background: '#F5F7FA',
   white: '#FFFFFF',
@@ -30,6 +31,8 @@ export default function SellItemScreen() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [summaryError, setSummaryError] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const { user } = useAuth();
 
   React.useEffect(() => {
     fetchCategories();
@@ -60,13 +63,16 @@ export default function SellItemScreen() {
   };
 
   const handleSubmit = async () => {
-    setSummaryError('');
-    const newErrors = validate();
-    setErrors(newErrors);
-    if (Object.keys(newErrors).length > 0) {
-      setSummaryError('Please fill all required fields.');
+    if (!title || !description || !price || !condition || !deliveryMethod || !location) {
+      Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
+
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to sell items');
+      return;
+    }
+
     setLoading(true);
     try {
       // Upload images to server and get URLs
@@ -81,7 +87,7 @@ export default function SellItemScreen() {
             name: `photo.jpg`,
             type: 'image/jpeg',
           } as any);
-          const res = await fetch('http://10.132.74.85:8080/api/marketplace/upload-image', {
+          const res = await fetch('http://10.94.219.125:8080/api/marketplace/upload-image', {
             method: 'POST',
             body: formData,
             headers: { 'Content-Type': 'multipart/form-data' },
@@ -90,24 +96,60 @@ export default function SellItemScreen() {
           uploadedImages.push(url.replace(/"/g, ''));
         }
       }
-      await marketplaceService.createItem({
+      const itemData = {
         title,
         description,
         price: parseFloat(price),
         negotiable,
-        category: category || undefined,
         condition,
-        images: uploadedImages,
         deliveryMethod,
         location,
+        images: uploadedImages,
+        sellerId: user.id, // Always set the current user as seller
+        categoryId: category?.id,
         status: 'active',
-      });
-      Alert.alert('Success', 'Item listed successfully!');
-      router.back();
+      };
+      await marketplaceService.createItem(itemData);
+      Alert.alert('Success', 'Item listed successfully!', [
+        { text: 'OK', onPress: () => router.back() }
+      ]);
     } catch (e) {
       setSummaryError('Failed to list item. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // AI image generation
+  const generateAIImage = async () => {
+    if (!title.trim() && !description.trim()) {
+      Alert.alert('Error', 'Please enter a title or description to generate an image.');
+      return;
+    }
+    setAiLoading(true);
+    try {
+      const prompt = title || description;
+      const url = 'https://open-ai21.p.rapidapi.com/texttoimage2';
+      const options = {
+        method: 'POST',
+        headers: {
+          'x-rapidapi-key': '355060685fmsh742abd58eb438d7p1f4d66jsn22cd506769c9',
+          'x-rapidapi-host': 'open-ai21.p.rapidapi.com',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: prompt }),
+      };
+      const response = await fetch(url, options);
+      const result = await response.json();
+      if (result && result.generated_image) {
+        setImages(prev => [...prev, result.generated_image]);
+      } else {
+        Alert.alert('Error', 'Failed to generate image.');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to generate image.');
+    } finally {
+      setAiLoading(false);
     }
   };
 
@@ -131,6 +173,10 @@ export default function SellItemScreen() {
             <Ionicons name="add" size={32} color={COLORS.primary} />
           </TouchableOpacity>
         )}
+        <TouchableOpacity style={styles.addImageBtn} onPress={generateAIImage} disabled={aiLoading}>
+          <Ionicons name="sparkles" size={32} color={COLORS.accent} />
+          {aiLoading && <Text style={{ color: COLORS.accent, fontWeight: 'bold', fontSize: 12 }}>AI...</Text>}
+        </TouchableOpacity>
       </ScrollView>
       {errors.images && <Text style={styles.error}>{errors.images}</Text>}
       {/* Title */}

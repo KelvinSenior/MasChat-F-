@@ -4,14 +4,16 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import marketplaceService, { MarketplaceItem, MarketplaceReview } from '../lib/services/marketplaceService';
 import { useAuth } from '../context/AuthContext';
+import { messageService } from '../lib/services/messageService';
 
 const COLORS = {
-  primary: '#0A2463',
+  primary: '#3A8EFF',
   accent: '#FF7F11',
   background: '#F5F7FA',
   white: '#FFFFFF',
   text: '#333333',
   lightText: '#888888',
+  success: '#4CAF50',
 };
 
 export default function MarketplaceItemScreen() {
@@ -29,10 +31,13 @@ export default function MarketplaceItemScreen() {
 
   const fetchData = async () => {
     setLoading(true);
+    console.log('Fetching marketplace item with ID:', itemId);
     const [itemData, reviewData] = await Promise.all([
       marketplaceService.getItem(Number(itemId)),
       marketplaceService.getReviews(Number(itemId)),
     ]);
+    console.log('Fetched item data:', itemData);
+    console.log('Item seller:', itemData?.seller);
     setItem(itemData);
     setReviews(reviewData);
     setLoading(false);
@@ -40,28 +45,74 @@ export default function MarketplaceItemScreen() {
 
   const handleBuy = async () => {
     if (!user || !item) return;
+    if (!item.seller) {
+      Alert.alert('Error', 'Seller information not available. Please try again.');
+      return;
+    }
     setBuying(true);
     try {
-      await marketplaceService.createOrder({
-        itemId: item.id,
-        buyerId: user.id,
-        sellerId: item.seller.id,
-        price: item.price,
-        status: 'pending',
-        deliveryMethod: item.deliveryMethod,
-        paymentMethod: 'Cash',
-        fee: 0,
-      });
-      Alert.alert('Success', 'Order placed! The seller will be notified.');
-      router.back();
+      // Send message to seller with product info and image
+      const productMessage = `Hi, I'm interested in your product: ${item.title} ($${item.price})`;
+      const imageUrl = item.images && item.images.length > 0 ? item.images[0] : undefined;
+      
+      let messageSent = false;
+      if (imageUrl) {
+        try {
+          await messageService.sendImageMessage(user.id, item.seller?.id, imageUrl, productMessage);
+          messageSent = true;
+        } catch (imageError) {
+          console.error('Failed to send image message, trying text only:', imageError);
+          // Fallback to text message if image fails
+          await messageService.sendMessage(user.id, item.seller?.id, productMessage);
+          messageSent = true;
+        }
+      } else {
+        await messageService.sendMessage(user.id, item.seller?.id, productMessage);
+        messageSent = true;
+      }
+      
+      if (messageSent) {
+        // Navigate to chat with seller
+        const recipient = {
+          id: item.seller?.id || '',
+          username: item.seller?.username || '',
+          name: item.seller?.fullName || item.seller?.username || 'Unknown Seller',
+          image: item.seller?.profilePicture || '',
+          profilePicture: item.seller?.profilePicture || '',
+          fullName: item.seller?.fullName || '',
+        };
+        router.push({ pathname: '/screens/ChatScreen', params: { recipient: JSON.stringify(recipient) } });
+      }
     } catch (e) {
-      Alert.alert('Error', 'Failed to place order. Please try again.');
+      console.error('Buy function error:', e);
+      Alert.alert('Error', 'Failed to contact seller. Please try again.');
     } finally {
       setBuying(false);
     }
   };
 
+  const testImageColumn = async () => {
+    try {
+      const result = await messageService.testImageColumn();
+      Alert.alert('Test Result', `Status: ${result.status}\nMessage: ${result.message}`);
+    } catch (error: any) {
+      Alert.alert('Test Failed', `Error: ${error.response?.data?.message || error.message}`);
+    }
+  };
+
   if (loading || !item) return <ActivityIndicator style={{ flex: 1, marginTop: 80 }} size="large" color={COLORS.primary} />;
+
+  // Check if seller data is available
+  if (!item.seller) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 80 }}>
+        <Text style={{ color: COLORS.text, fontSize: 16 }}>Seller information not available</Text>
+        <TouchableOpacity style={{ marginTop: 16, padding: 12, backgroundColor: COLORS.primary, borderRadius: 8 }} onPress={fetchData}>
+          <Text style={{ color: COLORS.white }}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -83,18 +134,36 @@ export default function MarketplaceItemScreen() {
         <Text style={styles.location}>{item.location}</Text>
         <Text style={styles.condition}>{item.condition}</Text>
         <Text style={styles.description}>{item.description}</Text>
-        <TouchableOpacity style={styles.sellerBox} onPress={() => router.push({ pathname: '/screens/FriendsProfileScreen', params: { userId: item.seller.id } })}>
-          <Image source={{ uri: item.seller.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} style={styles.sellerAvatar} />
-          <Text style={styles.sellerName}>{item.seller.fullName || item.seller.username}</Text>
+        <TouchableOpacity style={styles.sellerBox} onPress={() => router.push({ pathname: '/screens/FriendsProfileScreen', params: { userId: item.seller?.id } })}>
+          <Image source={{ uri: item.seller?.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} style={styles.sellerAvatar} />
+          <Text style={styles.sellerName}>{item.seller?.fullName || item.seller?.username || 'Unknown Seller'}</Text>
         </TouchableOpacity>
         <View style={styles.actionRow}>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => router.push({ pathname: '/marketplace/MarketplaceChatScreen', params: { userId: item.seller.id } })}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => {
+            const recipient = {
+              id: item.seller?.id || '',
+              username: item.seller?.username || '',
+              name: item.seller?.fullName || item.seller?.username || 'Unknown Seller',
+              image: item.seller?.profilePicture || '',
+              profilePicture: item.seller?.profilePicture || '',
+              fullName: item.seller?.fullName || '',
+            };
+            router.push({ pathname: '/screens/ChatScreen', params: { recipient: JSON.stringify(recipient) } });
+          }}>
             <Ionicons name="chatbubble-ellipses" size={22} color={COLORS.primary} />
             <Text style={styles.actionText}>Chat</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.success }]} onPress={() => router.push({ pathname: '/marketplace/BuyItemScreen', params: { itemId: item.id } })}>
+            <Ionicons name="card" size={22} color={COLORS.white} />
+            <Text style={[styles.actionText, { color: COLORS.white }]}>Buy Now</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.accent }]} onPress={handleBuy} disabled={buying}>
             <Ionicons name="cart" size={22} color={COLORS.white} />
             <Text style={[styles.actionText, { color: COLORS.white }]}>{buying ? 'Buying...' : 'Buy'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#FF6B6B' }]} onPress={testImageColumn}>
+            <Ionicons name="bug" size={22} color={COLORS.white} />
+            <Text style={[styles.actionText, { color: COLORS.white }]}>Test</Text>
           </TouchableOpacity>
         </View>
       </View>

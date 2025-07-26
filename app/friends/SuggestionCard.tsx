@@ -7,7 +7,7 @@ import client, { BASE_URL } from '../api/client';
 
 // Color Palette (matching home screen)
 const COLORS = {
-  primary: '#0A2463',  // Deep Blue
+  primary: '#3A8EFF',  // Deep Blue
   accent: '#FF7F11',   // Vibrant Orange
   background: '#F5F7FA',
   white: '#FFFFFF',

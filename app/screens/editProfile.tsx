@@ -26,7 +26,7 @@ import client, { BASE_URL } from '../api/client';
 
 // Color Palette (matching home screen)
 const COLORS = {
-  primary: '#0A2463',  // Deep Blue
+  primary: '#3A8EFF',  // Deep Blue
   accent: '#FF7F11',   // Vibrant Orange
   background: '#F5F7FA',
   white: '#FFFFFF',
@@ -86,6 +86,8 @@ export default function EditProfile() {
   const [tempValue, setTempValue] = useState('');
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const [aiLoadingProfile, setAiLoadingProfile] = useState(false);
+  const [aiLoadingCover, setAiLoadingCover] = useState(false);
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
@@ -336,6 +338,67 @@ export default function EditProfile() {
     );
   };
 
+  // AI image generation for profile picture
+  const generateAIProfilePic = async () => {
+    Alert.prompt('AI Profile Picture', 'Describe your desired profile picture:', async (prompt) => {
+      if (!prompt) return;
+      setAiLoadingProfile(true);
+      try {
+        const url = 'https://open-ai21.p.rapidapi.com/texttoimage2';
+        const options = {
+          method: 'POST',
+          headers: {
+            'x-rapidapi-key': '355060685fmsh742abd58eb438d7p1f4d66jsn22cd506769c9',
+            'x-rapidapi-host': 'open-ai21.p.rapidapi.com',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ text: prompt }),
+        };
+        const response = await fetch(url, options);
+        const result = await response.json();
+        if (result && result.generated_image) {
+          setProfileData(prev => ({ ...prev, profilePicture: result.generated_image }));
+        } else {
+          Alert.alert('Error', 'Failed to generate image.');
+        }
+      } catch (error) {
+        Alert.alert('Error', 'Failed to generate image.');
+      } finally {
+        setAiLoadingProfile(false);
+      }
+    });
+  };
+  // AI image generation for cover photo
+  const generateAICoverPhoto = async () => {
+    Alert.prompt('AI Cover Photo', 'Describe your desired cover photo:', async (prompt) => {
+      if (!prompt) return;
+      setAiLoadingCover(true);
+      try {
+        const url = 'https://open-ai21.p.rapidapi.com/texttoimage2';
+        const options = {
+          method: 'POST',
+          headers: {
+            'x-rapidapi-key': '355060685fmsh742abd58eb438d7p1f4d66jsn22cd506769c9',
+            'x-rapidapi-host': 'open-ai21.p.rapidapi.com',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ text: prompt }),
+        };
+        const response = await fetch(url, options);
+        const result = await response.json();
+        if (result && result.generated_image) {
+          setProfileData(prev => ({ ...prev, coverPhoto: result.generated_image }));
+        } else {
+          Alert.alert('Error', 'Failed to generate image.');
+        }
+      } catch (error) {
+        Alert.alert('Error', 'Failed to generate image.');
+      } finally {
+        setAiLoadingCover(false);
+      }
+    });
+  };
+
   if (!user) {
     return (
       <View style={styles.loadingContainer}>
@@ -357,7 +420,7 @@ export default function EditProfile() {
       >
         {/* Header */}
         <LinearGradient
-          colors={[COLORS.primary, '#1A4B8C']}
+          colors={[COLORS.primary, '#2B6CD9']}
           style={styles.header}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
@@ -389,9 +452,14 @@ export default function EditProfile() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Profile Picture</Text>
-            <TouchableOpacity onPress={() => pickImage('profilePicture')}>
-              <Text style={styles.editLink}>Edit</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity onPress={() => pickImage('profilePicture')}>
+                <Text style={styles.editLink}>Edit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={generateAIProfilePic} disabled={aiLoadingProfile} style={{ marginLeft: 12 }}>
+                <Ionicons name="sparkles" size={20} color={COLORS.accent} />
+              </TouchableOpacity>
+            </View>
           </View>
           <View style={styles.imageContainer}>
             <Image
@@ -514,9 +582,14 @@ export default function EditProfile() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Cover Photo</Text>
-            <TouchableOpacity onPress={() => pickImage('coverPhoto')}>
-              <Text style={styles.editLink}>Edit</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity onPress={() => pickImage('coverPhoto')}>
+                <Text style={styles.editLink}>Edit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={generateAICoverPhoto} disabled={aiLoadingCover} style={{ marginLeft: 12 }}>
+                <Ionicons name="sparkles" size={20} color={COLORS.accent} />
+              </TouchableOpacity>
+            </View>
           </View>
           <Image
             source={{ uri: profileData.coverPhoto }}
@@ -524,6 +597,19 @@ export default function EditProfile() {
           />
         </View>
 
+        {/* Full Name */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Full Name</Text>
+          <TextInput
+            style={[styles.textInput, { marginTop: 8, marginBottom: 8 }]}
+            value={profileData.fullName}
+            onChangeText={text => setProfileData(prev => ({ ...prev, fullName: text }))}
+            placeholder="Enter your full name"
+            placeholderTextColor={COLORS.lightText}
+            autoCapitalize="words"
+            maxLength={50}
+          />
+        </View>
         {/* Bio */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Bio</Text>

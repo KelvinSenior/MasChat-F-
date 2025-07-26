@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
 // Use the same BASE_URL as your login screen
-export const BASE_URL = "http://10.132.74.85:8080/api";
+export const BASE_URL = "http://10.94.219.125:8080/api";
 
 const client = axios.create({
   baseURL: BASE_URL,
@@ -29,10 +29,10 @@ client.interceptors.request.use(
 // Utility function to test backend connection
 export const testConnection = async () => {
   try {
-    const response = await client.get('/auth/test-connection', {
+    const response = await client.get('/auth/test', {
       timeout: 5000
     });
-    return response.data === "Backend is reachable";
+    return response.data === "Backend connection successful";
   } catch (error) {
     console.error("Backend connection test failed:", error);
     return false;

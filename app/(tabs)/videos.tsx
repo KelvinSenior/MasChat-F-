@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Dimensions, AppState } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Dimensions, AppState, Share } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialIcons, Feather, FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -32,6 +32,7 @@ export default function Videos() {
   const reelsScrollRef = useRef<ScrollView>(null);
   const videoRefs = useRef<any[]>([]);
   const appState = useRef(AppState.currentState);
+  const [videoLoading, setVideoLoading] = useState<{ [key: number]: boolean }>({});
 
   useEffect(() => {
     fetchAllReels();
@@ -109,6 +110,25 @@ export default function Videos() {
   const handleShare = async (reelId: string) => {
     await shareReel(reelId || '');
     fetchAllReels();
+  };
+
+  // Helper to share reel media
+  const handleShareMedia = async (reel: Reel) => {
+    try {
+      const r = reel as Reel & { videoUrl?: string; imageUrl?: string };
+      const url = r.videoUrl || r.imageUrl || r.mediaUrl;
+      if (!url) {
+        Alert.alert('Nothing to share', 'No media found in this reel.');
+        return;
+      }
+      await Share.share({
+        message: url,
+        url: url,
+        title: 'Check out this reel on MasChat!'
+      });
+    } catch (error) {
+      Alert.alert('Error', 'Failed to share media.');
+    }
   };
 
   const handleReelScroll = (event: any) => {
@@ -204,21 +224,29 @@ export default function Videos() {
                 onPress={() => handleVideoPress(index)}
               >
                 {(reel as any).videoUrl ? (
-                  <Video
-                    ref={ref => { videoRefs.current[index] = ref; return undefined; }}
-                    source={{ uri: (reel as any).videoUrl }}
-                    style={styles.fullVideo}
-                    resizeMode={ResizeMode.COVER}
-                    shouldPlay={index === currentReelIndex && !paused}
-                    isLooping
-                    useNativeControls={false}
-                    isMuted={muted}
-                    rate={videoSpeed}
-                    onError={error => {
-                      Alert.alert('Video Error', 'This video cannot be played. Please try another reel.');
-                      console.error('Reel video error:', error);
-                    }}
-                  />
+                  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                    {videoLoading[index] && (
+                      <ActivityIndicator size="large" color="#fff" style={{ position: 'absolute', top: '50%', left: '50%', zIndex: 10 }} />
+                    )}
+                    <Video
+                      ref={ref => { videoRefs.current[index] = ref; return undefined; }}
+                      source={{ uri: (reel as any).videoUrl }}
+                      style={styles.fullVideo}
+                      resizeMode={ResizeMode.COVER}
+                      shouldPlay={index === currentReelIndex && !paused}
+                      isLooping
+                      useNativeControls={false}
+                      isMuted={true}
+                      rate={videoSpeed}
+                      onLoadStart={() => setVideoLoading(v => ({ ...v, [index]: true }))}
+                      onReadyForDisplay={() => setVideoLoading(v => ({ ...v, [index]: false }))}
+                      onError={error => {
+                        setVideoLoading(v => ({ ...v, [index]: false }));
+                        Alert.alert('Video Error', 'This video cannot be played. Please try another reel.');
+                        console.error('Reel video error:', error);
+                      }}
+                    />
+                  </View>
                 ) : (reel as any).imageUrl ? (
                   <Image source={{ uri: (reel as any).imageUrl }} style={styles.fullImage} resizeMode="cover" />
                 ) : null}
@@ -280,7 +308,7 @@ export default function Videos() {
 
                 {/* Share Button */}
                 <TouchableOpacity 
-                  onPress={() => handleShare(reel.id)} 
+                  onPress={() => handleShareMedia(reel)} 
                   style={styles.actionButton}
                 >
                   <Feather name="send" size={32} color="#fff" />

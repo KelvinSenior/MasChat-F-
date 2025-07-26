@@ -6,7 +6,7 @@ import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Status
 
 // Color Palette (matching home screen)
 const COLORS = {
-  primary: '#0A2463',  // Deep Blue
+  primary: '#3A8EFF',  // Deep Blue
   accent: '#FF7F11',   // Vibrant Orange
   background: '#F5F7FA',
   white: '#FFFFFF',
@@ -18,7 +18,7 @@ const settingsOptions = [
   {
     section: "Privacy & Security",
     data: [
-      { icon: <Ionicons name="lock-closed-outline" size={22} color="#0A2463" />, label: "Privacy Settings", route: "/screens/PrivacySettingsScreen" },
+      { icon: <Ionicons name="lock-closed-outline" size={22} color="#3A8EFF" />, label: "Privacy Settings", route: "/screens/PrivacySettingsScreen" },
       { icon: <Ionicons name="shield-outline" size={22} color="#FF7F11" />, label: "Security Settings", route: "/screens/SecuritySettingsScreen" },
       { icon: <Ionicons name="notifications-outline" size={22} color="#5c6bc0" />, label: "Notification Settings", route: "/screens/NotificationSettingsScreen" },
     ],
@@ -71,7 +71,7 @@ export default function SettingsScreen() {
       <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" translucent />
       {/* Header */}
       <LinearGradient
-        colors={[COLORS.primary, '#1A4B8C']}
+        colors={[COLORS.primary, '#2B6CD9']}
         style={[styles.header, { paddingTop: Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 0) + 10 }]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}

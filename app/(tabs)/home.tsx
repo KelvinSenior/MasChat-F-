@@ -2,64 +2,59 @@ import { Feather, FontAwesome, Ionicons, MaterialIcons } from "@expo/vector-icon
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState, useRef } from "react";
-import { Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, KeyboardAvoidingView, Platform, Dimensions, TouchableWithoutFeedback, PanResponder, Animated, FlatList } from "react-native";
-// TODO: Replace with expo-video when available in SDK 54
+import { Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, KeyboardAvoidingView, Platform, Dimensions, TouchableWithoutFeedback, PanResponder, Animated, FlatList, ActivityIndicator, Share } from "react-native";
 import { Video, ResizeMode } from 'expo-av';
 import CommentDialog from "../components/CommentDialog";
 import { useAuth } from '../context/AuthContext';
 import { getPosts, deletePost, Post, likePost, unlikePost, addComment, sharePost, fetchPostComments, PostComment } from '../lib/services/postService';
 import { fetchStories, Story, fetchStoriesByUser } from '../lib/services/storyService';
 
-// Color Palette
+// Modern Color Palette
 const COLORS = {
-  primary: '#0A2463',  // Deep Blue
-  accent: '#FF7F11',   // Vibrant Orange
-  background: '#F5F7FA',
-  white: '#FFFFFF',
-  text: '#333333',
-  lightText: '#888888',
+  primary: '#4361EE',    // Vibrant Blue
+  secondary: '#3A0CA3',  // Deep Purple
+  accent: '#FF7F11',     // Orange
+  background: '#F8F9FA',  // Light Gray
+  card: '#FFFFFF',       // White
+  text: '#212529',       // Dark Gray
+  lightText: '#6C757D',  // Medium Gray
+  border: '#E9ECEF',     // Light Border
+  success: '#4CC9F0',    // Teal
+  dark: '#1A1A2E',       // Dark Blue
 };
 
 const DEFAULT_PROFILE_PHOTO = "https://i.imgur.com/6XbK6bE.jpg";
 const DEVICE_WIDTH = Dimensions.get('window').width;
-const DEVICE_WIDTH_FULL = DEVICE_WIDTH;
+const DEVICE_HEIGHT = Dimensions.get('window').height;
 
-const LIKE_ACTIVE_COLOR = '#22c55e'; // Green
+const LIKE_ACTIVE_COLOR = '#FF3040'; // Red
 const LIKE_INACTIVE_COLOR = COLORS.lightText;
+const STORY_RING_COLORS = ['#FF9D00', '#FF7F11', '#FF6B35', '#FF8C42'] as const;
 
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [commentPostId, setCommentPostId] = useState<string | null>(null);
   const [stories, setStories] = useState<Story[]>([]);
   const [loadingStories, setLoadingStories] = useState(true);
   const [loadingPosts, setLoadingPosts] = useState(true);
-  const [commentModalPost, setCommentModalPost] = useState<Post | null>(null);
-  const [commentText, setCommentText] = useState('');
-  const [commentLoading, setCommentLoading] = useState(false);
-  const [comments, setComments] = useState<PostComment[]>([]);
-  const [playingVideos, setPlayingVideos] = useState<Set<string>>(new Set());
-  const [optimisticLikes, setOptimisticLikes] = useState<{ [postId: string]: string[] }>({});
-  const [showIntroVideo, setShowIntroVideo] = useState(false);
-  const [videoKey, setVideoKey] = useState(0); // To reset video
-  // 1. Ensure unique keys for all mapped elements
-  // 2. Add fullscreen modal state
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
   const [fullscreenMedia, setFullscreenMedia] = useState<{ type: 'image' | 'video', uri: string, id?: string } | null>(null);
   const [fullscreenIndex, setFullscreenIndex] = useState<number>(0);
-  const [showFullscreenControls, setShowFullscreenControls] = useState(false);
-  const fullscreenVideoRef = useRef<any>(null);
-  const fullscreenPan = useRef(new Animated.ValueXY()).current;
-  const [fullscreenVideoPaused, setFullscreenVideoPaused] = useState(false);
-  const [fullscreenVideoMuted, setFullscreenVideoMuted] = useState(false);
-  const [fullscreenScrollIndex, setFullscreenScrollIndex] = useState(0);
-  const fullscreenScrollRef = useRef<any>(null);
+  const [optimisticLikes, setOptimisticLikes] = useState<{ [postId: string]: string[] }>({});
+  const [showIntroVideo, setShowIntroVideo] = useState(false);
+  const [videoKey, setVideoKey] = useState(0);
   const [storyViewerVisible, setStoryViewerVisible] = useState(false);
   const [currentStoryUser, setCurrentStoryUser] = useState<{ userId: string, username: string, profilePicture?: string } | null>(null);
   const [currentUserStories, setCurrentUserStories] = useState<Story[]>([]);
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
+  const [videoLoading, setVideoLoading] = useState<{ [key: string]: boolean }>({});
+  const [doubleTapHeart, setDoubleTapHeart] = useState<{ postId: string; visible: boolean } | null>(null);
+  const [fullscreenImage, setFullscreenImage] = useState<{ uri: string; visible: boolean } | null>(null);
+  const heartAnimation = useRef(new Animated.Value(0)).current;
+  const doubleTapTimer = useRef<number | null>(null);
+  const lastTap = useRef<{ postId: string; time: number } | null>(null);
 
   // Group stories by user
   const storiesByUser = stories.reduce((acc, story) => {
@@ -77,50 +72,17 @@ export default function HomeScreen() {
     setStoryViewerVisible(true);
   };
 
-  // PanResponder for swipe-to-close (vertical) and horizontal for next/prev
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 20 || Math.abs(gestureState.dx) > 20,
-      onPanResponderMove: Animated.event([
-        null,
-        { dx: fullscreenPan.x, dy: fullscreenPan.y }
-      ], { useNativeDriver: false }),
-      onPanResponderRelease: (_, gestureState) => {
-        if (Math.abs(gestureState.dy) > 60) {
-          setFullscreenMedia(null);
-          fullscreenPan.setValue({ x: 0, y: 0 });
-        } else if (gestureState.dx > 60 && fullscreenIndex > 0) {
-          // Swipe right: previous
-          goToFullscreenIndex(fullscreenIndex - 1);
-          fullscreenPan.setValue({ x: 0, y: 0 });
-        } else if (gestureState.dx < -60 && fullscreenIndex < posts.length - 1) {
-          // Swipe left: next
-          goToFullscreenIndex(fullscreenIndex + 1);
-          fullscreenPan.setValue({ x: 0, y: 0 });
-        } else {
-          Animated.spring(fullscreenPan, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
-        }
-      },
-    })
-  ).current;
-
-  // Feed: auto-pause video when scrolled off screen
-  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
-    if (viewableItems.length > 0) {
-      const firstVisible = viewableItems[0].item;
-      setPlayingVideoId(firstVisible.videoUrl ? firstVisible.id : null);
-    }
-  }).current;
-
   useEffect(() => {
     fetchPosts();
     fetchAllStories();
   }, []);
-
-  // Cleanup videos when component unmounts
+ 
+  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
-      setPlayingVideos(new Set());
+      if (doubleTapTimer.current) {
+        clearTimeout(doubleTapTimer.current);
+      }
     };
   }, []);
 
@@ -155,62 +117,98 @@ export default function HomeScreen() {
   const handleLikePost = async (post: Post) => {
     if (!user) return;
     const alreadyLiked = (optimisticLikes[post.id] || post.likedBy || []).includes(user.id);
-    // Optimistic UI update
     setOptimisticLikes(prev => ({
       ...prev,
       [post.id]: alreadyLiked
         ? (prev[post.id] || post.likedBy || []).filter(id => id !== user.id)
         : [...(prev[post.id] || post.likedBy || []), user.id]
     }));
-    // Backend update
     try {
       if (alreadyLiked) {
         await unlikePost(post.id, user.id);
       } else {
         await likePost(post.id, user.id);
       }
-      // Do not call fetchPosts here to avoid resetting the scroll position
     } catch (err) {
       console.error('Like error:', err);
     }
   };
 
-  const handleSharePost = async (postId: string) => {
-    await sharePost(postId);
-    fetchPosts();
-  };
-
-  const handleAddPostComment = async () => {
-    if (!commentModalPost || !user || !commentText.trim()) return;
-    setCommentLoading(true);
-    await addComment(commentModalPost.id, user.id, commentText.trim());
-    setCommentText('');
-    setCommentLoading(false);
-    setCommentModalPost(null);
-    fetchPosts();
-  };
-
-  const openCommentModal = async (post: Post) => {
-    setCommentModalPost(post);
-    const data = await fetchPostComments(post.id);
-    setComments(data);
-  };
-
-  const toggleVideoPlayback = (postId: string) => {
-    setPlayingVideos(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(postId)) {
-        newSet.delete(postId);
-      } else {
-        newSet.add(postId);
+  const handleShareMedia = async (post: Post) => {
+    try {
+      const mediaUrl = post.videoUrl || post.imageUrl;
+      if (mediaUrl) {
+        await Share.share({
+          message: `Check out this post: ${post.content}`,
+          url: mediaUrl,
+        });
       }
-      return newSet;
-    });
+    } catch (error) {
+      console.error('Error sharing media:', error);
+    }
   };
 
-  const isVideoPlaying = (postId: string) => playingVideos.has(postId);
+  const handlePostTap = (post: Post) => {
+    if (!user) return;
+    
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 250; // 250ms for double tap (more responsive)
+    
+    if (lastTap.current && 
+        lastTap.current.postId === post.id && 
+        now - lastTap.current.time < DOUBLE_TAP_DELAY) {
+      // Double tap detected
+      if (doubleTapTimer.current) {
+        clearTimeout(doubleTapTimer.current);
+      }
+      lastTap.current = null;
+      
+      // Set the heart animation for this post
+      setDoubleTapHeart({ postId: post.id, visible: true });
+      
+      // Animate the heart
+      heartAnimation.setValue(0);
+      Animated.sequence([
+        Animated.timing(heartAnimation, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(heartAnimation, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setDoubleTapHeart(null);
+      });
+      
+      // Handle the like
+      handleLikePost(post);
+    } else {
+      // First tap - wait for potential double tap
+      lastTap.current = { postId: post.id, time: now };
+      if (doubleTapTimer.current) {
+        clearTimeout(doubleTapTimer.current);
+      }
+      doubleTapTimer.current = setTimeout(() => {
+        lastTap.current = null;
+      }, DOUBLE_TAP_DELAY);
+    }
+  };
 
-  // Helper function to navigate to appropriate profile screen
+  const handleVideoTap = (post: Post) => {
+    // Handle double-tap first
+    handlePostTap(post);
+    
+    // Then handle video play/pause
+    setPlayingVideoId(playingVideoId === post.id ? null : post.id);
+  };
+
+  const handleImageFullScreen = (imageUrl: string) => {
+    setFullscreenImage({ uri: imageUrl, visible: true });
+  };
+
   const navigateToProfile = (userId: string) => {
     if (userId === user?.id) {
       router.push('/(tabs)/profile');
@@ -219,68 +217,53 @@ export default function HomeScreen() {
     }
   };
 
-  // Helper to play only one video at a time in feed
-  const handlePlayPause = (postId: string) => {
-    setPlayingVideoId(prev => prev === postId ? null : postId);
-  };
-
-  // Helper to open fullscreen and set index
   const handleOpenFullscreen = (type: 'image' | 'video', uri: string, id?: string, idx?: number) => {
     setFullscreenMedia({ type, uri, id });
     setFullscreenIndex(idx ?? 0);
-    setShowFullscreenControls(false);
-  };
-
-  const goToFullscreenIndex = (idx: number) => {
-    const post = posts[idx];
-    if (!post) return;
-    if (post.imageUrl) {
-      setFullscreenMedia({ type: 'image', uri: post.imageUrl, id: post.id });
-    } else if (post.videoUrl) {
-      setFullscreenMedia({ type: 'video', uri: post.videoUrl, id: post.id });
-    }
-    setFullscreenIndex(idx);
-    setShowFullscreenControls(false);
   };
 
   if (!user) {
-    return <View style={styles.loadingContainer}><Text>User not found</Text></View>;
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
   }
 
-  // Stories logic
   const userStory = stories.find(s => s.userId === user?.id);
-  const friendsStories = stories.filter(s => s.userId !== user?.id);
-
-  const getLikeColor = (liked: boolean) => liked ? '#22c55e' : COLORS.lightText;
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Modern Header */}
       <LinearGradient
-        colors={[COLORS.primary, '#1A4B8C']}
+        colors={[COLORS.primary, COLORS.secondary]}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
       >
         <TouchableOpacity onPress={() => {
           setShowIntroVideo(true);
-          setVideoKey(prev => prev + 1); // Reset video
+          setVideoKey(prev => prev + 1);
         }}>
           <Text style={styles.logo}>
             Mas<Text style={{ color: COLORS.accent }}>Chat</Text>
           </Text>
         </TouchableOpacity>
+        
         <View style={styles.headerIcons}>
           <TouchableOpacity
             style={styles.iconBtn}
             onPress={() => setShowAddMenu(true)}
           >
-            <Ionicons name="add" size={24} color="white" />
+            <Ionicons name="add" size={28} color="white" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('../screens/SearchScreen')}>
             <Ionicons name="search" size={24} color="white" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('../screens/MessengerScreen')}>
+            <View style={styles.notificationBadge}>
+              <Text style={styles.notificationText}>3</Text>
+            </View>
             <Ionicons name="chatbubble-ellipses" size={24} color="white" />
           </TouchableOpacity>
         </View>
@@ -306,11 +289,15 @@ export default function HomeScreen() {
                 router.push("/(create)/newPost");
               }}
             >
-              <View style={[styles.menuIconBg, { backgroundColor: COLORS.primary }]}> 
+              <LinearGradient
+                colors={['#4361EE', '#3A0CA3']}
+                style={styles.menuIconBg}
+              >
                 <Ionicons name="create-outline" size={22} color="white" />
-              </View>
-              <Text style={styles.addMenuText}>Post</Text>
+              </LinearGradient>
+              <Text style={styles.addMenuText}>Create Post</Text>
             </TouchableOpacity>
+            
             <TouchableOpacity
               style={styles.addMenuItem}
               onPress={() => {
@@ -318,11 +305,15 @@ export default function HomeScreen() {
                 router.push("/(create)/newStory");
               }}
             >
-              <View style={[styles.menuIconBg, { backgroundColor: COLORS.accent }]}> 
-                <Ionicons name="images-outline" size={22} color="white" />
-              </View>
-              <Text style={styles.addMenuText}>Story</Text>
+              <LinearGradient
+                colors={['#FF7F11', '#FF6B35']}
+                style={styles.menuIconBg}
+              >
+                <Ionicons name="camera-outline" size={22} color="white" />
+              </LinearGradient>
+              <Text style={styles.addMenuText}>Add Story</Text>
             </TouchableOpacity>
+            
             <TouchableOpacity
               style={styles.addMenuItem}
               onPress={() => {
@@ -330,11 +321,15 @@ export default function HomeScreen() {
                 router.push("/(create)/newReel");
               }}
             >
-              <View style={[styles.menuIconBg, { backgroundColor: '#A259E6' }]}> 
+              <LinearGradient
+                colors={['#7209B7', '#560BAD']}
+                style={styles.menuIconBg}
+              >
                 <Ionicons name="film-outline" size={22} color="white" />
-              </View>
-              <Text style={styles.addMenuText}>Reels</Text>
+              </LinearGradient>
+              <Text style={styles.addMenuText}>Create Reel</Text>
             </TouchableOpacity>
+            
             <TouchableOpacity
               style={styles.addMenuItem}
               onPress={() => {
@@ -342,10 +337,13 @@ export default function HomeScreen() {
                 router.push("/(create)/LiveScreen");
               }}
             >
-              <View style={[styles.menuIconBg, { backgroundColor: '#0A2463' }]}> 
+              <LinearGradient
+                colors={['#F94144', '#F3722C']}
+                style={styles.menuIconBg}
+              >
                 <Ionicons name="radio-outline" size={22} color="white" />
-              </View>
-              <Text style={styles.addMenuText}>Live</Text>
+              </LinearGradient>
+              <Text style={styles.addMenuText}>Go Live</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -359,25 +357,27 @@ export default function HomeScreen() {
         onRequestClose={() => setShowIntroVideo(false)}
       >
         <TouchableWithoutFeedback onPress={() => setShowIntroVideo(false)}>
-          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center' }}>
-            <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={{ width: '90%', aspectRatio: 16/9, backgroundColor: 'black', borderRadius: 12, overflow: 'hidden' }}>
-                <Video
-                  key={videoKey}
-                  source={require('../../assets/GROUP 88-MasChat.mp4')}
-                  style={{ width: '100%', height: '100%' }}
-                  resizeMode={ResizeMode.CONTAIN}
-                  shouldPlay
-                  useNativeControls={false}
-                  isLooping={false}
-                  onPlaybackStatusUpdate={status => {
-                    if (status.isLoaded && 'didJustFinish' in status && status.didJustFinish) {
-                      setShowIntroVideo(false);
-                    }
-                  }}
-                />
-              </View>
-            </TouchableWithoutFeedback>
+          <View style={styles.videoModalContainer}>
+            <Video
+              key={videoKey}
+              source={require('../../assets/GROUP 88-MasChat.mp4')}
+              style={styles.introVideo}
+              resizeMode={ResizeMode.CONTAIN}
+              shouldPlay
+              useNativeControls={false}
+              isLooping={false}
+              onPlaybackStatusUpdate={status => {
+                if (status.isLoaded && 'didJustFinish' in status && status.didJustFinish) {
+                  setShowIntroVideo(false);
+                }
+              }}
+            />
+            <TouchableOpacity 
+              style={styles.closeVideoButton} 
+              onPress={() => setShowIntroVideo(false)}
+            >
+              <Ionicons name="close" size={28} color="white" />
+            </TouchableOpacity>
           </View>
         </TouchableWithoutFeedback>
       </Modal>
@@ -385,7 +385,7 @@ export default function HomeScreen() {
       {/* Story Viewer Modal */}
       {storyViewerVisible && (
         <Modal visible transparent animationType="fade" onRequestClose={() => setStoryViewerVisible(false)}>
-          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={styles.storyViewerContainer}>
             {currentUserStories.length > 0 && (
               <FlatList
                 data={currentUserStories}
@@ -398,50 +398,74 @@ export default function HomeScreen() {
                   item.mediaUrl.endsWith('.mp4') || item.mediaUrl.endsWith('.mov') ? (
                     <Video
                       source={{ uri: item.mediaUrl }}
-                      style={{ width: Dimensions.get('window').width, height: Dimensions.get('window').height * 0.7 }}
-                      resizeMode={ResizeMode.CONTAIN}
+                      style={styles.storyVideo}
+                      resizeMode={ResizeMode.COVER}
                       shouldPlay
                       isLooping
-                      useNativeControls
+                      useNativeControls={false}
                     />
                   ) : (
-                    <Image source={{ uri: item.mediaUrl }} style={{ width: Dimensions.get('window').width, height: Dimensions.get('window').height * 0.7, resizeMode: 'contain' }} />
+                    <Image source={{ uri: item.mediaUrl }} style={styles.storyImageFull} />
                   )
                 )}
               />
             )}
-            {/* Close button */}
-            <TouchableOpacity style={{ position: 'absolute', top: 40, right: 20 }} onPress={() => setStoryViewerVisible(false)}>
+            <TouchableOpacity style={styles.closeStoryButton} onPress={() => setStoryViewerVisible(false)}>
               <Ionicons name="close" size={36} color="#fff" />
             </TouchableOpacity>
+            <View style={styles.storyHeader}>
+              <Image 
+                source={{ uri: currentStoryUser?.profilePicture || DEFAULT_PROFILE_PHOTO }} 
+                style={styles.storyUserAvatar} 
+              />
+              <Text style={styles.storyUsername}>{currentStoryUser?.username}</Text>
+            </View>
           </View>
         </Modal>
       )}
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80, paddingHorizontal: 0 }}>
+      <ScrollView 
+        style={styles.scroll} 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={styles.scrollContent}
+      >
         {/* Status Update */}
         <View style={styles.statusContainer}>
           <TouchableOpacity onPress={() => router.push('/profile')}>
-            <View style={styles.orangeRing}>
+            <LinearGradient
+              colors={[COLORS.accent, '#FF6B35']}
+              style={styles.profileRing}
+            >
               <Image
                 source={{ uri: user?.profilePicture ?? DEFAULT_PROFILE_PHOTO }}
                 style={styles.profilePic}
               />
-            </View>
+            </LinearGradient>
           </TouchableOpacity>
-          <TextInput
+          
+          <TouchableOpacity 
             style={styles.statusInput}
-            placeholder="What's on your mind?"
-            placeholderTextColor={COLORS.lightText}
-          />
-          <TouchableOpacity style={styles.photoBtn} onPress={() => router.push('/(create)/newPost')}>
-            <Ionicons name="image" size={24} color={COLORS.accent} />
+            onPress={() => router.push("/(create)/newPost")}
+          >
+            <Text style={styles.statusPlaceholder}>What's on your mind?</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.photoBtn} 
+            onPress={() => router.push('/(create)/newPost')}
+          >
+            <Ionicons name="image" size={28} color={COLORS.accent} />
           </TouchableOpacity>
         </View>
 
         {/* Stories */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.storiesContainer}>
-          {/* User's story first */}
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false} 
+          style={styles.storiesContainer}
+          contentContainerStyle={styles.storiesContent}
+        >
+          {/* User's story */}
           <TouchableOpacity
             style={styles.storyItem}
             onPress={() => {
@@ -452,25 +476,43 @@ export default function HomeScreen() {
               }
             }}
           >
-            <View style={styles.storyImageContainer}>
-              {userStory ? (
-                <Image source={{ uri: userStory.mediaUrl }} style={styles.storyImage} />
-              ) : (
-                <Ionicons name="add-circle" size={28} color={COLORS.primary} />
-              )}
-            </View>
-            <Text style={styles.storyLabel}>{userStory ? 'Your Story' : 'Create Story'}</Text>
+            <LinearGradient
+              colors={STORY_RING_COLORS}
+              style={styles.storyRing}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <View style={styles.storyImageContainer}>
+                {userStory ? (
+                  <Image source={{ uri: userStory.mediaUrl }} style={styles.storyImage} />
+                ) : (
+                  <Ionicons name="add" size={28} color="white" style={styles.addStoryIcon} />
+                )}
+              </View>
+            </LinearGradient>
+            <Text style={styles.storyLabel}>{userStory ? 'Your Story' : 'Add Story'}</Text>
           </TouchableOpacity>
-          {/* Friends' stories, grouped by user */}
-          {uniqueStoryUsers.filter(s => s.userId !== user?.id).map(story => (
+          
+          {/* Friends' stories */}
+          {uniqueStoryUsers.filter(s => s.userId !== user?.id).map((story, index) => (
             <TouchableOpacity
               key={story.userId}
               style={styles.storyItem}
               onPress={() => openUserStories(story.userId, story.username, story.profilePicture)}
             >
-              <View style={styles.storyImageContainer}>
-                <Image source={{ uri: story.mediaUrl }} style={styles.storyImage} />
-              </View>
+              <LinearGradient
+                colors={[
+                  STORY_RING_COLORS[index % STORY_RING_COLORS.length],
+                  STORY_RING_COLORS[(index + 1) % STORY_RING_COLORS.length]
+                ]}
+                style={styles.storyRing}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <View style={styles.storyImageContainer}>
+                  <Image source={{ uri: story.mediaUrl }} style={styles.storyImage} />
+                </View>
+              </LinearGradient>
               <Text style={styles.storyLabel}>{story.username}</Text>
             </TouchableOpacity>
           ))}
@@ -478,110 +520,228 @@ export default function HomeScreen() {
 
         {/* Posts */}
         {loadingPosts ? (
-          <Text style={styles.loadingText}>Loading posts...</Text>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={styles.loadingText}>Loading posts...</Text>
+          </View>
         ) : posts.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Ionicons name="image-outline" size={60} color={COLORS.lightText} />
-            <Text style={styles.emptyText}>No posts yet.</Text>
-            <TouchableOpacity style={styles.createBtn} onPress={() => router.push('/(create)/newPost')}>
+            <Ionicons name="newspaper-outline" size={60} color={COLORS.lightText} />
+            <Text style={styles.emptyText}>No posts yet</Text>
+            <Text style={styles.emptySubtext}>Be the first to share something!</Text>
+            <TouchableOpacity 
+              style={styles.createBtn} 
+              onPress={() => router.push('/(create)/newPost')}
+            >
               <Text style={styles.createBtnText}>Create New Post</Text>
             </TouchableOpacity>
           </View>
         ) : (
           posts.map((post, idx) => (
-            <View key={post.id} style={[styles.postCard, post.videoUrl ? styles.videoPostCard : {}]}>
+            <View key={post.id} style={styles.postCard}>
+              {/* Post Header */}
               <View style={styles.postHeader}>
-                <TouchableOpacity onPress={() => navigateToProfile(post.user.id)}>
+                <TouchableOpacity 
+                  style={styles.postUser} 
+                  onPress={() => navigateToProfile(post.user.id)}
+                >
                   <Image
                     source={{ uri: post.user.profilePicture || DEFAULT_PROFILE_PHOTO }}
                     style={styles.postAvatar}
                   />
+                  <View style={styles.postUserInfo}>
+                    <Text style={styles.postUserName}>{post.user.username}</Text>
+                    <Text style={styles.postTime}>{formatPostTime(post.createdAt)}</Text>
+                  </View>
                 </TouchableOpacity>
-                <View style={styles.postUserInfo}>
-                  <Text style={styles.postUserName}>{post.user.username}</Text>
-                  <Text style={styles.postTime}>{formatPostTime(post.createdAt)}</Text>
-                </View>
+                
                 {user?.id === post.user.id && (
-                  <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDeletePost(post.id)}>
-                    <Ionicons name="trash" size={22} color={COLORS.accent} />
+                  <TouchableOpacity 
+                    style={styles.moreButton}
+                    onPress={() => handleDeletePost(post.id)}
+                  >
+                    <Ionicons name="ellipsis-horizontal" size={24} color={COLORS.lightText} />
                   </TouchableOpacity>
                 )}
               </View>
+              
+              {/* Post Content */}
               <Text style={styles.postText}>{post.content}</Text>
+              
+              {/* Media */}
               {(post.imageUrl || post.videoUrl) && (
                 post.videoUrl ? (
                   <View style={styles.videoContainer}>
                     <TouchableOpacity
-                      activeOpacity={1}
-                      onPress={() => setPlayingVideoId(post.id)}
-                      style={{ width: '100%', height: '100%' }}
+                      activeOpacity={0.9}
+                      onPress={() => handleVideoTap(post)}
+                      style={styles.videoTouchable}
                     >
+                      {videoLoading[post.id] && (
+                        <ActivityIndicator size="large" color="#fff" style={styles.videoLoader} />
+                      )}
                       <Video
                         source={{ uri: post.videoUrl || '' }}
                         style={styles.postVideo}
-                        resizeMode={ResizeMode.COVER}
+                        resizeMode={ResizeMode.CONTAIN}
                         shouldPlay={playingVideoId === post.id}
                         isLooping
-                        isMuted={false}
-                        onError={e => Alert.alert('Video Error', 'This video cannot be played.')}
+                        useNativeControls={false}
+                        onLoadStart={() => setVideoLoading(v => ({ ...v, [post.id]: true }))}
+                        onReadyForDisplay={() => setVideoLoading(v => ({ ...v, [post.id]: false }))}
                       />
-                      {/* Play/Pause button overlay */}
                       <TouchableOpacity
-                        style={{ position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -24 }, { translateY: -24 }], zIndex: 2 }}
-                        onPress={e => {
-                          e.stopPropagation();
-                          setPlayingVideoId(playingVideoId === post.id ? null : post.id);
-                        }}
+                        style={styles.playButton}
+                        onPress={() => setPlayingVideoId(playingVideoId === post.id ? null : post.id)}
                       >
-                        <Ionicons name={playingVideoId === post.id ? 'pause-circle' : 'play-circle'} size={48} color="#fff" />
+                        <Ionicons 
+                          name={playingVideoId === post.id ? 'pause-circle' : 'play-circle'} 
+                          size={56} 
+                          color="rgba(255,255,255,0.8)" 
+                        />
                       </TouchableOpacity>
-                      {/* Expand button for fullscreen */}
                       <TouchableOpacity
-                        style={{ position: 'absolute', top: 10, right: 10, zIndex: 2 }}
-                        onPress={e => {
-                          e.stopPropagation();
-                          handleOpenFullscreen('video', post.videoUrl || '', post.id, idx);
-                        }}
+                        style={styles.expandButton}
+                        onPress={() => handleOpenFullscreen('video', post.videoUrl || '', post.id, idx)}
                       >
-                        <Ionicons name="expand" size={28} color="#fff" />
+                        <Ionicons name="expand" size={24} color="#fff" />
                       </TouchableOpacity>
+                      
+                      {/* Double-tap heart animation for videos */}
+                      {doubleTapHeart?.postId === post.id && doubleTapHeart.visible && (
+                        <Animated.View
+                          style={[
+                            styles.doubleTapHeart,
+                            {
+                              opacity: heartAnimation,
+                              transform: [
+                                {
+                                  scale: heartAnimation.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: [0.3, 1.5],
+                                  }),
+                                },
+                              ],
+                            },
+                          ]}
+                        >
+                          <Ionicons name="heart" size={80} color="#FF3040" />
+                        </Animated.View>
+                      )}
                     </TouchableOpacity>
                   </View>
                 ) : (
-                  <TouchableOpacity onPress={() => handleOpenFullscreen('image', post.imageUrl || '', post.id, idx)}>
-                    <Image source={{ uri: post.imageUrl || '' }} style={styles.postImage} />
-                  </TouchableOpacity>
+                  <View style={styles.imageContainer}>
+                    <TouchableOpacity 
+                      activeOpacity={0.9}
+                      onPress={() => handleOpenFullscreen('image', post.imageUrl || '', post.id, idx)}
+                    >
+                      <Image 
+                        source={{ uri: post.imageUrl || '' }} 
+                        style={styles.postImage} 
+                      />
+                    </TouchableOpacity>
+                    
+                    {/* Double-tap overlay for like */}
+                    <TouchableOpacity
+                      style={styles.doubleTapOverlay}
+                      onPress={() => handlePostTap(post)}
+                      activeOpacity={1}
+                    >
+                      <View style={styles.doubleTapArea} />
+                    </TouchableOpacity>
+                    
+                    {/* Full-screen button for images */}
+                    <TouchableOpacity
+                      style={styles.fullscreenImageButton}
+                      onPress={() => handleImageFullScreen(post.imageUrl || '')}
+                    >
+                      <Ionicons name="expand" size={24} color="#fff" />
+                    </TouchableOpacity>
+                    
+                    {/* Double-tap heart animation */}
+                    {doubleTapHeart?.postId === post.id && doubleTapHeart.visible && (
+                      <Animated.View
+                        style={[
+                          styles.doubleTapHeart,
+                          {
+                            opacity: heartAnimation,
+                            transform: [
+                              {
+                                scale: heartAnimation.interpolate({
+                                  inputRange: [0, 1],
+                                  outputRange: [0.3, 1.5],
+                                }),
+                              },
+                            ],
+                          },
+                        ]}
+                      >
+                        <Ionicons name="heart" size={80} color="#FF3040" />
+                      </Animated.View>
+                    )}
+                  </View>
                 )
               )}
-              {/* Enhanced Action Buttons */}
+              
+              {/* Post Stats */}
+              <View style={styles.postStats}>
+                <View style={styles.likeCountContainer}>
+                  <Ionicons name="heart" size={16} color={LIKE_ACTIVE_COLOR} />
+                  <Text style={styles.likeCountText}>
+                    {(optimisticLikes[post.id] || post.likedBy || []).length}
+                  </Text>
+                </View>
+                <Text style={styles.commentCountText}>
+                  {post.comments?.length || 0} comments • {post.shareCount || 0} shares
+                </Text>
+              </View>
+              
+              {/* Action Buttons */}
               <View style={styles.postActions}>
-                <TouchableOpacity onPress={() => user && handleLikePost(post)} style={styles.actionBtn}>
+                <TouchableOpacity 
+                  style={styles.actionButton}
+                  onPress={() => user && handleLikePost(post)}
+                >
                   <Ionicons
                     name={(optimisticLikes[post.id] || post.likedBy || []).includes(user.id) ? 'heart' : 'heart-outline'}
-                    size={22}
-                    color={(optimisticLikes[post.id] || post.likedBy || []).includes(user.id) ? '#FF3040' : '#fff'}
+                    size={24}
+                    color={(optimisticLikes[post.id] || post.likedBy || []).includes(user.id) ? LIKE_ACTIVE_COLOR : COLORS.lightText}
                   />
-                  <Text style={[styles.actionText, (optimisticLikes[post.id] || post.likedBy || []).includes(user.id) && { color: '#FF3040' }]}>Like</Text>
-                  <Text style={[styles.actionCount, { color: '#fff', backgroundColor: '#FF7F11' }]}>{(optimisticLikes[post.id] || post.likedBy || []).length}</Text>
+                  <Text style={[
+                    styles.actionText,
+                    (optimisticLikes[post.id] || post.likedBy || []).includes(user.id) && 
+                      { color: LIKE_ACTIVE_COLOR }
+                  ]}>
+                    Like
+                  </Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity onPress={() => openCommentModal(post)} style={styles.actionBtn}>
-                  <Ionicons name="chatbubble-outline" size={18} color="#FF7F11" />
-                  <Text style={[styles.actionText, { color: '#FF7F11' }]}>Comment</Text>
-                  <Text style={[styles.actionCount, { color: '#fff', backgroundColor: '#FF7F11' }]}>{post.comments?.length || 0}</Text>
+                
+                <TouchableOpacity 
+                  style={styles.actionButton}
+                  onPress={() => router.push({
+                    pathname: '../screens/PostCommentsScreen',
+                    params: { postId: post.id }
+                  })}
+                >
+                  <Ionicons 
+                    name="chatbubble-outline" 
+                    size={22} 
+                    color={COLORS.lightText} 
+                  />
+                  <Text style={styles.actionText}>Comment</Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity style={styles.actionBtn}>
-                  <Ionicons name="send-outline" size={18} color={COLORS.primary} />
-                  <Text style={styles.actionText}>Send</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity onPress={() => handleSharePost(post.id)} style={styles.actionBtn}>
-                  <Ionicons name="arrow-redo-outline" size={18} color={COLORS.primary} />
+                
+                <TouchableOpacity 
+                  style={styles.actionButton}
+                  onPress={() => handleShareMedia(post)}
+                >
+                  <Ionicons 
+                    name="arrow-redo-outline" 
+                    size={24} 
+                    color={COLORS.lightText} 
+                  />
                   <Text style={styles.actionText}>Share</Text>
-                  {post.shareCount ? (
-                    <Text style={styles.actionCount}>{post.shareCount}</Text>
-                  ) : null}
                 </TouchableOpacity>
               </View>
             </View>
@@ -589,68 +749,52 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
-      {/* Comment Dialog */}
-      {commentPostId && user?.id && (
-        <CommentDialog
-          postId={commentPostId}
-          userId={user.id}
-          onClose={() => setCommentPostId(null)}
-          onComment={fetchPosts}
-        />
-      )}
-
-      {/* Comment Modal */}
-      {commentModalPost && user?.id && (
-        <CommentDialog
-          postId={commentModalPost.id}
-          userId={user.id}
-          onClose={() => setCommentModalPost(null)}
-          onComment={fetchPosts}
-        />
-      )}
-
-      {/* Fullscreen Modal for images/videos */}
+      {/* Fullscreen Modal */}
       {fullscreenMedia && (
         <Modal visible transparent animationType="fade" onRequestClose={() => setFullscreenMedia(null)}>
-          <Animated.View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center', transform: fullscreenPan.getTranslateTransform() }} {...panResponder.panHandlers}>
+          <View style={styles.fullscreenContainer}>
             {fullscreenMedia.type === 'image' ? (
-              <>
-                <Image source={{ uri: fullscreenMedia.uri || '' }} style={{ width: '100%', height: '100%', resizeMode: 'contain' }} />
-                {/* Exit button for images */}
-                <TouchableOpacity style={{ position: 'absolute', top: 40, right: 20, zIndex: 10 }} onPress={() => setFullscreenMedia(null)}>
-                  <Ionicons name="close" size={36} color="#fff" />
-                </TouchableOpacity>
-              </>
+              <Image 
+                source={{ uri: fullscreenMedia.uri || '' }} 
+                style={styles.fullscreenImage} 
+                resizeMode="contain"
+              />
             ) : (
-              <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
-                <Video
-                  ref={fullscreenVideoRef}
-                  source={{ uri: fullscreenMedia.uri || '' }}
-                  style={{ width: '100%', height: '100%' }}
-                  resizeMode={ResizeMode.CONTAIN}
-                  shouldPlay={!fullscreenVideoPaused}
-                  isLooping
-                  useNativeControls={false}
-                  isMuted={fullscreenVideoMuted}
-                  onError={e => Alert.alert('Video Error', 'This video cannot be played.')}
-                />
-                {/* Mute button at top left */}
-                <TouchableOpacity style={{ position: 'absolute', top: 40, left: 20 }} onPress={() => setFullscreenVideoMuted(m => !m)}>
-                  <Ionicons name={fullscreenVideoMuted ? "volume-mute" : "volume-high"} size={36} color="#fff" />
-                </TouchableOpacity>
-                {/* Center play/pause button, only visible when tapped */}
-                {showFullscreenControls && (
-                  <TouchableOpacity style={{ position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -18 }, { translateY: -18 }] }} onPress={() => setFullscreenVideoPaused(p => !p)}>
-                    <Ionicons name={fullscreenVideoPaused ? "play" : "pause"} size={36} color="#fff" />
-                  </TouchableOpacity>
-                )}
-                {/* Close button at top right */}
-                <TouchableOpacity style={{ position: 'absolute', top: 40, right: 20 }} onPress={() => setFullscreenMedia(null)}>
-                  <Ionicons name="close" size={36} color="#fff" />
-                </TouchableOpacity>
-              </View>
+              <Video
+                source={{ uri: fullscreenMedia.uri || '' }}
+                style={styles.fullscreenVideo}
+                resizeMode={ResizeMode.CONTAIN}
+                shouldPlay
+                isLooping
+                useNativeControls
+              />
             )}
-          </Animated.View>
+            <TouchableOpacity 
+              style={styles.closeFullscreenButton} 
+              onPress={() => setFullscreenMedia(null)}
+            >
+              <Ionicons name="close" size={32} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </Modal>
+      )}
+      
+      {/* Full-screen Image Modal */}
+      {fullscreenImage?.visible && (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setFullscreenImage(null)}>
+          <View style={styles.fullscreenImageContainer}>
+            <Image 
+              source={{ uri: fullscreenImage.uri }} 
+              style={styles.fullscreenImageModal} 
+              resizeMode="contain"
+            />
+            <TouchableOpacity 
+              style={styles.closeFullscreenButton} 
+              onPress={() => setFullscreenImage(null)}
+            >
+              <Ionicons name="close" size={32} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </Modal>
       )}
     </View>
@@ -680,6 +824,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: COLORS.background,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: COLORS.lightText,
   },
   header: {
     flexDirection: 'row',
@@ -687,218 +837,282 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingHorizontal: 16,
     paddingBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    overflow: 'hidden',
   },
   logo: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '800',
     color: 'white',
-    flex: 1,
+    letterSpacing: 0.5,
   },
   headerIcons: {
     flexDirection: 'row',
-    gap: 12,
-    marginLeft: 'auto', // This will push the icons to the right
+    gap: 16,
+    marginLeft: 'auto',
   },
   iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: COLORS.accent,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  notificationText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   scroll: {
     flex: 1,
   },
+  scrollContent: {
+    paddingBottom: 30,
+  },
   statusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
-    padding: 12,
+    backgroundColor: COLORS.card,
+    padding: 16,
+    margin: 16,
     marginBottom: 8,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
     borderRadius: 20,
-    marginRight: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  profileRing: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profilePic: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 2,
-    borderColor: COLORS.accent,
+    borderColor: COLORS.card,
   },
   statusInput: {
     flex: 1,
-    backgroundColor: '#F0F2F5',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    height: 40,
-    fontSize: 15,
-    color: COLORS.text,
+    backgroundColor: COLORS.background,
+    borderRadius: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    marginHorizontal: 12,
+  },
+  statusPlaceholder: {
+    color: COLORS.lightText,
+    fontSize: 16,
   },
   photoBtn: {
-    marginLeft: 10,
+    backgroundColor: COLORS.background,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   storiesContainer: {
-    paddingVertical: 12,
-    paddingLeft: 12,
-    backgroundColor: COLORS.white,
-    marginBottom: 8,
+    marginVertical: 8,
+    paddingLeft: 16,
+  },
+  storiesContent: {
+    paddingRight: 16,
   },
   storyItem: {
     alignItems: 'center',
     marginRight: 16,
-    width: 80,
   },
-  storyImageContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: 2,
-    borderColor: COLORS.accent,
+  storyRing: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
+  },
+  storyImageContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: COLORS.card,
+    justifyContent: 'center',
+    alignItems: 'center',
     overflow: 'hidden',
   },
   storyImage: {
     width: '100%',
     height: '100%',
   },
+  addStoryIcon: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 20,
+    padding: 4,
+  },
   storyLabel: {
     fontSize: 12,
     color: COLORS.text,
-  },
-  onlineDot: {
-    position: 'absolute',
-    bottom: 6,
-    right: 6,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#4CD137',
-    borderWidth: 2,
-    borderColor: COLORS.white,
-  },
-  orangeRing: {
-    borderWidth: 2,
-    borderColor: COLORS.accent,
-    borderRadius: 24,
-    padding: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 48,
-    height: 48,
-  },
-  profilePic: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: COLORS.white,
-  },
-  post: {
-    backgroundColor: COLORS.white,
-    marginBottom: 8,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: '#eee',
+    fontWeight: '500',
+    maxWidth: 70,
+    textAlign: 'center',
   },
   postCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.card,
+    borderRadius: 0,
+    margin: 0,
     marginBottom: 16,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 3,
   },
   postHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 12,
+    padding: 16,
+    paddingBottom: 12,
+    justifyContent: 'space-between',
+  },
+  postUser: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   postAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    marginRight: 12,
   },
   postUserInfo: {
-    flex: 1,
+    justifyContent: 'center',
   },
   postUserName: {
-    fontWeight: 'bold',
-    color: COLORS.text,
+    fontWeight: '700',
     fontSize: 16,
+    color: COLORS.text,
+    marginBottom: 2,
   },
   postTime: {
     color: COLORS.lightText,
     fontSize: 13,
   },
+  moreButton: {
+    padding: 8,
+  },
   postText: {
-    fontSize: 15,
+    fontSize: 16,
     color: COLORS.text,
-    lineHeight: 20,
+    lineHeight: 24,
     paddingHorizontal: 16,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   postImage: {
     width: '100%',
-    aspectRatio: 1, // Square format
-    marginBottom: 12,
-  },
-  postVideo: {
-    width: DEVICE_WIDTH,
     height: DEVICE_WIDTH * 1.5,
-    alignSelf: 'stretch',
-    marginBottom: 12,
-    borderRadius: 0,
-    borderWidth: 0,
-    margin: 0,
   },
   videoContainer: {
     position: 'relative',
-    width: DEVICE_WIDTH,
+    width: '100%',
     height: DEVICE_WIDTH * 1.5,
-    borderRadius: 0,
-    borderWidth: 0,
-    overflow: 'hidden',
-    alignSelf: 'stretch',
-    margin: 0,
-    padding: 0,
+    backgroundColor: '#000',
   },
-  playPauseButton: {
+  videoTouchable: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  postVideo: {
+    width: '100%',
+    height: '100%',
+  },
+  videoLoader: {
     position: 'absolute',
     top: '50%',
     left: '50%',
-    transform: [{ translateX: -16 }, { translateY: -16 }],
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: 20,
-    width: 32,
-    height: 32,
+    marginTop: -18,
+    marginLeft: -18,
+    zIndex: 10,
+  },
+  playButton: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginTop: -28,
+    marginLeft: -28,
+    zIndex: 10,
+  },
+  expandButton: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1,
+    zIndex: 10,
   },
-  postAction: {
+  postStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  likeCountContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: 12,
   },
-  postActionText: {
+  likeCountText: {
     marginLeft: 6,
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  commentCountText: {
     color: COLORS.lightText,
     fontSize: 14,
   },
-  deleteBtn: {
-    marginLeft: 12,
-    padding: 6,
+  postActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 8,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  actionText: {
+    marginLeft: 8,
+    fontSize: 16,
+    color: COLORS.lightText,
+    fontWeight: '500',
   },
   modalOverlay: {
     flex: 1,
@@ -908,188 +1122,196 @@ const styles = StyleSheet.create({
   },
   addMenuBox: {
     marginTop: 60,
-    marginRight: 18,
-    borderRadius: 12,
-    backgroundColor: COLORS.white,
+    marginRight: 16,
+    borderRadius: 20,
+    backgroundColor: COLORS.card,
     paddingVertical: 8,
-    width: 200,
-    elevation: 8,
+    width: 220,
     shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 10,
   },
   addMenuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
   },
   menuIconBg: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 16,
   },
   addMenuText: {
     fontSize: 16,
     color: COLORS.text,
     fontWeight: '500',
   },
-  loadingText: {
-    textAlign: 'center',
-    marginTop: 20,
-    color: COLORS.lightText,
-  },
   emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    marginTop: 60,
-  },
-  emptyText: {
-    color: COLORS.lightText,
-    fontSize: 16,
-    marginTop: 16,
-    marginBottom: 24,
-  },
-  createBtn: {
-    backgroundColor: COLORS.accent,
-    borderRadius: 8,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-  },
-  createBtnText: {
-    color: COLORS.white,
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  postImagePlaceholder: {
-    alignSelf: 'center',
-    marginVertical: 12,
-  },
-  
-  
-  commentModalBox: {
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    padding: 20,
-    width: '90%',
-    alignSelf: 'flex-end',
-    marginTop: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  commentModalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  commentInput: {
-    borderWidth: 1,
-    borderColor: '#eee',
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 16,
-    color: COLORS.text,
-    minHeight: 80,
-    marginBottom: 15,
-    textAlignVertical: 'top',
-  },
-  commentSendBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  commentSendText: {
-    color: COLORS.white,
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  commentCancelBtn: {
-    backgroundColor: '#F0F2F5',
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  commentCancelText: {
-    color: COLORS.text,
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  
-  
-  videoPostCard: {
-    marginHorizontal: 0,
-    marginLeft: 0,
-    borderRadius: 0,
-    marginBottom: 0,
-    shadowOpacity: 0,
-    elevation: 0,
-    paddingHorizontal: 0,
-    width: DEVICE_WIDTH_FULL,
-    alignSelf: 'stretch',
-    backgroundColor: 'transparent',
-    minHeight: DEVICE_WIDTH * 1.5,
-  },
-
-
-  // Enhanced Action Buttons Styles
-  postActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderColor: '#eee',
-  },
-
-  actionBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    flex: 1,
+    marginTop: 60,
+    padding: 20,
   },
-
-  actionIcon: {
+  emptyText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginTop: 16,
+  },
+  emptySubtext: {
+    fontSize: 16,
+    color: COLORS.lightText,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  createBtn: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+  },
+  createBtnText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  videoModalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  introVideo: {
+    width: '100%',
+    height: '100%',
+  },
+  closeVideoButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  storyViewerContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+  },
+  storyVideo: {
+    width: '100%',
+    height: '100%',
+  },
+  storyImageFull: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain',
+  },
+  closeStoryButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+  },
+  storyHeader: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  storyUserAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+  },
+  storyUsername: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 12,
+  },
+  fullscreenContainer: {
+    flex: 1,
+    backgroundColor: 'black',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenImage: {
+    width: '100%',
+    height: '100%',
+  },
+  fullscreenVideo: {
+    width: '100%',
+    height: '100%',
+  },
+  closeFullscreenButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageContainer: {
+    position: 'relative',
+    width: '100%',
+    height: DEVICE_WIDTH * 1.5,
+    backgroundColor: '#000',
+  },
+  fullscreenImageButton: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     width: 36,
     height: 36,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f0f2f5',
-    marginBottom: 4,
+    zIndex: 10,
   },
-
-  actionText: {
-    color: COLORS.lightText,
-    fontWeight: '500',
-    fontSize: 14,
+  doubleTapHeart: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginTop: -40,
+    marginLeft: -40,
+    zIndex: 10,
   },
-
-  actionCount: {
+  doubleTapOverlay: {
     position: 'absolute',
     top: 0,
+    left: 0,
     right: 0,
-    backgroundColor: COLORS.accent,
-    color: COLORS.white,
-    fontSize: 10,
-    fontWeight: 'bold',
-    borderRadius: 8,
-    paddingHorizontal: 4,
-    minWidth: 16,
-    height: 16,
-    textAlign: 'center',
-    lineHeight: 16,
-    overflow: 'hidden',
+    bottom: 0,
+    zIndex: 5,
+  },
+  doubleTapArea: {
+    flex: 1,
+  },
+  fullscreenImageContainer: {
+    flex: 1,
+    backgroundColor: 'black',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenImageModal: {
+    width: '100%',
+    height: '100%',
   },
 });

@@ -10,7 +10,7 @@ import SockJS from 'sockjs-client';
 
 // Color Palette (matching home screen)
 const COLORS = {
-  primary: '#0A2463',  // Deep Blue
+  primary: '#3A8EFF',  // Deep Blue
   accent: '#FF7F11',   // Vibrant Orange
   background: '#F5F7FA',
   white: '#FFFFFF',
@@ -43,7 +43,7 @@ export default function MessengerScreen() {
     if (!user?.id) return;
     loadRecentChats();
     // WebSocket subscription for real-time updates
-    const socket = new SockJS('http://10.132.74.85:8080/ws-chat');
+    const socket = new SockJS('http://10.94.219.125:8080/ws-chat');
     const client = new Client({
       webSocketFactory: () => socket,
       debug: str => console.log(str),
@@ -137,7 +137,7 @@ export default function MessengerScreen() {
       <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" translucent />
       {/* Header */}
       <LinearGradient
-        colors={[COLORS.primary, '#1A4B8C']}
+        colors={[COLORS.primary, '#2B6CD9']}
         style={[styles.header, { paddingTop: Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 0) + 10 }]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}

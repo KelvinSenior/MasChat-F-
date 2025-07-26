@@ -6,36 +6,43 @@ export type MarketplaceCategory = {
   icon?: string;
 };
 
-export type MarketplaceItem = {
+export interface MarketplaceItem {
   id: number;
   title: string;
   description: string;
   price: number;
-  negotiable?: boolean;
+  negotiable: boolean;
   category: MarketplaceCategory;
   condition: string;
   images: string[];
   deliveryMethod: string;
   location: string;
   status: string;
-  seller: any;
-  createdAt: string;
-  updatedAt: string;
-};
+  seller?: {
+    id: string;
+    username: string;
+    fullName?: string;
+    profilePicture?: string;
+  };
+}
 
-export type MarketplaceOrder = {
+export interface MarketplaceOrder {
   id: number;
-  item: MarketplaceItem;
-  buyer: any;
-  seller: any;
-  price: number;
-  status: string;
-  deliveryMethod: string;
+  itemId: number;
+  buyerId: string;
+  sellerId: string;
+  quantity: number;
+  totalAmount: number;
+  shippingAddress: string;
+  phoneNumber: string;
   paymentMethod: string;
-  fee: number;
+  status: string;
   createdAt: string;
-  updatedAt: string;
-};
+  price?: number;
+  deliveryMethod?: string;
+  fee?: number;
+  updatedAt?: string;
+}
 
 export type MarketplaceReview = {
   id: number;
@@ -55,55 +62,182 @@ export type MarketplaceBusinessAccount = {
   contactInfo: string;
 };
 
-const marketplaceService = {
-  async getItems() {
-    const res = await client.get('/marketplace/items');
-    return res.data;
+export const marketplaceService = {
+  // Get all items
+  async getItems(): Promise<MarketplaceItem[]> {
+    try {
+      console.log('=== FRONTEND: Fetching marketplace items ===');
+      const response = await client.get('/marketplace/items');
+      console.log('=== FRONTEND: Received response:', response.status, response.data?.length || 0, 'items');
+
+      if (response.data && Array.isArray(response.data)) {
+        response.data.forEach((item, index) => {
+          console.log(`Item ${index}:`, {
+            id: item.id,
+            title: item.title,
+            seller: item.seller ? `${item.seller.username} (ID: ${item.seller.id})` : 'NULL'
+          });
+        });
+      }
+
+      return response.data;
+    } catch (error: any) {
+      console.error('=== FRONTEND ERROR: Failed to fetch marketplace items ===');
+      console.error('Error details:', error);
+      if (error.response) {
+        console.error('Response status:', error.response.status);
+        console.error('Response data:', error.response.data);
+      }
+      
+      // Show user-friendly error
+      throw new Error('Failed to load marketplace items. Please try again.');
+    }
   },
-  async getCategories() {
-    const res = await client.get('/marketplace/categories');
-    return res.data;
+
+  // Get item by ID
+  async getItem(id: number): Promise<MarketplaceItem> {
+    try {
+      const response = await client.get(`/marketplace/items/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching item:', error);
+      throw error;
+    }
   },
-  async searchItems(keyword: string) {
-    const res = await client.get(`/marketplace/items/search?keyword=${encodeURIComponent(keyword)}`);
-    return res.data;
+
+  // Get categories
+  async getCategories(): Promise<MarketplaceCategory[]> {
+    try {
+      const response = await client.get('/marketplace/categories');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      return [];
+    }
   },
-  async getItemsByCategory(categoryId: number) {
-    const res = await client.get(`/marketplace/items/category/${categoryId}`);
-    return res.data;
+
+  // Search items
+  async searchItems(query: string): Promise<MarketplaceItem[]> {
+    try {
+      const response = await client.get(`/marketplace/items/search?q=${encodeURIComponent(query)}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error searching items:', error);
+      return [];
+    }
   },
-  async getItem(itemId: number) {
-    const res = await client.get(`/marketplace/items/${itemId}`);
-    return res.data;
+
+  // Get items by category
+  async getItemsByCategory(categoryId: number): Promise<MarketplaceItem[]> {
+    try {
+      const response = await client.get(`/marketplace/items/category/${categoryId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching items by category:', error);
+      return [];
+    }
   },
-  async createItem(item: Partial<MarketplaceItem>) {
-    const res = await client.post('/marketplace/items', item);
-    return res.data;
+
+  // Create new marketplace item
+  async createItem(itemData: {
+    title: string;
+    description: string;
+    price: number;
+    negotiable: boolean;
+    condition: string;
+    deliveryMethod: string;
+    location: string;
+    images: string[];
+    sellerId: string;
+    categoryId?: number;
+    status?: string;
+  }): Promise<MarketplaceItem> {
+    try {
+      const response = await client.post('/marketplace/items/create-with-seller', itemData);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error creating marketplace item:', error);
+      throw new Error('Failed to create marketplace item. Please try again.');
+    }
   },
-  async updateItem(itemId: number, item: Partial<MarketplaceItem>) {
-    const res = await client.put(`/marketplace/items/${itemId}`, item);
-    return res.data;
-  },
-  async deleteItem(itemId: number) {
-    await client.delete(`/marketplace/items/${itemId}`);
-  },
-  async getOrders() {
-    const res = await client.get('/marketplace/orders');
-    return res.data;
-  },
-  async createOrder(order: {
+
+  // Create order
+  async createOrder(orderData: {
     itemId: number;
     buyerId: string;
     sellerId: string;
-    price: number;
-    status: string;
-    deliveryMethod: string;
+    quantity: number;
+    totalAmount: number;
+    shippingAddress: string;
+    phoneNumber: string;
     paymentMethod: string;
-    fee: number;
-  }) {
-    const res = await client.post('/marketplace/orders', order);
-    return res.data;
+    status: string;
+  }): Promise<MarketplaceOrder> {
+    try {
+      const response = await client.post('/marketplace/orders', orderData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating order:', error);
+      throw error;
+    }
   },
+
+  // Update item status
+  async updateItemStatus(itemId: number, status: string): Promise<void> {
+    try {
+      await client.patch(`/marketplace/items/${itemId}/status`, { status });
+    } catch (error) {
+      console.error('Error updating item status:', error);
+      throw error;
+    }
+  },
+
+  // Notify seller
+  async notifySeller(sellerId: string, orderId: number): Promise<void> {
+    try {
+      await client.post('/marketplace/notifications/seller', {
+        sellerId,
+        orderId,
+        type: 'new_order'
+      });
+    } catch (error) {
+      console.error('Error notifying seller:', error);
+      // Don't throw error as this is not critical
+    }
+  },
+
+  // Get user orders
+  async getUserOrders(userId: string): Promise<MarketplaceOrder[]> {
+    try {
+      const response = await client.get(`/marketplace/orders/user/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching user orders:', error);
+      return [];
+    }
+  },
+
+  // Get order details
+  async getOrderDetails(orderId: number): Promise<MarketplaceOrder> {
+    try {
+      const response = await client.get(`/marketplace/orders/${orderId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching order details:', error);
+      throw error;
+    }
+  },
+
+  // Update order status
+  async updateOrderStatus(orderId: number, status: string): Promise<void> {
+    try {
+      await client.patch(`/marketplace/orders/${orderId}/status`, { status });
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      throw error;
+    }
+  },
+
   async getReviews(itemId: number) {
     const res = await client.get(`/marketplace/reviews/item/${itemId}`);
     return res.data;

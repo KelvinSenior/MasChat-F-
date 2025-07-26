@@ -6,7 +6,7 @@ import { Audio } from 'expo-av';
 const { width, height } = Dimensions.get('window');
 
 const COLORS = {
-  primary: '#0A2463',
+  primary: '#3A8EFF',
   accent: '#FF7F11',
   background: '#F5F7FA',
   white: '#FFFFFF',

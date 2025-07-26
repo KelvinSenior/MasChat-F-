@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Dimensions } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Dimensions, Share } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getPost, deletePost, Post, likePost, unlikePost } from '../lib/services/postService';
@@ -15,6 +15,7 @@ export default function PostViewerScreen() {
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [optimisticLikes, setOptimisticLikes] = useState<string[]>([]);
+  const [videoLoading, setVideoLoading] = useState(true);
 
   useEffect(() => {
     fetchPost();
@@ -66,6 +67,24 @@ export default function PostViewerScreen() {
     Alert.alert('Comments', 'Open comments modal here.');
   };
 
+  // Helper to share post media
+  const handleShareMedia = async () => {
+    try {
+      const url = post?.videoUrl || post?.imageUrl;
+      if (!url) {
+        Alert.alert('Nothing to share', 'No media found in this post.');
+        return;
+      }
+      await Share.share({
+        message: url,
+        url: url,
+        title: 'Check out this post on MasChat!'
+      });
+    } catch (error) {
+      Alert.alert('Error', 'Failed to share media.');
+    }
+  };
+
   if (loading) {
     return (
       <View style={[styles.reelItem, { backgroundColor: '#111', justifyContent: 'center', alignItems: 'center' }]}> 
@@ -106,18 +125,26 @@ export default function PostViewerScreen() {
       {/* Post Media */}
       <View style={styles.postMediaContainer}>
         {post.videoUrl ? (
-          <Video
-            source={{ uri: post.videoUrl }}
-            style={styles.postMedia}
-            resizeMode={ResizeMode.CONTAIN}
-            shouldPlay
-            isLooping
-            isMuted={false}
-            useNativeControls={false}
-            onError={() => {
-              Alert.alert('Video error', 'Could not load video.');
-            }}
-          />
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            {videoLoading && (
+              <ActivityIndicator size="large" color="#fff" style={{ position: 'absolute', top: '50%', left: '50%', zIndex: 10 }} />
+            )}
+            <Video
+              source={{ uri: post.videoUrl }}
+              style={styles.postMedia}
+              resizeMode={ResizeMode.CONTAIN}
+              shouldPlay
+              isLooping
+              isMuted={true}
+              useNativeControls={true}
+              onLoadStart={() => setVideoLoading(true)}
+              onReadyForDisplay={() => setVideoLoading(false)}
+              onError={() => {
+                setVideoLoading(false);
+                Alert.alert('Video error', 'Could not load video.');
+              }}
+            />
+          </View>
         ) : post.imageUrl ? (
           <Image source={{ uri: post.imageUrl }} style={styles.postMedia} resizeMode="contain" />
         ) : null}
@@ -143,10 +170,10 @@ export default function PostViewerScreen() {
           <Ionicons name="chatbubble-outline" size={32} color="#fff" />
           <Text style={[styles.tiktokActionCount, { color: '#fff' }]}>{post.comments?.length || 0}</Text>
         </TouchableOpacity>
-        <View style={styles.tiktokActionButton}>
+        <TouchableOpacity style={styles.tiktokActionButton} onPress={handleShareMedia}>
           <Ionicons name="send-outline" size={32} color="#fff" />
           <Text style={[styles.tiktokActionCount, { color: '#fff' }]}>{post.shareCount || 0}</Text>
-        </View>
+        </TouchableOpacity>
         {user?.id === post.user?.id && (
           <TouchableOpacity style={styles.tiktokActionButton} onPress={handleDelete}>
             <Ionicons name="trash-outline" size={32} color={Colors.light.accent} />

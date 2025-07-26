@@ -14,20 +14,23 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  StatusBar
+  StatusBar,
+  Alert
 } from 'react-native';
+import { useAuth } from '../app/context/AuthContext';
+import { aiChatService, AIChat, AIChatMessage } from '../app/lib/services/aiChatService';
 
 const { height } = Dimensions.get('window');
 
 // Color Palette (matching app design)
 const COLORS = {
-  primary: '#0A2463',  // Deep Blue
+  primary: '#3A8EFF',  // New Blue
   accent: '#FF7F11',   // Vibrant Orange
   background: '#F5F7FA',
   white: '#FFFFFF',
   text: '#333333',
   lightText: '#888888',
-  gradient1: ['#0A2463', '#1A4B8C'] as const,
+  gradient1: ['#3A8EFF', '#2B6CD9'] as const,
   gradient2: ['#4facfe', '#00f2fe'] as const,
   gradient3: ['#fff', '#f8f9fa'] as const,
 };
@@ -38,72 +41,122 @@ type Message = {
   time: string;
   id: string;
 };
+
 type AIChatModalProps = { visible: boolean; onClose: () => void };
 
 export default function AIChatModal({ visible, onClose }: AIChatModalProps) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      text: "Hi! I'm your MasChat AI assistant. How can I help you today?",
-      isUser: false,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    }
-  ]);
+  const { user } = useAuth();
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const HUGGINGFACE_API_URL = 'https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill';
+  // Initialize chat session when modal opens
+  useEffect(() => {
+    if (visible && user?.id && !currentSessionId) {
+      initializeChat();
+    }
+  }, [visible, user?.id]);
 
-  const fetchAIResponse = async (userMessage: string): Promise<string | null> => {
+  const initializeChat = async () => {
+    if (!user?.id) {
+      Alert.alert('Authentication Required', 'Please log in to use AI Chat.');
+      onClose();
+      return;
+    }
+    
+    setIsInitializing(true);
     try {
-      const response = await fetch(HUGGINGFACE_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // No API key needed for public inference endpoint (may be rate-limited)
-        },
-        body: JSON.stringify({ inputs: userMessage })
+      console.log('Initializing AI chat for user:', user.id);
+      // Create new chat session
+      const newChat = await aiChatService.createNewChat(user.id);
+      console.log('AI chat created successfully:', newChat);
+      setCurrentSessionId(newChat.sessionId);
+      
+      // Convert backend messages to frontend format
+      const frontendMessages: Message[] = newChat.messages.map(msg => ({
+        id: msg.id.toString(),
+        text: msg.content,
+        isUser: msg.isUserMessage,
+        time: new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }));
+      
+      setMessages(frontendMessages);
+    } catch (error: any) {
+      console.error('Error initializing chat:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        userId: user.id
       });
-      if (!response.ok) return null;
-      const data = await response.json();
-      if (data && data.generated_text) return data.generated_text;
-      if (Array.isArray(data) && data[0]?.generated_text) return data[0].generated_text;
-      return null;
-    } catch (e) {
-      return null;
+      
+      let errorMessage = 'Failed to initialize AI chat. Please try again.';
+      if (error.response?.data?.message) {
+        errorMessage += `\n\nDetails: ${error.response.data.message}`;
+      }
+      
+      Alert.alert('Error', errorMessage);
+      onClose();
+    } finally {
+      setIsInitializing(false);
     }
   };
 
   const handleSend = async () => {
-    if (!inputText.trim()) return;
+    if (!inputText.trim() || !user?.id || !currentSessionId) {
+      if (!user?.id) {
+        Alert.alert('Authentication Required', 'Please log in to use AI Chat.');
+        onClose();
+      }
+      return;
+    }
+    
+    const userMessage = inputText.trim();
     const newMessage: Message = {
       id: Date.now().toString(),
-      text: inputText,
+      text: userMessage,
       isUser: true,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
+    
     setMessages(prev => [...prev, newMessage]);
     setInputText('');
     setIsLoading(true);
-    // Try real AI API first
-    let aiText: string | null = null;
+    
     try {
-      aiText = await fetchAIResponse(inputText);
-    } catch (e) {
-      aiText = null;
+      // Send message to backend
+      const updatedChat = await aiChatService.sendMessage(user.id, currentSessionId, userMessage);
+      
+      // Update messages with the complete conversation
+      const frontendMessages: Message[] = updatedChat.messages.map(msg => ({
+        id: msg.id.toString(),
+        text: msg.content,
+        isUser: msg.isUserMessage,
+        time: new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }));
+      
+      setMessages(frontendMessages);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      Alert.alert('Error', 'Failed to send message. Please try again.');
+      
+      // Remove the user message if it failed
+      setMessages(prev => prev.filter(msg => msg.id !== newMessage.id));
+    } finally {
+      setIsLoading(false);
     }
-    if (!aiText) {
-      aiText = `I understand you're asking about "${inputText}". As your AI assistant, I can help with account questions, privacy settings, and connecting with friends.`;
-    }
-    const aiResponse: Message = {
-      id: Date.now().toString(),
-      text: aiText,
-      isUser: false,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-    setMessages(prev => [...prev, aiResponse]);
+  };
+
+  const handleClose = () => {
+    setMessages([]);
+    setInputText('');
+    setCurrentSessionId(null);
     setIsLoading(false);
+    setIsInitializing(false);
+    onClose();
   };
 
   useEffect(() => {
@@ -114,11 +167,60 @@ export default function AIChatModal({ visible, onClose }: AIChatModalProps) {
     }
   }, [messages]);
 
+  // Don't render if user is not authenticated
+  if (!user) {
+    return null;
+  }
+
+  // Debug function to test database
+  const testDatabase = async () => {
+    try {
+      console.log('Testing database connection...');
+      const result = await aiChatService.testDatabase();
+      console.log('Database test result:', result);
+      Alert.alert('Database Test', `Status: ${result.status}\nUsers: ${result.userCount}\nAI Chats: ${result.aiChatCount}\nAI Messages: ${result.aiMessageCount}`);
+    } catch (error: any) {
+      console.error('Database test failed:', error);
+      Alert.alert('Database Test Failed', `Error: ${error.response?.data?.message || error.message}`);
+    }
+  };
+
+  // Debug function to initialize database
+  const initializeDatabase = async () => {
+    try {
+      console.log('Initializing database...');
+      const result = await aiChatService.initializeDatabase();
+      console.log('Database initialization result:', result);
+      Alert.alert('Database Initialization', `Status: ${result.status}\nMessage: ${result.message}`);
+    } catch (error: any) {
+      console.error('Database initialization failed:', error);
+      Alert.alert('Database Initialization Failed', `Error: ${error.response?.data?.message || error.message}`);
+    }
+  };
+
+  if (isInitializing) {
+    return (
+      <Modal visible={visible} animationType="slide" transparent={false}>
+        <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" translucent={false} />
+        <View style={[styles.container, styles.centerContent]}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Initializing AI Chat...</Text>
+          <TouchableOpacity style={styles.debugButton} onPress={testDatabase}>
+            <Text style={styles.debugButtonText}>Test Database</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.debugButton} onPress={initializeDatabase}>
+            <Text style={styles.debugButtonText}>Initialize DB</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
+    );
+  }
+
   return (
     <Modal 
       visible={visible} 
       animationType="slide" 
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
       transparent={false}
       statusBarTranslucent={false}
     >
@@ -137,7 +239,7 @@ export default function AIChatModal({ visible, onClose }: AIChatModalProps) {
         >
           <View style={styles.headerContent}>
             <TouchableOpacity
-              onPress={onClose}
+              onPress={handleClose}
               style={styles.closeButton}
               hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
             >
@@ -283,6 +385,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: COLORS.text,
   },
   header: {
     paddingTop: Platform.OS === 'ios' ? 50 : 20,
@@ -492,5 +603,17 @@ const styles = StyleSheet.create({
   },
   sendButtonLoading: {
     opacity: 0.8,
+  },
+  debugButton: {
+    marginTop: 10,
+    backgroundColor: COLORS.accent,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  debugButtonText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

@@ -61,9 +61,76 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (storedToken && storedUser) {
           setToken(storedToken);
           setUser(JSON.parse(storedUser));
+          
+          // Set a flag to indicate we have stored credentials
+          const hasStoredCredentials = true;
+          
+          // Validate token with backend
+          try {
+            console.log('Validating token with backend...');
+            console.log('Token:', storedToken.substring(0, 20) + '...');
+            
+            // First test if backend is reachable
+            try {
+              const testResponse = await client.get('/auth/test');
+              console.log('Backend test successful:', testResponse.data);
+            } catch (testError: any) {
+              console.log('Backend test failed:', testError.message);
+              // If backend is not reachable, don't clear the token - just skip validation
+              console.log('Backend not reachable, skipping token validation');
+              console.log('User will remain logged in with stored credentials');
+              return;
+            }
+            
+            // Test token generation first
+            try {
+              const tokenTestResponse = await client.get('/auth/test-token');
+              console.log('Token generation test:', tokenTestResponse.data);
+            } catch (tokenTestError: any) {
+              console.log('Token generation test failed:', tokenTestError.message);
+            }
+            
+            const response = await client.get('/auth/validate-token', {
+              headers: { Authorization: `Bearer ${storedToken}` }
+            });
+            
+            if (response.status === 200) {
+              // Token is valid, user stays logged in
+              console.log('Token validated successfully:', response.data);
+            } else {
+              // Token is invalid, clear storage and redirect to login
+              console.log('Token validation returned non-200 status:', response.status);
+              await signOut();
+            }
+          } catch (error: any) {
+            console.log('Token validation failed:', error);
+            console.log('Error details:', error.response?.data || error.message);
+            
+            // Only clear token if it's a 401 (unauthorized) error
+            if (error.response?.status === 401) {
+              console.log('Token is invalid (401), clearing storage');
+              console.log('Redirecting to login for fresh authentication');
+              // Clear the invalid token and redirect to login
+              await Promise.all([
+                AsyncStorage.removeItem('userToken'),
+                AsyncStorage.removeItem('user'),
+              ]);
+              setToken(null);
+              setUser(null);
+              router.replace('/(auth)/login');
+            } else {
+              console.log('Network or server error, keeping token for now');
+              console.log('User will remain logged in with stored credentials');
+            }
+          }
         }
       } catch (error) {
         console.error('Failed to load authentication data:', error);
+        // Clear any corrupted data
+        await Promise.all([
+          AsyncStorage.removeItem('userToken'),
+          AsyncStorage.removeItem('user'),
+        ]);
       } finally {
         setIsLoading(false);
       }

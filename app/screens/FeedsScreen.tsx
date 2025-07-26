@@ -15,7 +15,7 @@ export default function FeedsScreen() {
           router.replace('/(tabs)/menu');
         }
       }}>
-        <Ionicons name="arrow-back" size={24} color="#0A2463" />
+        <Ionicons name="arrow-back" size={24} color="#3A8EFF" />
       </TouchableOpacity>
       <Text style={styles.title}>Feeds</Text>
       <Text style={styles.subtitle}>Your feeds will appear here soon.</Text>
@@ -26,6 +26,6 @@ export default function FeedsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   backBtn: { position: 'absolute', top: 50, left: 20, zIndex: 10, backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 20, padding: 6 },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#0A2463', marginBottom: 12 },
+  title: { fontSize: 28, fontWeight: 'bold', color: '#3A8EFF', marginBottom: 12 },
   subtitle: { fontSize: 16, color: '#888' },
 }); 

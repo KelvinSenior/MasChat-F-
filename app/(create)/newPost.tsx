@@ -20,7 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 // Color Palette (matching home/friends screens)
 const COLORS = {
-  primary: '#0A2463',  // Deep Blue
+  primary: '#3A8EFF',  // Deep Blue
   accent: '#FF7F11',   // Vibrant Orange
   background: '#F5F7FA',
   white: '#FFFFFF',
@@ -55,6 +55,7 @@ export default function NewPost() {
   const [video, setVideo] = useState<string | null>(null);
   const [audio, setAudio] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const pickMedia = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -99,6 +100,39 @@ export default function NewPost() {
     }
   };
 
+  // AI image generation
+  const generateAIImage = async () => {
+    if (!post.trim()) {
+      Alert.alert('Error', 'Please enter some text to generate an image.');
+      return;
+    }
+    setAiLoading(true);
+    try {
+      const url = 'https://open-ai21.p.rapidapi.com/texttoimage2';
+      const options = {
+        method: 'POST',
+        headers: {
+          'x-rapidapi-key': '355060685fmsh742abd58eb438d7p1f4d66jsn22cd506769c9',
+          'x-rapidapi-host': 'open-ai21.p.rapidapi.com',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: post }),
+      };
+      const response = await fetch(url, options);
+      const result = await response.json();
+      console.log(result);
+      if (result && result.generated_image) {
+        setImage(result.generated_image);
+      } else {
+        Alert.alert('Error', 'Failed to generate image.');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to generate image.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   if (!user) {
     return <View style={{flex:1,justifyContent:'center',alignItems:'center'}}><Text>User not found</Text></View>;
   }
@@ -107,7 +141,7 @@ export default function NewPost() {
     <View style={styles.container}>
       {/* Header */}
       <LinearGradient
-        colors={[COLORS.primary, '#1A4B8C']}
+        colors={[COLORS.primary, '#2B6CD9']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
@@ -164,6 +198,10 @@ export default function NewPost() {
         <TouchableOpacity onPress={pickMedia} style={styles.pickButton}>
           <Ionicons name="images" size={24} color={COLORS.accent} />
           <Text style={styles.pickButtonText}>Add Media</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={generateAIImage} style={styles.pickButton} disabled={aiLoading}>
+          <Ionicons name="sparkles" size={24} color={COLORS.primary} />
+          <Text style={styles.pickButtonText}>{aiLoading ? 'Generating...' : 'AI Image'}</Text>
         </TouchableOpacity>
       </View>
 

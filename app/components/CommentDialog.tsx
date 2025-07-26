@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { View, TextInput, TouchableOpacity, Text, StyleSheet, FlatList, KeyboardAvoidingView, Platform, Image } from "react-native";
+import { View, TextInput, TouchableOpacity, Text, StyleSheet, FlatList, KeyboardAvoidingView, Platform, Image, Alert } from "react-native";
 import Modal from "react-native-modal";
 import { addComment, fetchPostComments } from "../lib/services/postService";
+import { Ionicons } from '@expo/vector-icons';
 
 interface CommentDialogProps {
   postId: string;
@@ -16,6 +17,7 @@ export default function CommentDialog({ postId, userId, onClose, onComment, post
   const [loading, setLoading] = useState(false);
   const [comments, setComments] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const loadComments = async () => {
     setRefreshing(true);
@@ -35,6 +37,37 @@ export default function CommentDialog({ postId, userId, onClose, onComment, post
     setLoading(false);
     await loadComments();
     onComment();
+  };
+
+  // AI image generation for comment
+  const generateAICommentImage = async () => {
+    Alert.prompt('AI Comment Image', 'Describe the image for your comment:', async (prompt) => {
+      if (!prompt) return;
+      setAiLoading(true);
+      try {
+        const url = 'https://open-ai21.p.rapidapi.com/texttoimage2';
+        const options = {
+          method: 'POST',
+          headers: {
+            'x-rapidapi-key': '355060685fmsh742abd58eb438d7p1f4d66jsn22cd506769c9',
+            'x-rapidapi-host': 'open-ai21.p.rapidapi.com',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ text: prompt }),
+        };
+        const response = await fetch(url, options);
+        const result = await response.json();
+        if (result && result.generated_image) {
+          setComment(result.generated_image);
+        } else {
+          Alert.alert('Error', 'Failed to generate image.');
+        }
+      } catch (error) {
+        Alert.alert('Error', 'Failed to generate image.');
+      } finally {
+        setAiLoading(false);
+      }
+    });
   };
 
   return (
@@ -85,6 +118,9 @@ export default function CommentDialog({ postId, userId, onClose, onComment, post
             onChangeText={setComment}
             multiline
           />
+          <TouchableOpacity onPress={generateAICommentImage} disabled={aiLoading} style={{ marginLeft: 8 }}>
+            <Ionicons name="sparkles" size={22} color="#1877f2" />
+          </TouchableOpacity>
           <TouchableOpacity onPress={handleComment} disabled={loading || !comment.trim()} style={styles.sendBtn}>
             <Text style={styles.sendText}>{loading ? "..." : "Send"}</Text>
           </TouchableOpacity>
@@ -131,7 +167,7 @@ const styles = StyleSheet.create({
   },
   commentUser: {
     fontWeight: "bold",
-    color: "#0A2463",
+    color: "#3A8EFF",
     marginBottom: 2,
   },
   commentText: {
