@@ -9,7 +9,7 @@ module.exports = ({ config }) => {
   return {
     ...config,
     extra: {
-      API_URL: process.env.API_URL || 'http://10.94.219.125:8080/api',
+      API_URL: process.env.API_URL || 'http://10.132.74.85:8080/api',
       ENV: process.env.ENV || 'development',
     },
   };

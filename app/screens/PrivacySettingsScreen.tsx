@@ -1,5 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from 'expo-linear-gradient';
+import ModernHeader from '../components/ModernHeader';
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -143,25 +143,17 @@ export default function PrivacySettingsScreen() {
     <View style={styles.container}>
       <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" translucent />
       
-      {/* Header */}
-      <LinearGradient
-        colors={[COLORS.primary, '#2B6CD9']}
-        style={[styles.header, { paddingTop: Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 0) + 10 }]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-      >
-        <TouchableOpacity onPress={() => {
+      <ModernHeader
+        title="Privacy Settings"
+        showBackButton={true}
+        onBackPress={() => {
           if (router.canGoBack?.()) {
             router.back();
           } else {
             router.replace('/(tabs)/profile');
           }
-        }} style={styles.headerIcon}>
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Privacy Settings</Text>
-        <View style={styles.headerIcon} />
-      </LinearGradient>
+        }}
+      />
 
       {/* Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>

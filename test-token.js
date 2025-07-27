@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const BASE_URL = "http://10.94.219.125:8080/api";
+const BASE_URL = "http://10.132.74.85:8080/api";
 
 async function testTokenValidation() {
   try {

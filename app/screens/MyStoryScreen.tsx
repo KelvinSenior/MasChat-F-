@@ -1,23 +1,38 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Alert, ScrollView, Dimensions, FlatList } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, Alert, ScrollView, Dimensions, FlatList, useColorScheme } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import { fetchStories, deleteStory, Story } from '../lib/services/storyService';
+import ModernHeader from '../components/ModernHeader';
 
 const COLORS = {
-  primary: '#3A8EFF',
-  accent: '#FF7F11',
-  background: '#F5F7FA',
-  white: '#FFFFFF',
-  text: '#333333',
-  lightText: '#888888',
+  light: {
+    primary: '#3A8EFF',
+    accent: '#FF7F11',
+    background: '#F5F7FA',
+    white: '#FFFFFF',
+    text: '#333333',
+    lightText: '#888888',
+    card: '#FFFFFF',
+  },
+  dark: {
+    primary: '#3A8EFF',
+    accent: '#FF7F11',
+    background: '#1A1A2E', // Match marketplace dark background
+    white: '#FFFFFF',
+    text: '#FFFFFF',
+    lightText: '#B0B0B0',
+    card: '#2D2D44',       // Match marketplace dark card
+  },
 };
 
 export default function MyStoryScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const colorScheme = useColorScheme();
+  const colors = colorScheme === 'dark' ? COLORS.dark : COLORS.light;
   const [myStories, setMyStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -53,27 +68,20 @@ export default function MyStoryScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={[COLORS.primary, '#2B6CD9']}
-        style={styles.header}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-      >
-        <TouchableOpacity onPress={() => {
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ModernHeader
+        title="My Story"
+        showBackButton={true}
+        onBackPress={() => {
           if (router.canGoBack?.()) {
             router.back();
           } else {
             router.replace('/(tabs)/videos');
           }
-        }} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Story</Text>
-        <TouchableOpacity onPress={() => router.push('/(create)/newStory')} style={styles.addButton}>
-          <Ionicons name="add-circle" size={28} color={COLORS.accent} />
-        </TouchableOpacity>
-      </LinearGradient>
+        }}
+        rightIcon="add-circle"
+        onRightPress={() => router.push('/(create)/newStory')}
+      />
       {/* Dashes at the top */}
       <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 16, marginBottom: 8 }}>
         {myStories.map((_, idx) => (
@@ -84,18 +92,18 @@ export default function MyStoryScreen() {
               height: 4,
               borderRadius: 2,
               marginHorizontal: 4,
-              backgroundColor: idx === currentIndex ? COLORS.accent : '#fff',
+              backgroundColor: idx === currentIndex ? colors.accent : '#fff',
               opacity: idx === currentIndex ? 1 : 0.5,
             }}
           />
         ))}
       </View>
       {loading ? (
-        <Text style={styles.loadingText}>Loading...</Text>
+        <Text style={[styles.loadingText, { color: colors.lightText }]}>Loading...</Text>
       ) : myStories.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="image-outline" size={60} color={COLORS.lightText} />
-          <Text style={styles.emptyText}>You have no stories yet.</Text>
+          <Ionicons name="image-outline" size={60} color={colors.lightText} />
+          <Text style={[styles.emptyText, { color: colors.lightText }]}>You have no stories yet.</Text>
           <TouchableOpacity style={styles.createBtn} onPress={() => router.push('/(create)/newStory')}>
             <Text style={styles.createBtnText}>Create New Story</Text>
           </TouchableOpacity>
@@ -118,7 +126,7 @@ export default function MyStoryScreen() {
                 <Text style={{ color: '#fff', fontSize: 13 }}>{new Date(item.createdAt).toLocaleString()}</Text>
               </View>
               <TouchableOpacity style={{ position: 'absolute', top: 40, right: 24, zIndex: 2 }} onPress={() => handleDelete(item.id)}>
-                <Ionicons name="trash" size={28} color={COLORS.accent} />
+                <Ionicons name="trash" size={28} color={colors.accent} />
               </TouchableOpacity>
             </View>
           )}
@@ -131,7 +139,7 @@ export default function MyStoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.light.background,
   },
   header: {
     flexDirection: 'row',
@@ -170,7 +178,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     textAlign: 'center',
-    color: COLORS.lightText,
+    color: COLORS.light.lightText,
     marginTop: 40,
   },
   emptyContainer: {
@@ -179,26 +187,26 @@ const styles = StyleSheet.create({
     marginTop: 60,
   },
   emptyText: {
-    color: COLORS.lightText,
+    color: COLORS.light.lightText,
     fontSize: 16,
     marginTop: 16,
     marginBottom: 24,
   },
   createBtn: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: COLORS.light.accent,
     borderRadius: 8,
     paddingHorizontal: 24,
     paddingVertical: 12,
   },
   createBtnText: {
-    color: COLORS.white,
+    color: COLORS.light.white,
     fontWeight: 'bold',
     fontSize: 16,
   },
   storyCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.light.card,
     borderRadius: 12,
     marginBottom: 16,
     padding: 12,
@@ -220,12 +228,12 @@ const styles = StyleSheet.create({
   },
   storyCaption: {
     fontSize: 15,
-    color: COLORS.text,
+    color: COLORS.light.text,
     marginBottom: 6,
   },
   storyTime: {
     fontSize: 12,
-    color: COLORS.lightText,
+    color: COLORS.light.lightText,
   },
   deleteBtn: {
     marginLeft: 12,

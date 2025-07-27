@@ -1,24 +1,42 @@
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { Image, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator, Alert } from "react-native";
+import { Image, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator, Alert, useColorScheme, Platform } from "react-native";
 import { useAuth } from '../context/AuthContext';
 import { createStory } from '../lib/services/storyService';
 
 const COLORS = {
-  primary: '#3A8EFF',
-  accent: '#FF7F11',
-  background: '#F5F7FA',
-  white: '#FFFFFF',
-  text: '#333333',
-  lightText: '#888888',
+  light: {
+    primary: '#3A8EFF',
+    accent: '#FF7F11',
+    background: '#F5F7FA',
+    card: '#FFFFFF',
+    text: '#333333',
+    lightText: '#888888',
+    border: '#E9ECEF',
+    tabBarBg: 'rgba(255, 255, 255, 0.95)',
+    tabBarBorder: 'rgba(0, 0, 0, 0.1)',
+  },
+  dark: {
+    primary: '#3A8EFF',
+    accent: '#FF7F11',
+    background: '#1A1A2E', // Match marketplace dark background
+    card: '#2D2D44',       // Match marketplace dark card
+    text: '#FFFFFF',
+    lightText: '#B0B0B0',
+    border: '#404040',     // Match marketplace dark border
+    tabBarBg: 'rgba(26, 26, 46, 0.95)',
+    tabBarBorder: 'rgba(255, 255, 255, 0.1)',
+  },
 };
 
 export default function NewStory() {
   const router = useRouter();
   const { user } = useAuth();
+  const colorScheme = useColorScheme();
+  const currentColors = colorScheme === 'dark' ? COLORS.dark : COLORS.light;
   const [media, setMedia] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -34,7 +52,12 @@ export default function NewStory() {
     if (!result.canceled) {
       const asset = result.assets[0];
       setMedia(asset.uri);
-      setMediaType(asset.type);
+      // Map the media type to our supported types
+      if (asset.type === 'video' || asset.type === 'pairedVideo') {
+        setMediaType('video');
+      } else {
+        setMediaType('image');
+      }
     }
   };
 
@@ -92,31 +115,34 @@ export default function NewStory() {
     }
   };
 
+    const styles = getStyles(currentColors);
+  
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={[COLORS.primary, '#2B6CD9']}
-        style={styles.header}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
+      {/* Custom Header matching Home screen */}
+      <BlurView
+        intensity={80}
+        tint={colorScheme === 'dark' ? 'dark' : 'light'}
+        style={[styles.header, { backgroundColor: currentColors.tabBarBg, borderBottomColor: currentColors.tabBarBorder }]}
       >
-        <TouchableOpacity onPress={() => {
-          if (router.canGoBack?.()) {
-            router.back();
-          } else {
-            router.replace('/(tabs)/home');
-          }
-        }} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Create Story</Text>
-        <TouchableOpacity onPress={handleSubmit} disabled={isLoading} style={styles.postButton}>
-          <Text style={[styles.postButtonText, isLoading && styles.disabledBtn]}>
-            {isLoading ? "Posting..." : "Post"}
-          </Text>
-        </TouchableOpacity>
-      </LinearGradient>
+        <View style={styles.headerContent}>
+          <TouchableOpacity onPress={() => {
+            if (router.canGoBack?.()) {
+              router.back();
+            } else {
+              router.replace('/(tabs)/home');
+            }
+          }} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={currentColors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: currentColors.text }]}>Create Story</Text>
+          <TouchableOpacity onPress={handleSubmit} disabled={isLoading} style={styles.postButton}>
+            <Text style={[styles.postButtonText, { color: currentColors.accent }, isLoading && styles.disabledBtn]}>
+              {isLoading ? "Posting..." : "Post"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </BlurView>
 
       {/* Media Picker */}
       <TouchableOpacity style={styles.mediaPicker} onPress={pickMedia}>
@@ -125,48 +151,47 @@ export default function NewStory() {
           mediaType === 'video' ? <Text style={styles.mediaPlaceholderText}>Video selected</Text> :
           mediaType === 'audio' ? <Text style={styles.mediaPlaceholderText}>Audio selected</Text> :
           null
-        ) : (
-          <View style={styles.mediaPlaceholder}>
-            <Ionicons name="image-outline" size={48} color={COLORS.lightText} />
-            <Text style={styles.mediaPlaceholderText}>Tap to select image, video, or audio</Text>
-          </View>
-        )}
-      </TouchableOpacity>
-      <TouchableOpacity onPress={generateAIImage} style={[styles.mediaPicker, { marginTop: 0, height: 60, justifyContent: 'center', alignItems: 'center', flexDirection: 'row' }]} disabled={aiLoading}>
-        <Ionicons name="sparkles" size={24} color={COLORS.primary} />
-        <Text style={{ color: COLORS.primary, fontWeight: 'bold', marginLeft: 8 }}>{aiLoading ? 'Generating...' : 'AI Image'}</Text>
-      </TouchableOpacity>
+                  ) : (
+            <View style={styles.mediaPlaceholder}>
+              <Ionicons name="image-outline" size={48} color={currentColors.lightText} />
+              <Text style={styles.mediaPlaceholderText}>Tap to select image, video, or audio</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity onPress={generateAIImage} style={[styles.mediaPicker, { marginTop: 0, height: 60, justifyContent: 'center', alignItems: 'center', flexDirection: 'row' }]} disabled={aiLoading}>
+          <Ionicons name="sparkles" size={24} color={currentColors.primary} />
+          <Text style={{ color: currentColors.primary, fontWeight: 'bold', marginLeft: 8 }}>{aiLoading ? 'Generating...' : 'AI Image'}</Text>
+        </TouchableOpacity>
 
       {/* Caption Input */}
       <TextInput
-        style={styles.captionInput}
-        placeholder="Add a caption..."
-        placeholderTextColor={COLORS.lightText}
-        value={caption}
-        onChangeText={setCaption}
+                  style={styles.captionInput}
+          placeholder="Add a caption..."
+          placeholderTextColor={currentColors.lightText}
+          value={caption}
+          onChangeText={setCaption}
         multiline
       />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (currentColors: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: currentColors.background,
   },
   header: {
+    paddingTop: Platform.OS === 'ios' ? 50 : 40,
+    paddingBottom: 12,
+    borderBottomWidth: 0.5,
+    zIndex: 1000,
+  },
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 50,
     paddingHorizontal: 16,
-    paddingBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
   },
   backButton: {
     width: 36,
@@ -185,18 +210,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  postButtonText: {
-    color: COLORS.accent,
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
+      postButtonText: {
+      color: currentColors.accent,
+      fontWeight: 'bold',
+      fontSize: 16,
+    },
   disabledBtn: {
     opacity: 0.5,
   },
   mediaPicker: {
     margin: 24,
     borderRadius: 16,
-    backgroundColor: COLORS.white,
+    backgroundColor: currentColors.card,
     alignItems: 'center',
     justifyContent: 'center',
     height: 260,
@@ -219,18 +244,18 @@ const styles = StyleSheet.create({
     height: 260,
   },
   mediaPlaceholderText: {
-    color: COLORS.lightText,
+    color: currentColors.lightText,
     fontSize: 16,
     marginTop: 12,
   },
   captionInput: {
-    backgroundColor: COLORS.white,
+    backgroundColor: currentColors.card,
     borderRadius: 12,
     padding: 16,
     marginHorizontal: 16,
     marginBottom: 12,
     fontSize: 16,
-    color: COLORS.text,
+    color: currentColors.text,
     minHeight: 60,
     textAlignVertical: 'top',
     shadowColor: '#000',

@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from 'expo-linear-gradient';
+import ModernHeader from '../components/ModernHeader';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -78,27 +78,19 @@ export default function SuggestionsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={[COLORS.primary, '#2B6CD9']}
-        style={styles.header}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-      >
-        <TouchableOpacity onPress={() => {
+      <ModernHeader
+        title="Suggestions"
+        showBackButton={true}
+        onBackPress={() => {
           if (router.canGoBack?.()) {
             router.back();
           } else {
             router.replace('/(tabs)/menu');
           }
-        }} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Suggestions</Text>
-        <TouchableOpacity style={styles.refreshButton}>
-          <Ionicons name="refresh" size={24} color="white" />
-        </TouchableOpacity>
-      </LinearGradient>
+        }}
+        rightIcon="refresh"
+        onRightPress={() => {}}
+      />
 
       {/* Section Header */}
       <View style={styles.sectionHeader}>

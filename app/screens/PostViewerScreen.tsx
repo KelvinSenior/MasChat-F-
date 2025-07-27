@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Dimensions, Share } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Dimensions, Share, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getPost, deletePost, Post, likePost, unlikePost } from '../lib/services/postService';
@@ -7,10 +7,13 @@ import { useAuth } from '../context/AuthContext';
 import { Video, ResizeMode } from 'expo-av';
 
 import { Colors } from '../../constants/Colors';
+import ModernHeader from '../components/ModernHeader';
 
 export default function PostViewerScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const colorScheme = useColorScheme();
+  const colors = colorScheme === 'dark' ? COLORS.dark : COLORS.light;
   const { postId } = useLocalSearchParams<{ postId: string }>();
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
@@ -102,26 +105,12 @@ export default function PostViewerScreen() {
   }
 
   return (
-    <View style={[styles.reelItem, { backgroundColor: '#111' }]}> 
-      {/* Top Bar with 'Posts' label */}
-      <View style={{ position: 'absolute', top: 48, left: 20, zIndex: 100 }}>
-        <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 32, letterSpacing: 1 }}>Posts</Text>
-      </View>
-      {/* Back Button */}
-      <TouchableOpacity
-        style={{
-          position: 'absolute',
-          top: 50,
-          right: 20,
-          zIndex: 100,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          borderRadius: 20,
-          padding: 8,
-        }}
-        onPress={() => router.back()}
-      >
-        <Ionicons name="close" size={28} color="#fff" />
-      </TouchableOpacity>
+    <View style={[styles.reelItem, { backgroundColor: colors.background }]}> 
+      <ModernHeader
+        title="Posts"
+        showBackButton={true}
+        onBackPress={() => router.back()}
+      />
       {/* Post Media */}
       <View style={styles.postMediaContainer}>
         {post.videoUrl ? (
@@ -141,7 +130,7 @@ export default function PostViewerScreen() {
               onReadyForDisplay={() => setVideoLoading(false)}
               onError={() => {
                 setVideoLoading(false);
-                Alert.alert('Video error', 'Could not load video.');
+                // Silently handle video errors - they're common and not critical
               }}
             />
           </View>
@@ -270,3 +259,30 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
 });
+
+const COLORS = {
+  light: {
+    primary: '#4361EE',
+    secondary: '#3A0CA3',
+    accent: '#FF7F11',
+    background: '#F8F9FA',
+    card: '#FFFFFF',
+    text: '#212529',
+    lightText: '#6C757D',
+    border: '#E9ECEF',
+    success: '#4CC9F0',
+    dark: '#1A1A2E',
+  },
+  dark: {
+    primary: '#4361EE',
+    secondary: '#3A0CA3',
+    accent: '#FF7F11',
+    background: '#1A1A2E', // Match marketplace dark background
+    card: '#2D2D44',       // Match marketplace dark card
+    text: '#FFFFFF',
+    lightText: '#B0B0B0',
+    border: '#404040',     // Match marketplace dark border
+    success: '#4CC9F0',
+    dark: '#1A1A2E',
+  },
+};

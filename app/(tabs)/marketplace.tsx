@@ -4,18 +4,44 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import marketplaceService, { MarketplaceItem, MarketplaceCategory } from '../lib/services/marketplaceService';
+import ModernHeader from '../../components/ModernHeader';
+import { useTheme } from '../context/ThemeContext';
 
 const COLORS = {
-  primary: '#3A8EFF',
-  accent: '#FF7F11',
-  background: '#F5F7FA',
-  white: '#FFFFFF',
-  text: '#333333',
-  lightText: '#888888',
+  light: {
+    primary: '#4361EE',
+    secondary: '#3A0CA3',
+    accent: '#FF7F11',
+    background: '#F8F9FA',
+    card: '#FFFFFF',
+    text: '#212529',
+    lightText: '#6C757D',
+    border: '#E9ECEF',
+    success: '#4CC9F0',
+    dark: '#1A1A2E',
+    tabBarBg: 'rgba(255, 255, 255, 0.95)',
+    tabBarBorder: 'rgba(0, 0, 0, 0.1)',
+  },
+  dark: {
+    primary: '#4361EE',
+    secondary: '#3A0CA3',
+    accent: '#FF7F11',
+    background: '#1A1A2E',
+    card: '#2D2D44',
+    text: '#FFFFFF',
+    lightText: '#B0B0B0',
+    border: '#404040',
+    success: '#4CC9F0',
+    dark: '#1A1A2E',
+    tabBarBg: 'rgba(26, 26, 46, 0.95)',
+    tabBarBorder: 'rgba(255, 255, 255, 0.1)',
+  },
 };
 
 export default function MarketplaceScreen() {
   const router = useRouter();
+  const { currentTheme } = useTheme();
+  const colors = COLORS[currentTheme === 'dark' ? 'dark' : 'light'];
   const [items, setItems] = useState<MarketplaceItem[]>([]);
   const [categories, setCategories] = useState<MarketplaceCategory[]>([]);
   const [search, setSearch] = useState('');
@@ -72,11 +98,14 @@ export default function MarketplaceScreen() {
   };
 
   const renderItem = ({ item }: { item: MarketplaceItem }) => (
-    <TouchableOpacity style={styles.itemCard} onPress={() => router.push({ pathname: '/marketplace/MarketplaceItemScreen', params: { itemId: item.id } })}>
+    <TouchableOpacity 
+      style={[styles.itemCard, { backgroundColor: colors.card }]} 
+      onPress={() => router.push({ pathname: '/marketplace/MarketplaceItemScreen', params: { itemId: item.id } })}
+    >
       <Image source={{ uri: item.images?.[0] || 'https://via.placeholder.com/150' }} style={styles.itemImage} />
-      <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text>
-      <Text style={styles.itemPrice}>${item.price}{item.negotiable ? ' (neg.)' : ''}</Text>
-      <Text style={styles.itemLocation}>{item.location}</Text>
+      <Text style={[styles.itemTitle, { color: colors.text }]} numberOfLines={1}>{item.title}</Text>
+      <Text style={[styles.itemPrice, { color: colors.accent }]}>${item.price}{item.negotiable ? ' (neg.)' : ''}</Text>
+      <Text style={[styles.itemLocation, { color: colors.lightText }]}>{item.location}</Text>
       {/* Seller Information */}
       {item.seller && (
         <View style={styles.sellerInfo}>
@@ -84,7 +113,7 @@ export default function MarketplaceScreen() {
             source={{ uri: item.seller.profilePicture || 'https://via.placeholder.com/30' }} 
             style={styles.sellerAvatar} 
           />
-          <Text style={styles.sellerName} numberOfLines={1}>
+          <Text style={[styles.sellerName, { color: colors.text }]} numberOfLines={1}>
             {item.seller.fullName || item.seller.username}
           </Text>
         </View>
@@ -98,22 +127,24 @@ export default function MarketplaceScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <LinearGradient colors={[COLORS.primary, '#2B6CD9']} style={styles.header}>
-        <Text style={styles.logo}>Marketplace</Text>
-        <TouchableOpacity style={styles.sellBtn} onPress={() => router.push('/marketplace/SellItemScreen')}>
-          <Ionicons name="add-circle" size={24} color={COLORS.accent} />
-          <Text style={styles.sellBtnText}>Sell</Text>
-        </TouchableOpacity>
-      </LinearGradient>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Modern Header */}
+      <ModernHeader 
+        title="Marketplace" 
+        showAddButton={true}
+        showProfileButton={true}
+        showMassCoinBalance={true}
+        onAdd={() => router.push('/marketplace/SellItemScreen')}
+        onProfile={() => router.push('/(tabs)/profile')}
+      />
 
       {/* Search Bar */}
-      <View style={styles.searchBar}>
-        <Ionicons name="search" size={20} color={COLORS.lightText} style={{ marginRight: 8 }} />
+      <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Ionicons name="search" size={20} color={colors.lightText} style={{ marginRight: 8 }} />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: colors.text }]}
           placeholder="Search items, categories..."
+          placeholderTextColor={colors.lightText}
           value={search}
           onChangeText={setSearch}
           onSubmitEditing={handleSearch}
@@ -123,23 +154,23 @@ export default function MarketplaceScreen() {
 
       {/* Categories */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesRow}>
-        <TouchableOpacity style={[styles.categoryChip, !selectedCategory && styles.categoryChipActive]} onPress={fetchData}>
-          <Text style={[styles.categoryText, !selectedCategory && styles.categoryTextActive]}>All</Text>
+        <TouchableOpacity style={[styles.categoryChip, !selectedCategory && { backgroundColor: colors.primary }]} onPress={fetchData}>
+          <Text style={[styles.categoryText, { color: colors.text }, !selectedCategory && { color: colors.card }]}>All</Text>
         </TouchableOpacity>
         {categories.map(cat => (
           <TouchableOpacity
             key={cat.id}
-            style={[styles.categoryChip, selectedCategory === cat.id && styles.categoryChipActive]}
+            style={[styles.categoryChip, selectedCategory === cat.id && { backgroundColor: colors.primary }]}
             onPress={() => handleCategory(cat.id)}
           >
-            <Text style={[styles.categoryText, selectedCategory === cat.id && styles.categoryTextActive]}>{cat.name}</Text>
+            <Text style={[styles.categoryText, { color: colors.text }, selectedCategory === cat.id && { color: colors.card }]}>{cat.name}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
 
       {/* Items Grid */}
       {loading ? (
-        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 32 }} />
+        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 32 }} />
       ) : (
         <FlatList
           data={items}
@@ -147,7 +178,7 @@ export default function MarketplaceScreen() {
           keyExtractor={item => item.id.toString()}
           numColumns={2}
           contentContainerStyle={styles.itemsGrid}
-          ListEmptyComponent={<Text style={{ textAlign: 'center', color: COLORS.lightText, marginTop: 32 }}>No items found.</Text>}
+          ListEmptyComponent={<Text style={{ textAlign: 'center', color: colors.lightText, marginTop: 32 }}>No items found.</Text>}
         />
       )}
     </View>
@@ -155,40 +186,35 @@ export default function MarketplaceScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1 },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingTop: 50,
     paddingHorizontal: 16,
     paddingBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
-    backgroundColor: COLORS.primary,
   },
-  logo: { fontSize: 24, fontWeight: 'bold', color: 'white' },
-  sellBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 6 },
-  sellBtnText: { color: COLORS.accent, fontWeight: 'bold', marginLeft: 6 },
-  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white, borderRadius: 12, margin: 16, paddingHorizontal: 12, height: 44 },
-  searchInput: { flex: 1, color: COLORS.text, fontSize: 16 },
+  logo: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  sellBtn: { flexDirection: 'row', alignItems: 'center', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 6 },
+  sellBtnText: { fontWeight: 'bold', marginLeft: 6 },
+  searchBar: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, margin: 16, paddingHorizontal: 12, height: 44, borderWidth: 1 },
+  searchInput: { flex: 1, fontSize: 16 },
   categoriesRow: { flexGrow: 0, paddingHorizontal: 8, paddingBottom: 8 },
   categoryChip: { backgroundColor: '#e4e6eb', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 8, marginRight: 8 },
-  categoryChipActive: { backgroundColor: COLORS.primary },
-  categoryText: { color: COLORS.text, fontWeight: '500' },
-  categoryTextActive: { color: COLORS.white },
+  categoryText: { fontWeight: '500' },
   itemsGrid: { paddingHorizontal: 8, paddingBottom: 80 },
-  itemCard: { flex: 1, backgroundColor: COLORS.white, borderRadius: 12, margin: 8, padding: 12, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
+  itemCard: { flex: 1, borderRadius: 12, margin: 8, padding: 12, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
   itemImage: { width: 120, height: 120, borderRadius: 8, marginBottom: 8, backgroundColor: '#eee' },
-  itemTitle: { fontWeight: 'bold', fontSize: 15, color: COLORS.text, marginBottom: 2 },
-  itemPrice: { color: COLORS.accent, fontWeight: 'bold', fontSize: 15, marginBottom: 2 },
-  itemLocation: { color: COLORS.lightText, fontSize: 13 },
+  itemTitle: { fontWeight: 'bold', fontSize: 15, marginBottom: 2 },
+  itemPrice: { fontWeight: 'bold', fontSize: 15, marginBottom: 2 },
+  itemLocation: { fontSize: 13 },
   sellerInfo: { flexDirection: 'row', alignItems: 'center', marginTop: 8, marginBottom: 4 },
   sellerAvatar: { width: 24, height: 24, borderRadius: 12, marginRight: 8 },
-  sellerName: { fontWeight: 'bold', fontSize: 13, color: COLORS.text },
+  sellerName: { fontWeight: 'bold', fontSize: 13 },
   itemStatus: { backgroundColor: '#f0f0f0', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
   statusText: { fontWeight: 'bold', fontSize: 12 },
 });

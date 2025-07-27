@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Image, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Image, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View, useColorScheme } from "react-native";
 import * as Animatable from 'react-native-animatable';
 import Toast from 'react-native-toast-message';
 import { useAuth } from '../context/AuthContext';
@@ -11,12 +11,28 @@ import client, { BASE_URL, testConnection } from '../api/client';
 
 // Color Palette (matching home screen)
 const COLORS = {
-  primary: '#3A8EFF',  // New Blue
-  accent: '#FF7F11',   // Vibrant Orange
-  background: '#F5F7FA',
-  white: '#FFFFFF',
-  text: '#333333',
-  lightText: '#888888',
+  light: {
+    primary: '#3A8EFF',  // New Blue
+    accent: '#FF7F11',   // Vibrant Orange
+    background: '#F5F7FA',
+    white: '#FFFFFF',
+    text: '#333333',
+    lightText: '#888888',
+    card: '#FFFFFF',
+    border: '#E0E0E0',
+    error: '#FF4444',
+  },
+  dark: {
+    primary: '#3A8EFF',  // New Blue
+    accent: '#FF7F11',   // Vibrant Orange
+    background: '#1A1A2E',
+    white: '#FFFFFF',
+    text: '#FFFFFF',
+    lightText: '#B0B0B0',
+    card: '#2D2D44',
+    border: '#404040',
+    error: '#FF6B6B',
+  },
 };
 
 export default function Login() {
@@ -29,6 +45,8 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const colorScheme = useColorScheme();
+  const colors = COLORS[colorScheme === 'dark' ? 'dark' : 'light'];
 
   const { signIn } = useAuth();
 
@@ -145,47 +163,47 @@ export default function Login() {
   useEffect(() => { testConnection(); }, []);
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
       
       {/* Header matching home screen */}
       <LinearGradient
-        colors={[COLORS.primary, '#2B6CD9']}
+        colors={[colors.primary, '#2B6CD9']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
         <Text style={styles.logo}>
-          Mas<Text style={{ color: COLORS.accent }}>Chat</Text>
+          Mas<Text style={{ color: colors.accent }}>Chat</Text>
         </Text>
       </LinearGradient>
 
       <Animatable.View animation="fadeInUp" duration={1000} style={styles.content}>
-        <View style={styles.formContainer}>
-          <Text style={styles.title}>Welcome Back!</Text>
-          <Text style={styles.subtitle}>Connect, chat, and share with MasChat</Text>
+        <View style={[styles.formContainer, { backgroundColor: colors.card }]}>
+          <Text style={[styles.title, { color: colors.primary }]}>Welcome Back!</Text>
+          <Text style={[styles.subtitle, { color: colors.lightText }]}>Connect, chat, and share with MasChat</Text>
 
           {/* Username Input */}
           <View style={styles.inputContainer}>
-            <Ionicons name="person-outline" size={20} color={COLORS.lightText} style={styles.inputIcon} />
+            <Ionicons name="person-outline" size={20} color={colors.lightText} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: colors.text, backgroundColor: colors.card, borderColor: colors.border }]}
               placeholder="Username"
-              placeholderTextColor={COLORS.lightText}
+              placeholderTextColor={colors.lightText}
               value={username}
               onChangeText={setUsername}
               autoCapitalize="none"
             />
           </View>
-          {errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
+          {errors.username && <Text style={[styles.errorText, { color: colors.error }]}>{errors.username}</Text>}
 
           {/* Password Input */}
           <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color={COLORS.lightText} style={styles.inputIcon} />
+            <Ionicons name="lock-closed-outline" size={20} color={colors.lightText} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: colors.text, backgroundColor: colors.card, borderColor: colors.border }]}
               placeholder="Password"
-              placeholderTextColor={COLORS.lightText}
+              placeholderTextColor={colors.lightText}
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
@@ -194,11 +212,11 @@ export default function Login() {
               <Ionicons
                 name={showPassword ? "eye-off-outline" : "eye-outline"}
                 size={22}
-                color={COLORS.lightText}
+                color={colors.lightText}
               />
             </TouchableOpacity>
           </View>
-          {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+          {errors.password && <Text style={[styles.errorText, { color: colors.error }]}>{errors.password}</Text>}
 
           <TouchableOpacity
             style={[styles.button, loading && styles.disabledButton]}
@@ -206,7 +224,7 @@ export default function Login() {
             disabled={loading}
           >
             <LinearGradient
-              colors={loading ? ['#ccc', '#ccc'] : [COLORS.primary, '#2B6CD9']}
+              colors={loading ? ['#ccc', '#ccc'] : [colors.primary, '#2B6CD9']}
               style={styles.buttonGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -218,13 +236,13 @@ export default function Login() {
           </TouchableOpacity>
           
           <TouchableOpacity onPress={() => router.push("/(auth)/forgotPassword")}>
-            <Text style={styles.forgot}>Forgot Password?</Text>
+            <Text style={[styles.forgot, { color: colors.primary }]}>Forgot Password?</Text>
           </TouchableOpacity>
           
           <View style={styles.dividerContainer}>
-            <View style={styles.divider} />
-            <Text style={styles.or}>OR</Text>
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            <Text style={[styles.or, { color: colors.lightText }]}>OR</Text>
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
           </View>
           
           <TouchableOpacity
@@ -233,7 +251,7 @@ export default function Login() {
             disabled={loading}
           >
             <LinearGradient
-              colors={loading ? ['#ccc', '#ccc'] : [COLORS.accent, '#FF9E40']}
+              colors={loading ? ['#ccc', '#ccc'] : [colors.accent, '#FF9E40']}
               style={styles.createButtonGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -253,7 +271,6 @@ export default function Login() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   header: {
     paddingTop: 50,
@@ -277,7 +294,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   formContainer: {
-    backgroundColor: COLORS.white,
     borderRadius: 16,
     padding: 24,
     shadowColor: "#000",
@@ -287,14 +303,12 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   title: {
-    color: COLORS.primary,
     fontSize: 24,
     fontWeight: "bold",
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
-    color: COLORS.lightText,
     fontSize: 16,
     marginBottom: 24,
     textAlign: 'center',
@@ -302,7 +316,6 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: '#F0F2F5',
     borderRadius: 12,
     paddingHorizontal: 16,
     marginBottom: 8,
@@ -313,8 +326,11 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    color: COLORS.text,
     fontSize: 16,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   button: {
     borderRadius: 12,
@@ -332,12 +348,11 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   buttonText: {
-    color: COLORS.white,
+    color: 'white',
     fontSize: 16,
     fontWeight: "bold",
   },
   forgot: {
-    color: COLORS.primary,
     textAlign: "center",
     marginBottom: 16,
     fontSize: 14,
@@ -350,10 +365,8 @@ const styles = StyleSheet.create({
   divider: {
     flex: 1,
     height: 1,
-    backgroundColor: "#e4e6eb",
   },
   or: {
-    color: COLORS.lightText,
     marginHorizontal: 10,
     fontWeight: "bold",
     fontSize: 14,
@@ -369,12 +382,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   createButtonText: {
-    color: COLORS.white,
+    color: 'white',
     fontSize: 16,
     fontWeight: "bold",
   },
   errorText: {
-    color: "#f02849",
     fontSize: 13,
     marginBottom: 12,
     marginLeft: 12,

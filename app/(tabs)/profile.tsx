@@ -12,9 +12,11 @@ import {
   TouchableOpacity,
   View,
   Modal,
-  Alert
+  Alert,
+  Platform,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { getUserProfile, getUserFriends, getUserPosts, Friend } from '../lib/services/userService';
 import { getPosts, Post, likePost, unlikePost } from '../lib/services/postService';
 import { fetchReels, Reel } from '../lib/services/reelService';
@@ -22,15 +24,39 @@ import CommentDialog from "../components/CommentDialog";
 import { useFocusEffect } from 'expo-router';
 import { Video, ResizeMode } from 'expo-av';
 import client from '../api/client';
+import ModernHeader from '../../components/ModernHeader';
+import MassCoinBalance from '../../components/MassCoinBalance';
 
 // Color Palette
 const COLORS = {
-  primary: '#3A8EFF',  // New Blue
-  accent: '#FF7F11',   // Vibrant Orange
-  background: '#F5F7FA',
-  white: '#FFFFFF',
-  text: '#333333',
-  lightText: '#888888',
+  light: {
+    primary: '#4361EE',
+    secondary: '#3A0CA3',
+    accent: '#FF7F11',
+    background: '#F8F9FA',
+    card: '#FFFFFF',
+    text: '#212529',
+    lightText: '#6C757D',
+    border: '#E9ECEF',
+    success: '#4CC9F0',
+    dark: '#1A1A2E',
+    tabBarBg: 'rgba(255, 255, 255, 0.95)',
+    tabBarBorder: 'rgba(0, 0, 0, 0.1)',
+  },
+  dark: {
+    primary: '#4361EE',
+    secondary: '#3A0CA3',
+    accent: '#FF7F11',
+    background: '#1A1A2E',
+    card: '#2D2D44',
+    text: '#FFFFFF',
+    lightText: '#B0B0B0',
+    border: '#404040',
+    success: '#4CC9F0',
+    dark: '#1A1A2E',
+    tabBarBg: 'rgba(26, 26, 46, 0.95)',
+    tabBarBorder: 'rgba(255, 255, 255, 0.1)',
+  },
 };
 
 const DEFAULT_COVER = "https://images.unsplash.com/photo-1506744038136-46273834b3fb";
@@ -38,10 +64,14 @@ const DEFAULT_AVATAR = "https://randomuser.me/api/portraits/men/1.jpg";
 const DEFAULT_PROFILE_PHOTO = "https://randomuser.me/api/portraits/men/1.jpg";
 
 const LIKE_ACTIVE_COLOR = '#22c55e'; // Green
-const LIKE_INACTIVE_COLOR = COLORS.lightText;
+const LIKE_INACTIVE_COLOR = COLORS.light.lightText;
 
 export default function Profile() {
   const router = useRouter();
+  const { currentTheme } = useTheme();
+  const colors = COLORS[currentTheme === 'dark' ? 'dark' : 'light'];
+  const currentColors = colors;
+  const styles = getStyles(currentColors);
   const { user, updateUser } = useAuth();
   const [activeTab, setActiveTab] = useState('Posts');
   const [profileData, setProfileData] = useState<any>(null);
@@ -103,7 +133,7 @@ export default function Profile() {
   if (loading || !profileData) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={COLORS.light.primary} />
       </View>
     );
   }
@@ -165,7 +195,7 @@ export default function Profile() {
               setRefreshing(true);
               fetchProfileData();
             }}
-            colors={[COLORS.primary]}
+            colors={[COLORS.light.primary]}
           />
         }
         contentContainerStyle={{ paddingBottom: 80 }}
@@ -179,6 +209,7 @@ export default function Profile() {
             />
           </TouchableOpacity>
           <View style={styles.headerActions}>
+            <MassCoinBalance size="small" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }} textColor="white" />
             <TouchableOpacity 
               style={styles.actionButton}
               onPress={() => router.push("../screens/editProfile")}
@@ -223,7 +254,7 @@ export default function Profile() {
           <Text style={styles.name}>
             {profileData.fullName || profileData.username || 'User'}
             {profileData.verified && (
-              <Ionicons name="checkmark-circle" size={18} color={COLORS.primary} style={styles.verifiedBadge} />
+              <Ionicons name="checkmark-circle" size={18} color={COLORS.light.primary} style={styles.verifiedBadge} />
             )}
           </Text>
           
@@ -264,10 +295,10 @@ export default function Profile() {
           {activeTab === 'Posts' && (
             <View style={{ width: '100%' }}>
               {userPosts.length === 0 ? (
-                <Text style={{ textAlign: 'center', color: COLORS.lightText, marginVertical: 24 }}>No posts yet.</Text>
+                <Text style={{ textAlign: 'center', color: currentColors.lightText, marginVertical: 24 }}>No posts yet.</Text>
               ) : (
                 userPosts.map(post => (
-                  <View key={post.id} style={{ backgroundColor: COLORS.white, marginBottom: 16, padding: 16, borderRadius: 12 }}>
+                  <View key={post.id} style={{ backgroundColor: currentColors.card, marginBottom: 16, padding: 16, borderRadius: 12 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                       <TouchableOpacity onPress={() => navigateToProfile(post.user.id)}>
                         <Image 
@@ -276,11 +307,11 @@ export default function Profile() {
                         />
                       </TouchableOpacity>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontWeight: 'bold' }}>{post.user.username}</Text>
-                        <Text style={{ color: COLORS.lightText, fontSize: 12 }}>{formatPostTime(post.createdAt)}</Text>
+                        <Text style={{ fontWeight: 'bold', color: currentColors.text }}>{post.user.username}</Text>
+                        <Text style={{ color: currentColors.lightText, fontSize: 12 }}>{formatPostTime(post.createdAt)}</Text>
                       </View>
                     </View>
-                    <Text style={{ color: COLORS.text }}>{post.content}</Text>
+                    <Text style={{ color: currentColors.text }}>{post.content}</Text>
                     {post.imageUrl && (
                       <TouchableOpacity onPress={() => setFullscreenMedia({ type: 'photo', uri: post.imageUrl || '' })}>
                         <Image source={{ uri: post.imageUrl || '' }} style={{ width: '100%', height: 200, borderRadius: 8, marginTop: 8 }} />
@@ -308,7 +339,7 @@ export default function Profile() {
                               onReadyForDisplay={() => setVideoLoading(v => ({ ...v, [post.id]: false }))}
                               onError={e => {
                                 setVideoLoading(v => ({ ...v, [post.id]: false }));
-                                Alert.alert('Video Error', 'This video cannot be played.');
+                                // Silently handle video errors - they're common and not critical
                               }}
                             />
                           ) : (
@@ -351,7 +382,7 @@ export default function Profile() {
                       </TouchableOpacity>
                       <TouchableOpacity onPress={() => setCommentModalPost(post)} style={styles.actionBtn}>
                         <View style={styles.actionIcon}>
-                          <Ionicons name="chatbubble" size={18} color={COLORS.primary} />
+                          <Ionicons name="chatbubble" size={18} color={COLORS.light.primary} />
                         </View>
                         <Text style={styles.actionText}>Comment</Text>
                         <Text style={styles.actionCount}>{post.comments?.length || 0}</Text>
@@ -366,7 +397,7 @@ export default function Profile() {
             <View style={{ width: '100%' }}>
               {/* Profile Pictures Section */}
               <View style={{ marginBottom: 24 }}>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginBottom: 12 }}>Profile Pictures</Text>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: COLORS.light.text, marginBottom: 12 }}>Profile Pictures</Text>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   {profileData.profilePicture && (
                     <TouchableOpacity onPress={() => setMediaModal({ type: 'photo', uri: profileData.profilePicture || '' })}>
@@ -378,7 +409,7 @@ export default function Profile() {
 
               {/* Cover Photos Section */}
               <View style={{ marginBottom: 24 }}>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginBottom: 12 }}>Cover Photos</Text>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: COLORS.light.text, marginBottom: 12 }}>Cover Photos</Text>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   {profileData.coverPhoto && (
                     <TouchableOpacity onPress={() => setMediaModal({ type: 'photo', uri: profileData.coverPhoto || '' })}>
@@ -390,9 +421,9 @@ export default function Profile() {
 
               {/* Posted Photos Section */}
               <View>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginBottom: 12 }}>Posted Photos</Text>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: COLORS.light.text, marginBottom: 12 }}>Posted Photos</Text>
                 {userPosts.filter(p => p.imageUrl).length === 0 ? (
-                  <Text style={{ textAlign: 'center', color: COLORS.lightText, marginVertical: 12 }}>No photos posted yet.</Text>
+                  <Text style={{ textAlign: 'center', color: COLORS.light.lightText, marginVertical: 12 }}>No photos posted yet.</Text>
                 ) : (
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                     {userPosts.filter(p => p.imageUrl).map(post => (
@@ -408,7 +439,7 @@ export default function Profile() {
           {activeTab === 'Videos' && (
             <View style={{ width: '100%', flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-start' }}>
               {userPosts.filter(p => p.videoUrl).length + userReels.length === 0 ? (
-                <Text style={{ textAlign: 'center', color: COLORS.lightText, marginVertical: 24, width: '100%' }}>No videos yet.</Text>
+                <Text style={{ textAlign: 'center', color: COLORS.light.lightText, marginVertical: 24, width: '100%' }}>No videos yet.</Text>
               ) : (
                 <>
                   {userPosts.filter(p => p.videoUrl).map(post => (
@@ -425,7 +456,9 @@ export default function Profile() {
                           shouldPlay={playingVideoId === post.id}
                           isLooping
                           isMuted={false}
-                          onError={e => Alert.alert('Video Error', 'This video cannot be played.')}
+                          onError={e => {
+                            // Silently handle video errors - they're common and not critical
+                          }}
                         />
                         {/* Play/Pause button overlay */}
                         <TouchableOpacity
@@ -464,7 +497,9 @@ export default function Profile() {
                           shouldPlay={false}
                           isLooping
                           isMuted={true}
-                          onError={e => Alert.alert('Video Error', 'This video cannot be played.')}
+                          onError={e => {
+                            // Silently handle video errors - they're common and not critical
+                          }}
                         />
                         {/* Play button overlay for reels */}
                         <View style={{ position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -24 }, { translateY: -24 }], zIndex: 2 }}>
@@ -484,7 +519,7 @@ export default function Profile() {
                 {profileData.details?.worksAt1 && (
                   <View style={styles.detailRow}>
                     <View style={styles.detailIcon}>
-                      <Ionicons name="briefcase" size={18} color={COLORS.primary} />
+                      <Ionicons name="briefcase" size={18} color={COLORS.light.primary} />
                     </View>
                     <Text style={styles.detailText}>Works at {profileData.details.worksAt1}</Text>
                   </View>
@@ -493,7 +528,7 @@ export default function Profile() {
                 {profileData.details?.studiedAt && (
                   <View style={styles.detailRow}>
                     <View style={styles.detailIcon}>
-                      <Ionicons name="school" size={18} color={COLORS.primary} />
+                      <Ionicons name="school" size={18} color={COLORS.light.primary} />
                     </View>
                     <Text style={styles.detailText}>Studied at {profileData.details.studiedAt}</Text>
                   </View>
@@ -502,7 +537,7 @@ export default function Profile() {
                 {profileData.details?.currentCity && (
                   <View style={styles.detailRow}>
                     <View style={styles.detailIcon}>
-                      <Ionicons name="location" size={18} color={COLORS.primary} />
+                      <Ionicons name="location" size={18} color={COLORS.light.primary} />
                     </View>
                     <Text style={styles.detailText}>Lives in {profileData.details.currentCity}</Text>
                   </View>
@@ -511,7 +546,7 @@ export default function Profile() {
                 {profileData.details?.hometown && (
                   <View style={styles.detailRow}>
                     <View style={styles.detailIcon}>
-                      <Ionicons name="home" size={18} color={COLORS.primary} />
+                      <Ionicons name="home" size={18} color={COLORS.light.primary} />
                     </View>
                     <Text style={styles.detailText}>From {profileData.details.hometown}</Text>
                   </View>
@@ -520,7 +555,7 @@ export default function Profile() {
                 {profileData.details?.relationshipStatus && (
                   <View style={styles.detailRow}>
                     <View style={styles.detailIcon}>
-                      <Ionicons name="heart" size={18} color={COLORS.primary} />
+                      <Ionicons name="heart" size={18} color={COLORS.light.primary} />
                     </View>
                     <Text style={styles.detailText}>{profileData.details.relationshipStatus}</Text>
                   </View>
@@ -529,9 +564,9 @@ export default function Profile() {
               
               {/* Friends Section */}
               <View style={{ marginTop: 24 }}>
-                <Text style={{ fontSize: 18, fontWeight: 'bold', color: COLORS.text, marginBottom: 16 }}>Friends</Text>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', color: currentColors.text, marginBottom: 16 }}>Friends</Text>
                 {uniqueFriends.length === 0 ? (
-                  <Text style={{ textAlign: 'center', color: COLORS.lightText, marginVertical: 12 }}>No friends yet.</Text>
+                  <Text style={{ textAlign: 'center', color: currentColors.lightText, marginVertical: 12 }}>No friends yet.</Text>
                 ) : (
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
                     {uniqueFriends.map(friend => (
@@ -583,13 +618,13 @@ export default function Profile() {
             )}
             {mediaModal.type === 'video' && (
               <TouchableOpacity onPress={() => { setMediaModal(null); router.push({ pathname: '/screens/PostViewerScreen', params: { postId: mediaModal.postId } }); }}>
-                <Ionicons name="play-circle" size={80} color={COLORS.accent} />
+                <Ionicons name="play-circle" size={80} color={COLORS.light.accent} />
                 <Text style={{ color: '#fff', marginTop: 16 }}>Tap to view video</Text>
               </TouchableOpacity>
             )}
             {mediaModal.type === 'reel' && (
               <TouchableOpacity onPress={() => { setMediaModal(null); router.push({ pathname: '/screens/ReelViewerScreen', params: { reelId: mediaModal.reelId } }); }}>
-                <Ionicons name="play-circle" size={80} color={COLORS.primary} />
+                <Ionicons name="play-circle" size={80} color={COLORS.light.primary} />
                 <Text style={{ color: '#fff', marginTop: 16 }}>Tap to view reel</Text>
               </TouchableOpacity>
             )}
@@ -622,7 +657,7 @@ export default function Profile() {
                   onReadyForDisplay={() => setVideoLoading(v => ({ ...v, fullscreen: false }))}
                   onError={e => {
                     setVideoLoading(v => ({ ...v, fullscreen: false }));
-                    Alert.alert('Video Error', 'This video cannot be played.');
+                    // Silently handle video errors - they're common and not critical
                   }}
                 />
                 {videoLoading.fullscreen && (
@@ -650,10 +685,10 @@ export default function Profile() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (currentColors: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: currentColors.background,
   },
   loadingContainer: {
     flex: 1,
@@ -662,12 +697,12 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: COLORS.text,
+    color: currentColors.text,
     fontWeight: '500',
   },
   coverContainer: {
     height: 200,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: currentColors.background,
   },
   coverPhoto: {
     width: '100%',
@@ -694,7 +729,7 @@ const styles = StyleSheet.create({
   },
   orangeRing: {
     borderWidth: 4,
-    borderColor: COLORS.accent,
+    borderColor: currentColors.accent,
     borderRadius: 64,
     padding: 0,
   },
@@ -703,13 +738,13 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     borderWidth: 4,
-    borderColor: COLORS.white,
+    borderColor: currentColors.card,
   },
   cameraButton: {
     position: 'absolute',
     bottom: 10,
     right: 10,
-    backgroundColor: COLORS.accent,
+    backgroundColor: currentColors.accent,
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -723,18 +758,18 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: currentColors.text,
     marginBottom: 4,
   },
   verifiedBadge: {
     marginLeft: 6,
   },
   stats: {
-    color: COLORS.lightText,
+    color: currentColors.lightText,
     marginBottom: 12,
   },
   bio: {
-    color: COLORS.text,
+    color: currentColors.text,
     textAlign: 'center',
     marginBottom: 16,
     lineHeight: 22,
@@ -753,17 +788,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#E7F0FD',
   },
   tabText: {
-    color: COLORS.lightText,
+    color: COLORS.light.lightText,
     fontWeight: '500',
   },
   activeTabText: {
-    color: COLORS.primary,
+    color: COLORS.light.primary,
     fontWeight: 'bold',
   },
   detailsContainer: {
     width: '100%',
     padding: 16,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.light.card,
     borderRadius: 12,
   },
   detailRow: {
@@ -781,7 +816,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   detailText: {
-    color: COLORS.text,
+    color: currentColors.text,
     flex: 1,
   },
   friendItem: {
@@ -796,7 +831,7 @@ const styles = StyleSheet.create({
   },
   friendName: {
     fontSize: 12,
-    color: COLORS.text,
+    color: currentColors.text,
     textAlign: 'center',
     fontWeight: '500',
   },
@@ -811,18 +846,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 8,
     borderWidth: 1,
-    borderColor: COLORS.lightText,
+    borderColor: COLORS.light.lightText,
     borderRadius: 8,
   },
   actionIcon: {
     marginRight: 8,
   },
   actionText: {
-    color: COLORS.text,
+    color: COLORS.light.text,
     fontWeight: '500',
   },
   actionCount: {
-    color: COLORS.text,
+    color: COLORS.light.text,
     fontWeight: 'bold',
   },
 });

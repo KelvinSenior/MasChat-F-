@@ -70,28 +70,39 @@ export const uploadImage = async (
   userId: string,
   showAvatar?: boolean // <-- add this optional argument
 ): Promise<string> => {
-  const formData = new FormData();
-  formData.append('file', {
-    uri: imageUri,
-    name: `${type}.jpg`,
-    type: 'image/jpeg',
-  } as any);
+  try {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: imageUri,
+      name: `${type}.jpg`,
+      type: 'image/jpeg',
+    } as any);
 
-  let endpoint = '';
-  if (type === 'profilePicture') {
-    endpoint = `/users/${userId}/profile/picture`;
-  } else if (type === 'coverPhoto') {
-    endpoint = `/users/${userId}/cover/photo`;
-  } else if (type === 'avatar') {
-    endpoint = `/users/${userId}/avatar/picture${showAvatar !== undefined ? `?showAvatar=${showAvatar}` : ''}`;
+    let endpoint = '';
+    if (type === 'profilePicture') {
+      endpoint = `/users/${userId}/profile/picture`;
+    } else if (type === 'coverPhoto') {
+      endpoint = `/users/${userId}/cover/photo`;
+    } else if (type === 'avatar') {
+      endpoint = `/users/${userId}/avatar/picture${showAvatar !== undefined ? `?showAvatar=${showAvatar}` : ''}`;
+    }
+
+    const response = await client.post(
+      endpoint,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    return response.data;
+  } catch (error: any) {
+    console.error('Error uploading image:', error);
+    if (error.response?.status === 413) {
+      throw new Error('Image file is too large. Please choose a smaller image.');
+    } else if (error.response?.status === 415) {
+      throw new Error('Invalid image format. Please choose a JPEG or PNG image.');
+    } else {
+      throw new Error('Failed to upload image. Please try again.');
+    }
   }
-
-  const response = await client.post(
-    endpoint,
-    formData,
-    { headers: { 'Content-Type': 'multipart/form-data' } }
-  );
-  return response.data;
 };
 
 export type Notification = {

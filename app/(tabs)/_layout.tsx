@@ -2,17 +2,35 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { View } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 
 const COLORS = {
-  primary: '#3A8EFF', // New Blue
-  accent: '#FF7F11',
-  background: '#F5F7FA',
-  white: '#FFFFFF',
-  text: '#333333',
-  lightText: '#888888',
-  gradientEnd: '#2B6CD9', // Darker shade of the new blue for gradient
+  light: {
+    primary: '#4361EE',
+    secondary: '#3A0CA3',
+    accent: '#FF7F11',
+    background: '#F8F9FA',
+    card: '#FFFFFF',
+    text: '#212529',
+    lightText: '#6C757D',
+    border: '#E9ECEF',
+    tabBarBg: 'rgba(255, 255, 255, 0.95)',
+    tabBarBorder: 'rgba(0, 0, 0, 0.1)',
+  },
+  dark: {
+    primary: '#4361EE',
+    secondary: '#3A0CA3',
+    accent: '#FF7F11',
+    background: '#1A1A2E',
+    card: '#2D2D44',
+    text: '#FFFFFF',
+    lightText: '#B0B0B0',
+    border: '#404040',
+    tabBarBg: 'rgba(26, 26, 46, 0.95)',
+    tabBarBorder: 'rgba(255, 255, 255, 0.1)',
+  },
 };
 
 function AnimatedTabIcon({ name, color, focused }: { name: any; color: string; focused: boolean }) {
@@ -35,16 +53,19 @@ function AnimatedTabIcon({ name, color, focused }: { name: any; color: string; f
           height: 4,
           borderTopLeftRadius: 4,
           borderTopRightRadius: 4,
-          backgroundColor: COLORS.accent,
+          backgroundColor: COLORS.light.accent,
           zIndex: 2,
         }} />
       )}
-      <Ionicons name={name} color={focused ? COLORS.accent : COLORS.white} size={30} />
+      <Ionicons name={name} color={focused ? COLORS.light.accent : color} size={28} />
     </Animated.View>
   );
 }
 
 export default function TabLayout() {
+  const { currentTheme } = useTheme();
+  const colors = COLORS[currentTheme === 'dark' ? 'dark' : 'light'];
+
   return (
     <Tabs
       screenOptions={({ route }) => {
@@ -56,11 +77,12 @@ export default function TabLayout() {
             bottom: 0,
             left: 0,
             right: 0,
-            height: 70,
+            height: 80,
             backgroundColor: 'transparent',
             borderTopColor: 'transparent',
             borderTopWidth: 0,
             elevation: 0,
+            shadowOpacity: 0,
           },
           tabBarIconStyle: {
             alignItems: 'center',
@@ -68,11 +90,15 @@ export default function TabLayout() {
             display: 'flex',
           },
           tabBarBackground: () => (
-            <LinearGradient
-              colors={[COLORS.primary, COLORS.gradientEnd]}
-              style={{ flex: 1 }}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
+            <BlurView
+              intensity={80}
+              tint={currentTheme === 'dark' ? 'dark' : 'light'}
+              style={{
+                flex: 1,
+                backgroundColor: colors.tabBarBg,
+                borderTopWidth: 0.5,
+                borderTopColor: colors.tabBarBorder,
+              }}
             />
           ),
         };

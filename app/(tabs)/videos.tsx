@@ -5,12 +5,39 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialIcons, Feather, FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { fetchReels, deleteReel, Reel, likeReel, unlikeReel, shareReel } from '../lib/services/reelService';
 import { Video, ResizeMode } from 'expo-av';
 import CommentDialog from "../components/CommentDialog";
 import MenuModal from '../components/MenuModal';
 import { Colors } from '../../constants/Colors';
 
+const COLORS = {
+  light: {
+    primary: '#4361EE',
+    secondary: '#3A0CA3',
+    accent: '#FF7F11',
+    background: '#F8F9FA',
+    card: '#FFFFFF',
+    text: '#212529',
+    lightText: '#6C757D',
+    border: '#E9ECEF',
+    success: '#4CC9F0',
+    dark: '#1A1A2E',
+  },
+  dark: {
+    primary: '#4361EE',
+    secondary: '#3A0CA3',
+    accent: '#FF7F11',
+    background: '#1A1A2E', // Match marketplace dark background
+    card: '#2D2D44',       // Match marketplace dark card
+    text: '#FFFFFF',
+    lightText: '#B0B0B0',
+    border: '#404040',     // Match marketplace dark border
+    success: '#4CC9F0',
+    dark: '#1A1A2E',
+  },
+};
 
 const LIKE_ACTIVE_COLOR = '#FF3040';
 const LIKE_INACTIVE_COLOR = Colors.light.text;
@@ -19,6 +46,8 @@ const { height: DEVICE_HEIGHT, width: DEVICE_WIDTH } = Dimensions.get('window');
 export default function Videos() {
   const router = useRouter();
   const { user } = useAuth();
+  const { currentTheme } = useTheme();
+  const colors = currentTheme === 'dark' ? COLORS.dark : COLORS.light;
   const [reels, setReels] = useState<Reel[]>([]);
   const [loading, setLoading] = useState(true);
   const [commentModalReel, setCommentModalReel] = useState<Reel | null>(null);
@@ -42,6 +71,14 @@ export default function Videos() {
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     return () => subscription.remove();
   }, []);
+
+  // Apply mute state to current video when mute state changes
+  useEffect(() => {
+    const currentVideoRef = videoRefs.current[currentReelIndex];
+    if (currentVideoRef && currentVideoRef.setIsMutedAsync) {
+      currentVideoRef.setIsMutedAsync(muted);
+    }
+  }, [muted, currentReelIndex]);
 
   // Pause all videos when leaving the screen
   useFocusEffect(
@@ -140,6 +177,11 @@ export default function Videos() {
       if (ref && ref.pauseAsync && idx !== newIndex) ref.pauseAsync();
       if (ref && ref.playAsync && idx === newIndex) ref.playAsync();
     });
+    // Apply mute state to the new video
+    const newVideoRef = videoRefs.current[newIndex];
+    if (newVideoRef && newVideoRef.setIsMutedAsync) {
+      newVideoRef.setIsMutedAsync(muted);
+    }
   };
 
   const handleVideoPress = (index: number) => {
@@ -155,9 +197,15 @@ export default function Videos() {
   };
 
   const handleMuteToggle = () => {
-    setMuted((prev) => !prev);
-    const ref = videoRefs.current[currentReelIndex];
-    if (ref) ref.setIsMutedAsync(!muted);
+    setMuted((prev) => {
+      const newMuted = !prev;
+      // Update the current video's mute state
+      const ref = videoRefs.current[currentReelIndex];
+      if (ref && ref.setIsMutedAsync) {
+        ref.setIsMutedAsync(newMuted);
+      }
+      return newMuted;
+    });
   };
 
   const handleSpeedChange = (speed: number) => {
@@ -179,7 +227,7 @@ export default function Videos() {
   const currentReel = reels[currentReelIndex] || null;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Top Bar */}
       <View style={styles.topBar}>
         <Text style={styles.reelsTitle}>Reels</Text>
@@ -236,14 +284,15 @@ export default function Videos() {
                       shouldPlay={index === currentReelIndex && !paused}
                       isLooping
                       useNativeControls={false}
-                      isMuted={true}
+                      isMuted={muted}
                       rate={videoSpeed}
                       onLoadStart={() => setVideoLoading(v => ({ ...v, [index]: true }))}
                       onReadyForDisplay={() => setVideoLoading(v => ({ ...v, [index]: false }))}
                       onError={error => {
                         setVideoLoading(v => ({ ...v, [index]: false }));
-                        Alert.alert('Video Error', 'This video cannot be played. Please try another reel.');
-                        console.error('Reel video error:', error);
+                        // Silently handle video errors - they're common and not critical
+                        // Alert.alert('Video Error', 'This video cannot be played. Please try another reel.');
+                        // console.error('Reel video error:', error);
                       }}
                     />
                   </View>

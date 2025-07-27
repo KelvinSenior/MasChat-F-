@@ -79,6 +79,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               // If backend is not reachable, don't clear the token - just skip validation
               console.log('Backend not reachable, skipping token validation');
               console.log('User will remain logged in with stored credentials');
+              // Still redirect to home screen since we have stored credentials
+              router.replace('/(tabs)/home');
               return;
             }
             
@@ -97,6 +99,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (response.status === 200) {
               // Token is valid, user stays logged in
               console.log('Token validated successfully:', response.data);
+              // Automatically redirect to home screen since token is valid
+              router.replace('/(tabs)/home');
             } else {
               // Token is invalid, clear storage and redirect to login
               console.log('Token validation returned non-200 status:', response.status);
@@ -121,6 +125,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             } else {
               console.log('Network or server error, keeping token for now');
               console.log('User will remain logged in with stored credentials');
+              // Still redirect to home screen since we have stored credentials
+              router.replace('/(tabs)/home');
             }
           }
         }

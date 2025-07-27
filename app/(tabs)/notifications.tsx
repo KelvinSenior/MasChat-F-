@@ -1,4 +1,5 @@
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
 import React from "react";
@@ -14,28 +15,51 @@ import {
   Dimensions,
 } from "react-native";
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { fetchNotifications, markNotificationRead, Notification, acceptFriendRequest, deleteFriendRequest, deleteNotification } from '../lib/services/userService';
 import client from '../api/client';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useNotification } from '../context/NotificationContext';
+import ModernHeader from '../../components/ModernHeader';
 
 // Modern Color Palette
 const COLORS = {
-  primary: '#4361EE',    // Vibrant Blue
-  secondary: '#3A0CA3',  // Deep Purple
-  accent: '#FF7F11',     // Orange
-  background: '#F8F9FA',  // Light Gray
-  card: '#FFFFFF',       // White
-  white: '#FFFFFF',      // White
-  text: '#212529',       // Dark Gray
-  lightText: '#6C757D',  // Medium Gray
-  border: '#E9ECEF',     // Light Border
-  success: '#4CC9F0',    // Teal
-  danger: '#FF3040',     // Red
-  warning: '#FFC107',    // Yellow
-  dark: '#1A1A2E',       // Dark Blue
+  light: {
+    primary: '#4361EE',
+    secondary: '#3A0CA3',
+    accent: '#FF7F11',
+    background: '#F8F9FA',
+    card: '#FFFFFF',
+    text: '#212529',
+    lightText: '#6C757D',
+    border: '#E9ECEF',
+    success: '#4CC9F0',
+    danger: '#FF3040',
+    warning: '#FFC107',
+    white: '#FFFFFF',
+    dark: '#1A1A2E',
+    tabBarBg: 'rgba(255, 255, 255, 0.95)',
+    tabBarBorder: 'rgba(0, 0, 0, 0.1)',
+  },
+  dark: {
+    primary: '#4361EE',
+    secondary: '#3A0CA3',
+    accent: '#FF7F11',
+    background: '#1A1A2E',
+    card: '#2D2D44',
+    text: '#FFFFFF',
+    lightText: '#B0B0B0',
+    border: '#404040',
+    success: '#4CC9F0',
+    danger: '#FF3040',
+    warning: '#FFC107',
+    white: '#FFFFFF',
+    dark: '#1A1A2E',
+    tabBarBg: 'rgba(26, 26, 46, 0.95)',
+    tabBarBorder: 'rgba(255, 255, 255, 0.1)',
+  },
 };
 
 const DEVICE_WIDTH = Dimensions.get('window').width;
@@ -62,6 +86,10 @@ const formatTimeAgo = (date: Date): string => {
 
 export default function Notifications() {
   const router = useRouter();
+  const { currentTheme } = useTheme();
+  const colors = COLORS[currentTheme === 'dark' ? 'dark' : 'light'];
+  const currentColors = colors;
+  const styles = getStyles(currentColors);
   const [notifications, setNotifications] = React.useState<Notification[]>([]);
   const [loading, setLoading] = React.useState(true);
   const { user } = useAuth();
@@ -76,7 +104,7 @@ export default function Notifications() {
       .finally(() => setLoading(false));
 
     // WebSocket for real-time notifications
-    const socket = new SockJS('http://10.94.219.125:8080/ws-chat');
+    const socket = new SockJS('http://10.132.74.85:8080/ws-chat');
     const client = new Client({
       webSocketFactory: () => socket,
       debug: str => console.log(str),
@@ -132,7 +160,7 @@ export default function Notifications() {
   const renderRightActions = (notificationId: string) => (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', width: 120 }}>
       <TouchableOpacity 
-        style={{ backgroundColor: COLORS.accent, justifyContent: 'center', alignItems: 'center', width: 60, height: '100%' }}
+        style={{ backgroundColor: colors.accent, justifyContent: 'center', alignItems: 'center', width: 60, height: '100%' }}
         onPress={() => handleMarkRead(notificationId)}
       >
         <Ionicons name="checkmark" size={24} color="white" />
@@ -150,25 +178,19 @@ export default function Notifications() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={[COLORS.primary, COLORS.secondary]}
-        style={styles.header}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+      {/* Custom Header with Search Button */}
+      <BlurView
+        intensity={80}
+        tint={currentTheme === 'dark' ? 'dark' : 'light'}
+        style={[styles.header, { backgroundColor: colors.tabBarBg, borderBottomColor: colors.tabBarBorder }]}
       >
         <View style={styles.headerContent}>
-          <Text style={styles.logo}>Notifications</Text>
-          <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.headerIconBtn}>
-              <Ionicons name="search" size={24} color="white" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.headerIconBtn}>
-              <Ionicons name="ellipsis-horizontal" size={24} color="white" />
-            </TouchableOpacity>
-          </View>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Notifications</Text>
+          <TouchableOpacity style={styles.searchBtn} onPress={() => router.push('/screens/SearchScreen')}>
+            <Ionicons name="search" size={24} color={colors.text} />
+          </TouchableOpacity>
         </View>
-      </LinearGradient>
+      </BlurView>
 
       {/* Notifications Title & Mark All as Read */}
       <View style={styles.statsContainer}>
@@ -185,11 +207,11 @@ export default function Notifications() {
         {notifications.some(n => !n.read) && (
           <TouchableOpacity onPress={handleMarkAllRead} style={styles.markAllBtn}>
             <LinearGradient
-              colors={[COLORS.accent, '#FF6B35']}
+              colors={[colors.accent, '#FF6B35']}
               style={styles.markAllGradient}
             >
               <Ionicons name="checkmark-done" size={16} color="white" />
-              <Text style={styles.markAllText}>Mark all read</Text>
+              <Text style={[styles.markAllText, { color: colors.card }]}>Mark all read</Text>
             </LinearGradient>
           </TouchableOpacity>
         )}
@@ -218,7 +240,7 @@ export default function Notifications() {
             ))}
           </View>
         ) : notifications.length === 0 ? (
-          <Text style={{ textAlign: 'center', marginVertical: 24 }}>No notifications yet.</Text>
+          <Text style={{ textAlign: 'center', marginVertical: 24, color: currentColors.text }}>No notifications yet.</Text>
         ) : notifications.map((item) => (
           <Swipeable
             key={item.id}
@@ -228,7 +250,7 @@ export default function Notifications() {
             <Animated.View style={[
               styles.card,
               !item.read && styles.unreadCard,
-              { borderLeftWidth: 4, borderLeftColor: !item.read ? COLORS.accent : 'transparent' }
+              { borderLeftWidth: 4, borderLeftColor: !item.read ? colors.accent : 'transparent' }
             ]}>
               <TouchableOpacity style={{ flex: 1 }} onPress={() => handleMarkRead(item.id)}>
                 <View style={styles.row}>
@@ -238,28 +260,28 @@ export default function Notifications() {
                       <Image source={{ uri: item.avatar }} style={styles.avatar} />
                     ) : item.message?.toLowerCase().includes('friend request') ? (
                       <LinearGradient
-                        colors={[COLORS.primary, COLORS.secondary]}
+                        colors={[colors.primary, colors.secondary]}
                         style={styles.iconGradient}
                       >
                         <Ionicons name="person-add" size={20} color="white" />
                       </LinearGradient>
                     ) : item.message?.toLowerCase().includes('like') ? (
                       <LinearGradient
-                        colors={[COLORS.danger, '#FF6B6B']}
+                        colors={[colors.danger, '#FF6B6B']}
                         style={styles.iconGradient}
                       >
                         <Ionicons name="heart" size={20} color="white" />
                       </LinearGradient>
                     ) : item.message?.toLowerCase().includes('comment') ? (
                       <LinearGradient
-                        colors={[COLORS.accent, '#FF6B35']}
+                        colors={[colors.accent, '#FF6B35']}
                         style={styles.iconGradient}
                       >
                         <Ionicons name="chatbubble" size={20} color="white" />
                       </LinearGradient>
                     ) : (
                       <LinearGradient
-                        colors={[COLORS.success, '#4CC9F0']}
+                        colors={[colors.success, '#4CC9F0']}
                         style={styles.iconGradient}
                       >
                         <Ionicons name="notifications" size={20} color="white" />
@@ -274,7 +296,7 @@ export default function Notifications() {
                       <View style={styles.actionButtons}>
                         <TouchableOpacity style={styles.confirmBtn} onPress={() => handleConfirmFriendRequest(item.id)}>
                           <LinearGradient
-                            colors={[COLORS.success, '#4CC9F0']}
+                            colors={[colors.success, '#4CC9F0']}
                             style={styles.actionGradient}
                           >
                             <Ionicons name="checkmark" size={16} color="white" />
@@ -283,7 +305,7 @@ export default function Notifications() {
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.declineBtn} onPress={() => handleDeleteFriendRequest(item.id)}>
                           <LinearGradient
-                            colors={[COLORS.danger, '#FF6B6B']}
+                            colors={[colors.danger, '#FF6B6B']}
                             style={styles.actionGradient}
                           >
                             <Ionicons name="close" size={16} color="white" />
@@ -296,7 +318,7 @@ export default function Notifications() {
                   {!item.read && (
                     <View style={styles.unreadDot}>
                       <LinearGradient
-                        colors={[COLORS.accent, '#FF6B35']}
+                        colors={[colors.accent, '#FF6B35']}
                         style={styles.dotGradient}
                       />
                     </View>
@@ -311,10 +333,10 @@ export default function Notifications() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (currentColors: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.light.background,
   },
   header: {
     flexDirection: "row",
@@ -331,10 +353,22 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     width: '100%',
   },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  searchBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
   headerActions: {
     flexDirection: 'row',
     gap: 10,
@@ -354,14 +388,14 @@ const styles = StyleSheet.create({
   notificationsHeader: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.light.card,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
   notificationsTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: COLORS.light.text,
   },
   iconBtn: {
     width: 36,
@@ -379,13 +413,13 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 18,
     fontWeight: "bold",
-    color: COLORS.text,
+    color: currentColors.text,
     marginTop: 16,
     marginBottom: 12,
     marginLeft: 16,
   },
   card: {
-    backgroundColor: COLORS.card,
+    backgroundColor: currentColors.card,
     borderRadius: 12,
     marginHorizontal: 16,
     marginBottom: 12,
@@ -399,7 +433,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: currentColors.border,
   },
   row: {
     flexDirection: "row",
@@ -412,7 +446,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.light.background,
     overflow: 'hidden',
   },
   avatar: {
@@ -421,22 +455,22 @@ const styles = StyleSheet.create({
   },
   messageText: {
     fontSize: 15,
-    color: COLORS.text,
+    color: currentColors.text,
     marginBottom: 4,
     lineHeight: 20,
   },
   bold: {
     fontWeight: "bold",
-    color: COLORS.text,
+    color: currentColors.text,
   },
   mutual: {
     fontSize: 13,
-    color: COLORS.lightText,
+    color: COLORS.light.lightText,
     marginBottom: 4,
   },
   time: {
     fontSize: 12,
-    color: COLORS.lightText,
+    color: currentColors.lightText,
     marginTop: 4,
   },
   actionsRow: {
@@ -451,7 +485,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   primaryAction: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.light.primary,
   },
   secondaryAction: {
     backgroundColor: '#e4e6eb',
@@ -461,10 +495,10 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   primaryText: {
-    color: COLORS.white,
+    color: COLORS.light.white,
   },
   secondaryText: {
-    color: COLORS.text,
+    color: COLORS.light.text,
   },
   markAllBtn: {
     borderRadius: 8,
@@ -473,23 +507,23 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   markAllText: {
-    color: COLORS.white,
+    color: COLORS.light.white,
     fontWeight: 'bold',
     fontSize: 14,
     marginLeft: 4,
   },
   unreadCard: {
-    shadowColor: COLORS.accent,
+    shadowColor: COLORS.light.accent,
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 4,
     backgroundColor: '#FFF8E1',
-    borderColor: COLORS.accent,
+    borderColor: COLORS.light.accent,
   },
   statsContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: COLORS.card,
+    backgroundColor: COLORS.light.card,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
@@ -504,11 +538,11 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: COLORS.light.primary,
   },
   statLabel: {
     fontSize: 14,
-    color: COLORS.lightText,
+    color: COLORS.light.lightText,
     marginTop: 4,
   },
   markAllGradient: {

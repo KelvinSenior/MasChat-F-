@@ -1,5 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from 'expo-linear-gradient';
+import ModernHeader from '../components/ModernHeader';
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -236,19 +236,11 @@ export default function ContentPreferencesScreen() {
     <View style={styles.container}>
       <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" translucent />
       
-      {/* Header */}
-      <LinearGradient
-        colors={[COLORS.primary, '#2B6CD9']}
-        style={[styles.header, { paddingTop: Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 0) + 10 }]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-      >
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerIcon}>
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Content Preferences</Text>
-        <View style={styles.headerIcon} />
-      </LinearGradient>
+      <ModernHeader
+        title="Content Preferences"
+        showBackButton={true}
+        onBackPress={() => router.back()}
+      />
 
       {/* Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>

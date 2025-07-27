@@ -87,7 +87,7 @@ export default function SellItemScreen() {
             name: `photo.jpg`,
             type: 'image/jpeg',
           } as any);
-          const res = await fetch('http://10.94.219.125:8080/api/marketplace/upload-image', {
+          const res = await fetch('http://10.132.74.85:8080/api/marketplace/upload-image', {
             method: 'POST',
             body: formData,
             headers: { 'Content-Type': 'multipart/form-data' },

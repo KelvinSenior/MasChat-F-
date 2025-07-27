@@ -2,28 +2,43 @@ import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { StatusBar, ActivityIndicator, FlatList, Image, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert } from 'react-native';
+import { StatusBar, ActivityIndicator, FlatList, Image, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert, useColorScheme } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { messageService, Message } from '../lib/services/messageService';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadImage } from '../lib/services/userService';
+import ModernHeader from '../components/ModernHeader';
 
 // Color Palette (matching Home screen)
 const COLORS = {
-  primary: '#3A8EFF',  // New Blue
-  accent: '#FF7F11',   // Vibrant Orange
-  background: '#F5F7FA',
-  white: '#FFFFFF',
-  text: '#333333',
-  lightText: '#888888',
+  light: {
+    primary: '#3A8EFF',  // New Blue
+    accent: '#FF7F11',   // Vibrant Orange
+    background: '#F5F7FA',
+    white: '#FFFFFF',
+    text: '#333333',
+    lightText: '#888888',
+    card: '#FFFFFF',
+  },
+  dark: {
+    primary: '#3A8EFF',  // New Blue
+    accent: '#FF7F11',   // Vibrant Orange
+    background: '#1A1A2E',
+    white: '#FFFFFF',
+    text: '#FFFFFF',
+    lightText: '#B0B0B0',
+    card: '#2D2D44',
+  },
 };
 
 export default function ChatScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { user: currentUser } = useAuth();
+  const colorScheme = useColorScheme();
+  const colors = colorScheme === 'dark' ? COLORS.dark : COLORS.light;
   let recipient: any = undefined;
   try {
     recipient = params.recipient ? JSON.parse(params.recipient as string) : null;
@@ -97,7 +112,7 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (!currentUser?.id || !recipient?.id) return;
-    const socket = new SockJS('http://10.94.219.125:8080/ws-chat');
+    const socket = new SockJS('http://10.132.74.85:8080/ws-chat');
     const client = new Client({
       webSocketFactory: () => socket,
       debug: str => console.log(str),
@@ -141,15 +156,7 @@ export default function ChatScreen() {
     setText('');
     
     try {
-      // Send via WebSocket for real-time
-      if (stompClient.current && stompClient.current.connected) {
-        stompClient.current.publish({
-          destination: '/app/chat.send',
-          body: JSON.stringify(msg),
-        });
-      }
-      
-      // Also send via REST API for persistence
+      // Send via REST API for persistence
       const savedMessage = await messageService.sendMessage(currentUser.id, recipient.id, text);
       
       // Update the pending message with the saved message
@@ -322,22 +329,19 @@ export default function ChatScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={[COLORS.primary, '#2B6CD9']}
-        style={[styles.header, { paddingTop: Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 0) + 10 }]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-      >
-        <TouchableOpacity onPress={() => {
+      <ModernHeader
+        title={recipient?.name || recipient?.username || "Chat"}
+        showBackButton={true}
+        onBack={() => {
           if (router.canGoBack?.()) {
             router.back();
           } else {
             router.replace('/(tabs)/videos');
           }
-        }} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
+        }}
+      />
+      {/* Profile Info and Action Buttons */}
+      <View style={[styles.profileInfoContainer, { backgroundColor: colors.card }]}>
         <TouchableOpacity 
           style={styles.profileContainer}
           onPress={() => router.push({ pathname: "/(tabs)/profile", params: { user: JSON.stringify(recipient) } })}
@@ -347,40 +351,24 @@ export default function ChatScreen() {
             style={styles.profilePic}
           />
           <View style={styles.headerInfo}>
-            <Text style={styles.headerTitle}>{recipient?.name || recipient?.username || "Chat"}</Text>
-            <Text style={styles.headerSubtitle}>Active now</Text>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>{recipient?.name || recipient?.username || "Chat"}</Text>
+            <Text style={[styles.headerSubtitle, { color: colors.lightText }]}>Active now</Text>
           </View>
         </TouchableOpacity>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.headerIconBtn}>
-            <Ionicons name="call-outline" size={22} color="white" />
+            <Ionicons name="call-outline" size={22} color={colors.text} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerIconBtn}>
-            <Ionicons name="videocam-outline" size={24} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.headerIconBtn}
-            onPress={() => {
-              Alert.alert(
-                "Conversation Options",
-                "What would you like to do?",
-                [
-                  { text: "Cancel", style: "cancel" },
-                  { text: "Delete Conversation", style: "destructive", onPress: deleteConversation },
-                  { text: "View Profile", onPress: () => router.push({ pathname: "/(tabs)/profile", params: { user: JSON.stringify(recipient) } }) }
-                ]
-              );
-            }}
-          >
-            <Ionicons name="ellipsis-vertical" size={24} color="white" />
+            <Ionicons name="videocam-outline" size={24} color={colors.text} />
           </TouchableOpacity>
         </View>
-      </LinearGradient>
+      </View>
 
       {/* Messages */}
       {isLoading && messages.length === 0 ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
         <FlatList
@@ -409,19 +397,19 @@ export default function ChatScreen() {
           <View style={styles.inputRow}>
             <View style={styles.leftIcons}>
               <TouchableOpacity style={styles.iconBtn} onPress={pickAndSendImage} disabled={imageSending}>
-                <Ionicons name="image" size={24} color={COLORS.primary} />
+                <Ionicons name="image" size={24} color={colors.primary} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.iconBtn}>
-                <Feather name="paperclip" size={24} color={COLORS.primary} />
+                <Feather name="paperclip" size={24} color={colors.primary} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.iconBtn}>
-                <MaterialIcons name="photo-camera" size={24} color={COLORS.primary} />
+                <MaterialIcons name="photo-camera" size={24} color={colors.primary} />
               </TouchableOpacity>
             </View>
             <TextInput
               style={[styles.input, { height: Math.max(44, inputHeight) }]}
               placeholder="Aa"
-              placeholderTextColor={COLORS.lightText}
+              placeholderTextColor={colors.lightText}
               value={text}
               onChangeText={setText}
               multiline
@@ -665,5 +653,14 @@ const styles = StyleSheet.create({
   },
   sendBtnSending: {
     opacity: 0.7,
+  },
+  profileInfoContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e4e6eb',
   },
 });

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import AIChatModal from '../components/AIChatModal';
+import ErrorBoundary from '../components/ErrorBoundary';
 import FloatingAIButton from '../components/FloatingAIButton';
 import NotificationBanner from './components/NotificationBanner';
 import { AuthProvider } from './context/AuthContext';
@@ -19,26 +20,28 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <ThemeProvider>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <NotificationProvider>
-          <NotificationBanner />
-          <FloatingAIButton onPress={() => setShowChat(true)} />
-          <AuthProvider>
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                animation: 'slide_from_right',
-                gestureEnabled: true,
-                gestureDirection: 'horizontal',
-              }}
-            >
-              <Slot />
-            </Stack>
-            <AIChatModal visible={showChat} onClose={() => setShowChat(false)} />
-          </AuthProvider>
-        </NotificationProvider>
-      </GestureHandlerRootView>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <NotificationProvider>
+            <NotificationBanner />
+            <FloatingAIButton onPress={() => setShowChat(true)} />
+            <AuthProvider>
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  animation: 'slide_from_right',
+                  gestureEnabled: true,
+                  gestureDirection: 'horizontal',
+                }}
+              >
+                <Slot />
+              </Stack>
+              <AIChatModal visible={showChat} onClose={() => setShowChat(false)} />
+            </AuthProvider>
+          </NotificationProvider>
+        </GestureHandlerRootView>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }

@@ -6,6 +6,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { fetchStories, Story } from '../lib/services/storyService';
 
 import { Colors } from '../../constants/Colors';
+import ModernHeader from '../components/ModernHeader';
 
 export default function StoryViewerScreen() {
   const router = useRouter();
@@ -29,24 +30,17 @@ export default function StoryViewerScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={[Colors.light.primary, '#2B6CD9']}
-        style={styles.header}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-      >
-        <TouchableOpacity onPress={() => {
+      <ModernHeader
+        title="Story"
+        showBackButton={true}
+        onBackPress={() => {
           if (router.canGoBack?.()) {
             router.back();
           } else {
             router.replace('/(tabs)/videos');
           }
-        }} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Story</Text>
-        <View style={{ width: 36 }} />
-      </LinearGradient>
+        }}
+      />
       {loading ? (
         <ActivityIndicator style={{ marginTop: 60 }} color={Colors.light.primary} />
       ) : !story ? (

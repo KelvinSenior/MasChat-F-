@@ -1,55 +1,56 @@
-import { Entypo, FontAwesome5, Ionicons } from "@expo/vector-icons";
-import * as DocumentPicker from 'expo-document-picker';
+import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
   Image,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
+  useColorScheme,
+  Platform,
 } from "react-native";
 import { useAuth } from '../context/AuthContext';
 import { createPost } from '../lib/services/postService';
 import { uploadImage } from '../lib/services/userService';
-import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 
 // Color Palette (matching home/friends screens)
 const COLORS = {
-  primary: '#3A8EFF',  // Deep Blue
-  accent: '#FF7F11',   // Vibrant Orange
-  background: '#F5F7FA',
-  white: '#FFFFFF',
-  text: '#333333',
-  lightText: '#888888',
+  light: {
+    primary: '#3A8EFF',  // Deep Blue
+    accent: '#FF7F11',   // Vibrant Orange
+    background: '#F5F7FA',
+    card: '#FFFFFF',
+    text: '#333333',
+    lightText: '#888888',
+    border: '#E9ECEF',
+    tabBarBg: 'rgba(255, 255, 255, 0.95)',
+    tabBarBorder: 'rgba(0, 0, 0, 0.1)',
+  },
+  dark: {
+    primary: '#3A8EFF',  // Deep Blue
+    accent: '#FF7F11',   // Vibrant Orange
+    background: '#1A1A2E', // Match marketplace dark background
+    card: '#2D2D44',       // Match marketplace dark card
+    text: '#FFFFFF',
+    lightText: '#B0B0B0',
+    border: '#404040',     // Match marketplace dark border
+    tabBarBg: 'rgba(26, 26, 46, 0.95)',
+    tabBarBorder: 'rgba(255, 255, 255, 0.1)',
+  },
 };
 
-const options = [
-  {
-    icon: <Ionicons name="image" size={22} color="#22c55e" />,
-    label: "Photo/video",
-  },
-  {
-    icon: <FontAwesome5 name="smile" size={22} color="#fbbf24" />,
-    label: "Feeling/activity",
-  },
-  {
-    icon: <Entypo name="location-pin" size={22} color="#ef4444" />,
-    label: "Check in",
-  },
-  {
-    icon: <Ionicons name="videocam" size={22} color="#ef4444" />,
-    label: "Live video",
-  },
-];
+
 
 export default function NewPost() {
   const router = useRouter();
   const { user } = useAuth();
+  const colorScheme = useColorScheme();
+  const currentColors = colorScheme === 'dark' ? COLORS.dark : COLORS.light;
   const [post, setPost] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const [video, setVideo] = useState<string | null>(null);
@@ -137,126 +138,83 @@ export default function NewPost() {
     return <View style={{flex:1,justifyContent:'center',alignItems:'center'}}><Text>User not found</Text></View>;
   }
 
+    const styles = getStyles(currentColors);
+  
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={[COLORS.primary, '#2B6CD9']}
-        style={styles.header}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
+      {/* Custom Header matching Home screen */}
+      <BlurView
+        intensity={80}
+        tint={colorScheme === 'dark' ? 'dark' : 'light'}
+        style={[styles.header, { backgroundColor: currentColors.tabBarBg, borderBottomColor: currentColors.tabBarBorder }]}
       >
-        <TouchableOpacity onPress={() => {
-          if (router.canGoBack?.()) {
-            router.back();
-          } else {
-            router.replace('/(tabs)/home');
-          }
-        }} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Create Post</Text>
-        <TouchableOpacity onPress={handleSubmit} disabled={isLoading} style={styles.postButton}>
-          <Text style={[styles.postButtonText, isLoading && styles.disabledBtn]}>
-            {isLoading ? "Posting..." : "Post"}
-          </Text>
-        </TouchableOpacity>
-      </LinearGradient>
-
-      {/* User Info and Controls */}
-      <View style={styles.userRow}>
-        <Image source={{ uri: user.avatar }} style={styles.avatar} />
-        <View style={{ flex: 1 }}>
-          <Text style={styles.userName}>{user.fullName || user.username}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsRow}>
-            <TouchableOpacity style={styles.chip}>
-              <Ionicons name="earth" size={14} color={COLORS.primary} />
-              <Text style={styles.chipText}>Public</Text>
-              <Ionicons name="chevron-down" size={14} color={COLORS.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.chip}>
-              <Ionicons name="albums" size={14} color={COLORS.primary} />
-              <Text style={styles.chipText}>Album</Text>
-              <Ionicons name="chevron-down" size={14} color={COLORS.primary} />
-            </TouchableOpacity>
-          </ScrollView>
+        <View style={styles.headerContent}>
+          <TouchableOpacity onPress={() => {
+            if (router.canGoBack?.()) {
+              router.back();
+            } else {
+              router.replace('/(tabs)/home');
+            }
+          }} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={currentColors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: currentColors.text }]}>Create Post</Text>
+          <TouchableOpacity onPress={handleSubmit} disabled={isLoading} style={styles.postButton}>
+            <Text style={[styles.postButtonText, { color: currentColors.accent }, isLoading && styles.disabledBtn]}>
+              {isLoading ? "Posting..." : "Post"}
+            </Text>
+          </TouchableOpacity>
         </View>
-      </View>
+      </BlurView>
+
+      {/* Media Picker */}
+      <TouchableOpacity style={styles.mediaPicker} onPress={pickMedia}>
+        {(image || video) ? (
+          image ? <Image source={{ uri: image }} style={styles.mediaPreview} /> :
+          video ? <Text style={styles.mediaPlaceholderText}>Video selected</Text> :
+          null
+        ) : (
+          <View style={styles.mediaPlaceholder}>
+            <Ionicons name="image-outline" size={48} color={currentColors.lightText} />
+            <Text style={styles.mediaPlaceholderText}>Tap to select image or video</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+      
+      <TouchableOpacity onPress={generateAIImage} style={[styles.mediaPicker, { marginTop: 0, height: 60, justifyContent: 'center', alignItems: 'center', flexDirection: 'row' }]} disabled={aiLoading}>
+        <Ionicons name="sparkles" size={24} color={currentColors.primary} />
+        <Text style={{ color: currentColors.primary, fontWeight: 'bold', marginLeft: 8 }}>{aiLoading ? 'Generating...' : 'AI Image'}</Text>
+      </TouchableOpacity>
 
       {/* Post Input */}
       <TextInput
-        style={styles.input}
+        style={styles.captionInput}
         placeholder="What's on your mind?"
-        placeholderTextColor={COLORS.lightText}
+        placeholderTextColor={currentColors.lightText}
         multiline
         value={post}
         onChangeText={setPost}
       />
-
-      {/* Image/Video Picker */}
-      <View style={styles.pickerContainer}>
-        <TouchableOpacity onPress={pickMedia} style={styles.pickButton}>
-          <Ionicons name="images" size={24} color={COLORS.accent} />
-          <Text style={styles.pickButtonText}>Add Media</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={generateAIImage} style={styles.pickButton} disabled={aiLoading}>
-          <Ionicons name="sparkles" size={24} color={COLORS.primary} />
-          <Text style={styles.pickButtonText}>{aiLoading ? 'Generating...' : 'AI Image'}</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Preview Selected Media */}
-      {(image || video || audio) && (
-        <View style={styles.previewContainer}>
-          {image && <Image source={{ uri: image }} style={styles.previewImage} />}
-          {video && <Text style={styles.previewText}>Video selected</Text>}
-          {audio && <Text style={styles.previewText}>Audio selected</Text>}
-        </View>
-      )}
-
-      {/* Options Sheet */}
-      <View style={styles.optionsSheet}>
-        <View style={styles.optionsHandle} />
-        {options.map((opt) => (
-          <TouchableOpacity key={opt.label} style={styles.optionRow}>
-            {opt.icon}
-            <Text style={styles.optionLabel}>{opt.label}</Text>
-          </TouchableOpacity>
-        ))}
-        <TouchableOpacity style={styles.option} onPress={() => router.push('/screens/ComingSoon')}>
-          <Ionicons name="image-outline" size={28} color="#222" />
-          <Text style={styles.optionText}>Add Photo</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.option} onPress={() => router.push('/screens/ComingSoon')}>
-          <Ionicons name="videocam-outline" size={28} color="#222" />
-          <Text style={styles.optionText}>Add Video</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.option} onPress={() => router.push('/screens/ComingSoon')}>
-          <Ionicons name="location-outline" size={28} color="#222" />
-          <Text style={styles.optionText}>Add Location</Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (currentColors: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: currentColors.background,
   },
   header: {
+    paddingTop: Platform.OS === 'ios' ? 50 : 40,
+    paddingBottom: 12,
+    borderBottomWidth: 0.5,
+    zIndex: 1000,
+  },
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 50,
     paddingHorizontal: 16,
-    paddingBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
   },
   backButton: {
     width: 36,
@@ -276,12 +234,56 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   postButtonText: {
-    color: COLORS.accent,
+    color: COLORS.light.accent,
     fontWeight: 'bold',
     fontSize: 16,
   },
   disabledBtn: {
     opacity: 0.5,
+  },
+  mediaPicker: {
+    margin: 24,
+    borderRadius: 16,
+    backgroundColor: currentColors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 260,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  mediaPreview: {
+    width: '100%',
+    height: 260,
+    borderRadius: 16,
+    resizeMode: 'cover',
+  },
+  mediaPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mediaPlaceholderText: {
+    color: currentColors.lightText,
+    fontSize: 16,
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  captionInput: {
+    margin: 24,
+    padding: 16,
+    backgroundColor: currentColors.card,
+    borderRadius: 12,
+    fontSize: 16,
+    color: currentColors.text,
+    minHeight: 120,
+    textAlignVertical: 'top',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
   userRow: {
     flexDirection: 'row',
@@ -300,7 +302,7 @@ const styles = StyleSheet.create({
   userName: {
     fontWeight: 'bold',
     fontSize: 16,
-    color: COLORS.text,
+    color: currentColors.text,
     marginBottom: 6,
   },
   chipsRow: {
@@ -318,19 +320,19 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   chipText: {
-    color: COLORS.primary,
+    color: currentColors.primary,
     fontSize: 13,
     marginHorizontal: 3,
     fontWeight: '500',
   },
   input: {
-    backgroundColor: COLORS.white,
+    backgroundColor: currentColors.card,
     borderRadius: 12,
     padding: 16,
     marginHorizontal: 16,
     marginBottom: 12,
     fontSize: 16,
-    color: COLORS.text,
+    color: currentColors.text,
     minHeight: 80,
     textAlignVertical: 'top',
     shadowColor: '#000',
@@ -355,7 +357,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   pickButtonText: {
-    color: COLORS.primary,
+    color: currentColors.primary,
     fontWeight: 'bold',
     fontSize: 15,
     marginLeft: 8,
@@ -372,7 +374,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#eee',
   },
   previewText: {
-    color: COLORS.lightText,
+    color: currentColors.lightText,
     fontSize: 16,
   },
   optionsSheet: {

@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from 'expo-linear-gradient';
+import ModernHeader from '../components/ModernHeader';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Image, Alert } from 'react-native';
@@ -83,14 +83,11 @@ export default function FriendsScreen() {
               style={styles.addFriendsButton}
               onPress={() => router.push('/friends/SuggestionsScreen')}
             >
-              <LinearGradient
-                colors={[COLORS.accent, '#FF9E40']}
+              <View
                 style={styles.addFriendsGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
               >
                 <Text style={styles.addFriendsText}>Find Friends</Text>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           )}
         </View>
@@ -148,27 +145,19 @@ export default function FriendsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={[COLORS.primary, '#2B6CD9']}
-        style={styles.header}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-      >
-        <TouchableOpacity onPress={() => {
+      <ModernHeader
+        title="Friends"
+        showBackButton={true}
+        onBackPress={() => {
           if (router.canGoBack?.()) {
             router.back();
           } else {
             router.replace('/(tabs)/menu');
           }
-        }} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Friends</Text>
-        <TouchableOpacity style={styles.searchButton}>
-          <Ionicons name="search" size={24} color="white" />
-        </TouchableOpacity>
-      </LinearGradient>
+        }}
+        rightIcon="search"
+        onRightPress={() => {}}
+      />
 
       {/* Search Input */}
       <View style={styles.searchContainer}>

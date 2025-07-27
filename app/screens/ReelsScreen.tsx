@@ -178,7 +178,8 @@ export default function ReelsScreen() {
                     isLooping
                     useNativeControls
                     onError={(error) => {
-                      console.error('Reel video error:', error);
+                      // Silently handle video errors - they're common and not critical
+                      // console.error('Reel video error:', error);
                     }}
                   />
                 ) : reel.mediaUrl ? (

@@ -2,19 +2,35 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View, useColorScheme } from "react-native";
 import * as Animatable from 'react-native-animatable';
 import Toast from 'react-native-toast-message';
 import client from '../api/client';
 
-// Color Palette (matching login screen)
+// Color Palette with dark mode support
 const COLORS = {
-  primary: '#3A8EFF',  // New Blue
-  accent: '#FF7F11',   // Vibrant Orange
-  background: '#F5F7FA',
-  white: '#FFFFFF',
-  text: '#333333',
-  lightText: '#888888',
+  light: {
+    primary: '#3A8EFF',  // New Blue
+    accent: '#FF7F11',   // Vibrant Orange
+    background: '#F5F7FA',
+    white: '#FFFFFF',
+    text: '#333333',
+    lightText: '#888888',
+    card: '#FFFFFF',
+    border: '#E0E0E0',
+    error: '#FF4444',
+  },
+  dark: {
+    primary: '#3A8EFF',  // New Blue
+    accent: '#FF7F11',   // Vibrant Orange
+    background: '#1A1A2E',
+    white: '#FFFFFF',
+    text: '#FFFFFF',
+    lightText: '#B0B0B0',
+    card: '#2D2D44',
+    border: '#404040',
+    error: '#FF6B6B',
+  },
 };
 
 export default function ForgotPassword() {
@@ -24,6 +40,8 @@ export default function ForgotPassword() {
   });
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const colorScheme = useColorScheme();
+  const colors = COLORS[colorScheme === 'dark' ? 'dark' : 'light'];
 
   const validateForm = () => {
     let valid = true;
@@ -34,7 +52,7 @@ export default function ForgotPassword() {
     if (!email.trim()) {
       newErrors.email = 'Email is required';
       valid = false;
-    } else if (!/\S+@\S+\.\S+/.test(email.trim())) {
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
       newErrors.email = 'Please enter a valid email address';
       valid = false;
     }
@@ -56,21 +74,22 @@ export default function ForgotPassword() {
 
       Toast.show({
         type: 'success',
-        text1: 'Reset Link Sent',
-        text2: 'Please check your email for password reset instructions.',
+        text1: 'Email Sent',
+        text2: 'If an account with that email exists, a password reset link has been sent.',
         position: 'top',
-        visibilityTime: 5000,
+        visibilityTime: 4000,
         topOffset: 60,
       });
-      
+
+      // Navigate back to login
       router.back();
     } catch (error: any) {
-      let errorMessage = 'Failed to send reset link. Please try again.';
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message) {
-        errorMessage = error.message;
+      let errorMessage = 'Failed to send reset email. Please try again.';
+      
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
       }
+      
       Toast.show({
         type: 'error',
         text1: 'Error',
@@ -85,44 +104,45 @@ export default function ForgotPassword() {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
       
-      {/* Header matching login screen */}
+      {/* Header */}
       <LinearGradient
-        colors={[COLORS.primary, '#2B6CD9']}
+        colors={[colors.primary, '#2B6CD9']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
+        end={{ x: 1, y: 1 }}
       >
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         <Text style={styles.logo}>
-          Mas<Text style={{ color: COLORS.accent }}>Chat</Text>
+          Mas<Text style={{ color: colors.accent }}>Chat</Text>
         </Text>
-        <View style={styles.placeholder} />
       </LinearGradient>
 
       <Animatable.View animation="fadeInUp" duration={1000} style={styles.content}>
-        <View style={styles.formContainer}>
-          <Text style={styles.title}>Forgot Password?</Text>
-          <Text style={styles.subtitle}>Enter your email address and we'll send you a link to reset your password</Text>
+        <View style={[styles.formContainer, { backgroundColor: colors.card }]}>
+          <Text style={[styles.title, { color: colors.primary }]}>Forgot Password?</Text>
+          <Text style={[styles.subtitle, { color: colors.lightText }]}>
+            Enter your email address and we'll send you a link to reset your password.
+          </Text>
 
           {/* Email Input */}
           <View style={styles.inputContainer}>
-            <Ionicons name="mail-outline" size={20} color={COLORS.lightText} style={styles.inputIcon} />
+            <Ionicons name="mail-outline" size={20} color={colors.lightText} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: colors.text, backgroundColor: colors.card, borderColor: colors.border }]}
               placeholder="Email Address"
-              placeholderTextColor={COLORS.lightText}
+              placeholderTextColor={colors.lightText}
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
             />
           </View>
-          {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+          {errors.email && <Text style={[styles.errorText, { color: colors.error }]}>{errors.email}</Text>}
 
           <TouchableOpacity
             style={[styles.button, loading && styles.disabledButton]}
@@ -130,7 +150,7 @@ export default function ForgotPassword() {
             disabled={loading}
           >
             <LinearGradient
-              colors={loading ? ['#ccc', '#ccc'] : [COLORS.primary, '#2B6CD9']}
+              colors={loading ? ['#ccc', '#ccc'] : [colors.primary, '#2B6CD9']}
               style={styles.buttonGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -142,7 +162,7 @@ export default function ForgotPassword() {
           </TouchableOpacity>
           
           <TouchableOpacity onPress={() => router.back()}>
-            <Text style={styles.backToLogin}>Back to Login</Text>
+            <Text style={[styles.backToLogin, { color: colors.primary }]}>Back to Login</Text>
           </TouchableOpacity>
         </View>
       </Animatable.View>
@@ -154,12 +174,8 @@ export default function ForgotPassword() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingTop: 50,
     paddingHorizontal: 16,
     paddingBottom: 20,
@@ -170,20 +186,16 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    position: 'absolute',
+    top: 50,
+    left: 16,
+    zIndex: 1,
   },
   logo: {
     fontSize: 24,
     fontWeight: 'bold',
     color: 'white',
-  },
-  placeholder: {
-    width: 40,
+    textAlign: 'center',
   },
   content: {
     flex: 1,
@@ -191,7 +203,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   formContainer: {
-    backgroundColor: COLORS.white,
     borderRadius: 16,
     padding: 24,
     shadowColor: "#000",
@@ -201,23 +212,19 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   title: {
-    color: COLORS.primary,
     fontSize: 24,
     fontWeight: "bold",
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
-    color: COLORS.lightText,
     fontSize: 16,
     marginBottom: 24,
     textAlign: 'center',
-    lineHeight: 22,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: '#F0F2F5',
     borderRadius: 12,
     paddingHorizontal: 16,
     marginBottom: 8,
@@ -228,8 +235,11 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    color: COLORS.text,
     fontSize: 16,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   button: {
     borderRadius: 12,
@@ -247,18 +257,16 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   buttonText: {
-    color: COLORS.white,
+    color: 'white',
     fontSize: 16,
     fontWeight: "bold",
   },
   backToLogin: {
-    color: COLORS.primary,
     textAlign: "center",
-    marginBottom: 16,
+    marginTop: 16,
     fontSize: 14,
   },
   errorText: {
-    color: "#f02849",
     fontSize: 13,
     marginBottom: 12,
     marginLeft: 12,

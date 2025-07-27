@@ -1,8 +1,7 @@
-// Move this file to MasChat-main/context/ThemeContext.ts and update all imports accordingly.
-import React from "react";
+// Re-export the theme context from constants
+import { ThemeProvider, useTheme } from '../../constants/ThemeContext';
 
-export const ThemeProvider = ({ children }: { children: React.ReactNode }) => children;
-export const useTheme = () => ({});
+export { ThemeProvider, useTheme };
 
 // Default export to fix warning
 export default ThemeProvider;

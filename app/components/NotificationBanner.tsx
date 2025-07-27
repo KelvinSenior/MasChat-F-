@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useNotification } from '../context/NotificationContext';
@@ -31,6 +31,7 @@ export default function NotificationBanner() {
       Animated.timing(slideAnim, {
         toValue: -100,
         duration: 300,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }).start();
     }

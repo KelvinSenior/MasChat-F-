@@ -1,29 +1,53 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter, useFocusEffect } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View, StatusBar, Platform, ActivityIndicator, Alert } from "react-native";
+import { FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator, Alert, useColorScheme, ScrollView, Platform } from "react-native";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAuth } from '../context/AuthContext';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { messageService, RecentChat } from '../lib/services/messageService';
+import { BlurView } from 'expo-blur';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 
 // Color Palette (matching home screen)
 const COLORS = {
-  primary: '#3A8EFF',  // Deep Blue
-  accent: '#FF7F11',   // Vibrant Orange
-  background: '#F5F7FA',
-  white: '#FFFFFF',
-  text: '#333333',
-  lightText: '#888888',
+  light: {
+    primary: '#3A8EFF',  // Deep Blue
+    accent: '#FF7F11',   // Vibrant Orange
+    background: '#F5F7FA',
+    white: '#FFFFFF',
+    text: '#333333',
+    lightText: '#888888',
+    card: '#FFFFFF',
+    tabBarBg: 'rgba(255, 255, 255, 0.95)',
+    tabBarBorder: 'rgba(0, 0, 0, 0.1)',
+  },
+  dark: {
+    primary: '#3A8EFF',  // Deep Blue
+    accent: '#FF7F11',   // Vibrant Orange
+    background: '#1A1A2E', // Match marketplace dark background
+    white: '#FFFFFF',
+    text: '#FFFFFF',
+    lightText: '#B0B0B0',
+    card: '#2D2D44',       // Match marketplace dark card
+    tabBarBg: 'rgba(26, 26, 46, 0.95)',
+    tabBarBorder: 'rgba(255, 255, 255, 0.1)',
+  },
 };
 
-export default function MessengerScreen() {
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
+type MessengerScreenProps = {
+  navigation: NativeStackNavigationProp<any>;
+};
+
+export default function MessengerScreen({ navigation }: MessengerScreenProps) {
   const [search, setSearch] = useState("");
   const [chats, setChats] = useState<RecentChat[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { user } = useAuth();
+  const colorScheme = useColorScheme();
+  const colors = colorScheme === 'dark' ? COLORS.dark : COLORS.light;
 
   const loadRecentChats = async () => {
     if (!user?.id) return;
@@ -43,7 +67,7 @@ export default function MessengerScreen() {
     if (!user?.id) return;
     loadRecentChats();
     // WebSocket subscription for real-time updates
-    const socket = new SockJS('http://10.94.219.125:8080/ws-chat');
+    const socket = new SockJS('http://10.132.74.85:8080/ws-chat');
     const client = new Client({
       webSocketFactory: () => socket,
       debug: str => console.log(str),
@@ -133,40 +157,79 @@ export default function MessengerScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" translucent />
-      {/* Header */}
-      <LinearGradient
-        colors={[COLORS.primary, '#2B6CD9']}
-        style={[styles.header, { paddingTop: Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 0) + 10 }]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Custom Header matching Home screen */}
+      <BlurView
+        intensity={80}
+        tint={colorScheme === 'dark' ? 'dark' : 'light'}
+        style={[styles.header, { backgroundColor: colors.tabBarBg, borderBottomColor: colors.tabBarBorder }]}
       >
-        <Text style={styles.headerTitle}>Messenger</Text>
-        <View style={styles.headerIcons}>
-          <TouchableOpacity
-            style={styles.headerIconBtn}
-            onPress={() => router.push("/(create)/newMessage")}
-          >
-            <Ionicons name="create-outline" size={24} color="white" />
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>
+            <Text style={{ color: '#4361EE' }}>Mas</Text>
+            <Text style={{ color: '#FF7F11' }}>Chat</Text>
+          </Text>
+          
+          <View style={styles.headerIcons}>
+            <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/(tabs)/home')}>
+              <Ionicons name="home" size={24} color={colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/friends/SuggestionsScreen')}>
+              <Ionicons name="person-add" size={24} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </BlurView>
+      {/* Stories Section */}
+      <View style={{ paddingVertical: 8, backgroundColor: colors.background }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ paddingLeft: 16 }}>
+          {/* Example: Replace with actual stories data */}
+          {[...Array(8)].map((_, i) => (
+            <View key={i} style={{ alignItems: 'center', marginRight: 16 }}>
+              <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: colors.card, justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderWidth: 3, borderColor: colors.accent }}>
+                <Image source={{ uri: user?.profilePicture || 'https://i.imgur.com/6XbK6bE.jpg' }} style={{ width: 56, height: 56, borderRadius: 28 }} />
+              </View>
+              <Text style={{ color: colors.text, fontSize: 12, marginTop: 4 }}>{user?.username || 'You'}</Text>
+            </View>
+          ))}
+        </ScrollView>
+      </View>
+      {/* Profile Info and Action Buttons */}
+      <View style={[styles.profileInfoContainer, { backgroundColor: colors.card }]}>
+        <TouchableOpacity 
+          style={styles.profileContainer}
+          onPress={() => router.push({ pathname: "/(tabs)/profile", params: { user: JSON.stringify({ id: user?.id, username: user?.username }) } })}
+        >
+          <Image 
+            source={{ uri: user?.profilePicture || "https://randomuser.me/api/portraits/men/5.jpg" }} 
+            style={styles.profilePic}
+          />
+          <View style={styles.headerInfo}>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>{user?.fullName || user?.username || 'User'}</Text>
+            <Text style={[styles.headerSubtitle, { color: colors.lightText }]}>Active now</Text>
+          </View>
+        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.headerIconBtn}>
+            <Ionicons name="call-outline" size={22} color={COLORS.light.text} />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerIconBtn}
-            onPress={() => router.push("/(tabs)/home")}
-          >
-            <Ionicons name="home-outline" size={24} color="white" />
+          <TouchableOpacity style={styles.headerIconBtn}>
+            <Ionicons name="videocam-outline" size={24} color={COLORS.light.text} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerIconBtn}>
+            <Ionicons name="home-outline" size={24} color={COLORS.light.text} />
           </TouchableOpacity>
         </View>
-      </LinearGradient>
+      </View>
 
       {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={20} color={COLORS.lightText} style={styles.searchIcon} />
+      <View style={[styles.searchContainer, { backgroundColor: colors.card }]}>
+        <View style={[styles.searchBar, { backgroundColor: colors.background }]}>
+          <Ionicons name="search" size={20} color={COLORS.light.lightText} style={styles.searchIcon} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: colors.text }]}
             placeholder="Search messages"
-            placeholderTextColor={COLORS.lightText}
+            placeholderTextColor={colors.lightText}
             value={search}
             onChangeText={setSearch}
           />
@@ -176,7 +239,7 @@ export default function MessengerScreen() {
       {/* Chats List */}
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
         <FlatList
@@ -186,9 +249,9 @@ export default function MessengerScreen() {
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Ionicons name="chatbubble-outline" size={48} color={COLORS.lightText} />
-              <Text style={styles.emptyTitle}>No Messages Yet</Text>
-              <Text style={styles.emptySubtitle}>Start a conversation with friends</Text>
+              <Ionicons name="chatbubble-outline" size={48} color={colors.lightText} />
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>No Messages Yet</Text>
+              <Text style={[styles.emptySubtitle, { color: colors.lightText }]}>Start a conversation with friends</Text>
               <TouchableOpacity 
                 style={styles.newMessageBtn}
                 onPress={() => router.push("/(create)/newMessage")}
@@ -220,7 +283,6 @@ function formatDateTime(isoString?: string) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: "row",
@@ -235,9 +297,9 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: COLORS.white,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.light.text,
   },
   headerIcons: {
     flexDirection: "row",
@@ -253,7 +315,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.light.white,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
@@ -270,7 +332,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    color: COLORS.text,
+    color: COLORS.light.text,
     fontSize: 16,
   },
   loadingContainer: {
@@ -286,7 +348,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.light.white,
     marginHorizontal: 16,
     marginVertical: 8,
     borderRadius: 12,
@@ -322,19 +384,19 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     backgroundColor: '#31a24c',
     borderWidth: 2,
-    borderColor: COLORS.white,
+    borderColor: COLORS.light.white,
   },
   chatContent: {
     flex: 1,
     marginLeft: 12,
   },
   chatName: {
-    color: COLORS.text,
+    color: COLORS.light.text,
     fontWeight: "bold",
     fontSize: 16,
   },
   chatMessage: {
-    color: COLORS.lightText,
+    color: COLORS.light.lightText,
     fontSize: 14,
     marginTop: 4,
   },
@@ -342,11 +404,11 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
   },
   chatDate: {
-    color: COLORS.lightText,
+    color: COLORS.light.lightText,
     fontSize: 12,
   },
   unreadBadge: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.light.primary,
     borderRadius: 10,
     width: 20,
     height: 20,
@@ -355,7 +417,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   unreadText: {
-    color: COLORS.white,
+    color: COLORS.light.white,
     fontSize: 12,
     fontWeight: 'bold',
   },
@@ -368,25 +430,88 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: COLORS.light.text,
     marginTop: 16,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: COLORS.lightText,
+    color: COLORS.light.lightText,
     marginTop: 8,
     textAlign: 'center',
   },
   newMessageBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.light.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 20,
     marginTop: 20,
   },
   newMessageBtnText: {
-    color: COLORS.white,
+    color: COLORS.light.white,
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  profileInfoContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: COLORS.light.white,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  profileContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  profilePic: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+  },
+  headerInfo: {
+    flex: 1,
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: COLORS.light.lightText,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 15,
+  },
+
+  header: {
+    paddingTop: Platform.OS === 'ios' ? 50 : 40,
+    paddingBottom: 12,
+    borderBottomWidth: 0.5,
+    zIndex: 1000,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  headerIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerBtn: {
+    padding: 8,
   },
 });

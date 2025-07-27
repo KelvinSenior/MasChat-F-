@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Image, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Image, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View, useColorScheme } from "react-native";
 import * as Animatable from 'react-native-animatable';
 import Toast from 'react-native-toast-message';
 import { useAuth } from '../context/AuthContext';
@@ -11,12 +11,28 @@ import client, { BASE_URL, testConnection } from '../api/client';
 
 // Color Palette (matching home screen)
 const COLORS = {
-  primary: '#3A8EFF',  // New Blue
-  accent: '#FF7F11',   // Vibrant Orange
-  background: '#F5F7FA',
-  white: '#FFFFFF',
-  text: '#333333',
-  lightText: '#888888',
+  light: {
+    primary: '#3A8EFF',  // New Blue
+    accent: '#FF7F11',   // Vibrant Orange
+    background: '#F5F7FA',
+    white: '#FFFFFF',
+    text: '#333333',
+    lightText: '#888888',
+    card: '#FFFFFF',
+    border: '#E0E0E0',
+    error: '#FF4444',
+  },
+  dark: {
+    primary: '#3A8EFF',  // New Blue
+    accent: '#FF7F11',   // Vibrant Orange
+    background: '#1A1A2E',
+    white: '#FFFFFF',
+    text: '#FFFFFF',
+    lightText: '#B0B0B0',
+    card: '#2D2D44',
+    border: '#404040',
+    error: '#FF6B6B',
+  },
 };
 
 export default function Signup() {
@@ -34,6 +50,8 @@ export default function Signup() {
   });
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const colorScheme = useColorScheme();
+  const colors = COLORS[colorScheme === 'dark' ? 'dark' : 'light'];
 
   const { signIn } = useAuth();
 

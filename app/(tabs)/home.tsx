@@ -1,26 +1,48 @@
 import { Feather, FontAwesome, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState, useRef } from "react";
-import { Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, KeyboardAvoidingView, Platform, Dimensions, TouchableWithoutFeedback, PanResponder, Animated, FlatList, ActivityIndicator, Share } from "react-native";
+import { Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, KeyboardAvoidingView, Platform, Dimensions, TouchableWithoutFeedback, PanResponder, Animated, FlatList, ActivityIndicator, Share, RefreshControl, Easing } from "react-native";
 import { Video, ResizeMode } from 'expo-av';
 import CommentDialog from "../components/CommentDialog";
 import { useAuth } from '../context/AuthContext';
 import { getPosts, deletePost, Post, likePost, unlikePost, addComment, sharePost, fetchPostComments, PostComment } from '../lib/services/postService';
 import { fetchStories, Story, fetchStoriesByUser } from '../lib/services/storyService';
+import { useTheme } from '../context/ThemeContext';
+import ModernHeader from '../../components/ModernHeader';
+
 
 // Modern Color Palette
 const COLORS = {
-  primary: '#4361EE',    // Vibrant Blue
-  secondary: '#3A0CA3',  // Deep Purple
-  accent: '#FF7F11',     // Orange
-  background: '#F8F9FA',  // Light Gray
-  card: '#FFFFFF',       // White
-  text: '#212529',       // Dark Gray
-  lightText: '#6C757D',  // Medium Gray
-  border: '#E9ECEF',     // Light Border
-  success: '#4CC9F0',    // Teal
-  dark: '#1A1A2E',       // Dark Blue
+  light: {
+    primary: '#4361EE',    // Vibrant Blue
+    secondary: '#3A0CA3',  // Deep Purple
+    accent: '#FF7F11',     // Orange
+    background: '#F8F9FA',  // Light Gray
+    card: '#FFFFFF',       // White
+    text: '#212529',       // Dark Gray
+    lightText: '#6C757D',  // Medium Gray
+    border: '#E9ECEF',     // Light Border
+    success: '#4CC9F0',    // Teal
+    dark: '#1A1A2E',       // Dark Blue
+    tabBarBg: 'rgba(255, 255, 255, 0.95)',
+    tabBarBorder: 'rgba(0, 0, 0, 0.1)',
+  },
+  dark: {
+    primary: '#4361EE',    // Vibrant Blue
+    secondary: '#3A0CA3',  // Deep Purple
+    accent: '#FF7F11',     // Orange
+    background: '#1A1A2E', // Match marketplace dark background
+    card: '#2D2D44',       // Match marketplace dark card
+    text: '#FFFFFF',       // White
+    lightText: '#B0B0B0',  // Light Gray
+    border: '#404040',     // Match marketplace dark border
+    success: '#4CC9F0',    // Teal
+    dark: '#1A1A2E',       // Dark Blue
+    tabBarBg: 'rgba(26, 26, 46, 0.95)',
+    tabBarBorder: 'rgba(255, 255, 255, 0.1)',
+  },
 };
 
 const DEFAULT_PROFILE_PHOTO = "https://i.imgur.com/6XbK6bE.jpg";
@@ -28,12 +50,14 @@ const DEVICE_WIDTH = Dimensions.get('window').width;
 const DEVICE_HEIGHT = Dimensions.get('window').height;
 
 const LIKE_ACTIVE_COLOR = '#FF3040'; // Red
-const LIKE_INACTIVE_COLOR = COLORS.lightText;
-const STORY_RING_COLORS = ['#FF9D00', '#FF7F11', '#FF6B35', '#FF8C42'] as const;
 
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { currentTheme } = useTheme();
+  const colors = COLORS[currentTheme === 'dark' ? 'dark' : 'light'];
+  const currentColors = colors;
+  const styles = getStyles(currentColors);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
@@ -52,6 +76,7 @@ export default function HomeScreen() {
   const [videoLoading, setVideoLoading] = useState<{ [key: string]: boolean }>({});
   const [doubleTapHeart, setDoubleTapHeart] = useState<{ postId: string; visible: boolean } | null>(null);
   const [fullscreenImage, setFullscreenImage] = useState<{ uri: string; visible: boolean } | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const heartAnimation = useRef(new Animated.Value(0)).current;
   const doubleTapTimer = useRef<number | null>(null);
   const lastTap = useRef<{ postId: string; time: number } | null>(null);
@@ -63,6 +88,11 @@ export default function HomeScreen() {
     return acc;
   }, {} as { [userId: string]: Story[] });
   const uniqueStoryUsers = Object.values(storiesByUser).map(stories => stories[0]);
+
+  // Check if current user has stories
+  const userStories = user ? storiesByUser[user.id] || [] : [];
+  const userLatestStory = userStories.length > 0 ? userStories[userStories.length - 1] : null;
+  const hasUserStories = userStories.length > 0;
 
   const openUserStories = async (userId: string, username: string, profilePicture?: string) => {
     const userStories = await fetchStoriesByUser(userId);
@@ -100,6 +130,15 @@ export default function HomeScreen() {
       setStories(data);
     } finally {
       setLoadingStories(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([fetchPosts(), fetchAllStories()]);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -172,11 +211,13 @@ export default function HomeScreen() {
         Animated.timing(heartAnimation, {
           toValue: 1,
           duration: 300,
+          easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(heartAnimation, {
           toValue: 0,
           duration: 300,
+          easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
       ]).start(() => {
@@ -222,10 +263,10 @@ export default function HomeScreen() {
     setFullscreenIndex(idx ?? 0);
   };
 
-  if (!user) {
+  if (loadingStories || loadingPosts) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -233,41 +274,33 @@ export default function HomeScreen() {
   const userStory = stories.find(s => s.userId === user?.id);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Modern Header */}
-      <LinearGradient
-        colors={[COLORS.primary, COLORS.secondary]}
-        style={styles.header}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
+      {/* Custom Header with Original Buttons */}
+      <BlurView
+        intensity={80}
+        tint={currentTheme === 'dark' ? 'dark' : 'light'}
+        style={[styles.header, { backgroundColor: colors.tabBarBg, borderBottomColor: colors.tabBarBorder }]}
       >
-        <TouchableOpacity onPress={() => {
-          setShowIntroVideo(true);
-          setVideoKey(prev => prev + 1);
-        }}>
-          <Text style={styles.logo}>
-            Mas<Text style={{ color: COLORS.accent }}>Chat</Text>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>
+            <Text style={{ color: '#4361EE' }}>Mas</Text>
+            <Text style={{ color: '#FF7F11' }}>Chat</Text>
           </Text>
-        </TouchableOpacity>
-        
-        <View style={styles.headerIcons}>
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => setShowAddMenu(true)}
-          >
-            <Ionicons name="add" size={28} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('../screens/SearchScreen')}>
-            <Ionicons name="search" size={24} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('../screens/MessengerScreen')}>
-            <View style={styles.notificationBadge}>
-              <Text style={styles.notificationText}>3</Text>
-            </View>
-            <Ionicons name="chatbubble-ellipses" size={24} color="white" />
-          </TouchableOpacity>
+          
+          <View style={styles.headerIcons}>
+            <TouchableOpacity style={styles.iconBtn} onPress={() => setShowAddMenu(true)}>
+              <Ionicons name="add" size={28} color={colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/screens/SearchScreen')}>
+              <Ionicons name="search" size={24} color={colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/screens/MessengerScreen')}>
+              <Ionicons name="chatbubble-ellipses" size={24} color={colors.text} />
+            </TouchableOpacity>
+          </View>
         </View>
-      </LinearGradient>
+      </BlurView>
 
       {/* Add Menu Modal */}
       <Modal
@@ -276,74 +309,26 @@ export default function HomeScreen() {
         animationType="fade"
         onRequestClose={() => setShowAddMenu(false)}
       >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPressOut={() => setShowAddMenu(false)}
-        >
-          <View style={styles.addMenuBox}>
-            <TouchableOpacity
-              style={styles.addMenuItem}
-              onPress={() => {
-                setShowAddMenu(false);
-                router.push("/(create)/newPost");
-              }}
-            >
-              <LinearGradient
-                colors={['#4361EE', '#3A0CA3']}
-                style={styles.menuIconBg}
-              >
-                <Ionicons name="create-outline" size={22} color="white" />
-              </LinearGradient>
-              <Text style={styles.addMenuText}>Create Post</Text>
+        <TouchableOpacity style={styles.addMenuOverlay} activeOpacity={1} onPress={() => setShowAddMenu(false)}>
+          <View style={styles.addMenuContainer}>
+            <TouchableOpacity style={styles.addMenuItem} onPress={() => { setShowAddMenu(false); router.push('/(create)/newPost'); }}>
+              <Ionicons name="document-text-outline" size={24} color={colors.primary} style={styles.addMenuIcon} />
+              <Text style={styles.addMenuLabel}>New Post</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={styles.addMenuItem}
-              onPress={() => {
-                setShowAddMenu(false);
-                router.push("/(create)/newStory");
-              }}
-            >
-              <LinearGradient
-                colors={['#FF7F11', '#FF6B35']}
-                style={styles.menuIconBg}
-              >
-                <Ionicons name="camera-outline" size={22} color="white" />
-              </LinearGradient>
-              <Text style={styles.addMenuText}>Add Story</Text>
+            <TouchableOpacity style={styles.addMenuItem} onPress={() => { setShowAddMenu(false); router.push('/(create)/newStory'); }}>
+              <Ionicons name="book-outline" size={24} color={colors.primary} style={styles.addMenuIcon} />
+              <Text style={styles.addMenuLabel}>New Story</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={styles.addMenuItem}
-              onPress={() => {
-                setShowAddMenu(false);
-                router.push("/(create)/newReel");
-              }}
-            >
-              <LinearGradient
-                colors={['#7209B7', '#560BAD']}
-                style={styles.menuIconBg}
-              >
-                <Ionicons name="film-outline" size={22} color="white" />
-              </LinearGradient>
-              <Text style={styles.addMenuText}>Create Reel</Text>
+            <TouchableOpacity style={styles.addMenuItem} onPress={() => { setShowAddMenu(false); router.push('/(create)/newReel'); }}>
+              <Ionicons name="film-outline" size={24} color={colors.primary} style={styles.addMenuIcon} />
+              <Text style={styles.addMenuLabel}>New Reel</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={styles.addMenuItem}
-              onPress={() => {
-                setShowAddMenu(false);
-                router.push("/(create)/LiveScreen");
-              }}
-            >
-              <LinearGradient
-                colors={['#F94144', '#F3722C']}
-                style={styles.menuIconBg}
-              >
-                <Ionicons name="radio-outline" size={22} color="white" />
-              </LinearGradient>
-              <Text style={styles.addMenuText}>Go Live</Text>
+            <TouchableOpacity style={styles.addMenuItem} onPress={() => { setShowAddMenu(false); router.push('/(create)/LiveScreen'); }}>
+              <Ionicons name="radio-outline" size={24} color={colors.primary} style={styles.addMenuIcon} />
+              <Text style={styles.addMenuLabel}>Go Live</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.addMenuClose} onPress={() => setShowAddMenu(false)}>
+              <Ionicons name="close" size={28} color={colors.text} />
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -428,105 +413,115 @@ export default function HomeScreen() {
         style={styles.scroll} 
         showsVerticalScrollIndicator={false} 
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
+        }
       >
-        {/* Status Update */}
+        {/* Status Bar */}
         <View style={styles.statusContainer}>
           <TouchableOpacity onPress={() => router.push('/profile')}>
             <LinearGradient
-              colors={[COLORS.accent, '#FF6B35']}
+              colors={[COLORS.light.accent, '#FF6B35']}
               style={styles.profileRing}
             >
               <Image
-                source={{ uri: user?.profilePicture ?? DEFAULT_PROFILE_PHOTO }}
+                source={{
+                  uri: (user && user.profilePicture) ? user.profilePicture : DEFAULT_PROFILE_PHOTO,
+                }}
                 style={styles.profilePic}
               />
             </LinearGradient>
           </TouchableOpacity>
           
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.statusInput}
             onPress={() => router.push("/(create)/newPost")}
           >
-            <Text style={styles.statusPlaceholder}>What's on your mind?</Text>
+            <Text style={styles.statusPlaceholder}>
+              What's on your mind?
+            </Text>
           </TouchableOpacity>
           
-          <TouchableOpacity 
-            style={styles.photoBtn} 
+          <TouchableOpacity
+            style={styles.photoBtn}
             onPress={() => router.push('/(create)/newPost')}
           >
-            <Ionicons name="image" size={28} color={COLORS.accent} />
+            <Ionicons name="image" size={28} color={COLORS.light.accent} />
           </TouchableOpacity>
         </View>
 
         {/* Stories */}
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
-          style={styles.storiesContainer}
-          contentContainerStyle={styles.storiesContent}
-        >
-          {/* User's story */}
-          <TouchableOpacity
-            style={styles.storyItem}
-            onPress={() => {
-              if (!userStory) {
-                router.push('/(create)/newStory');
-              } else {
-                openUserStories(user?.id, user?.username, user?.profilePicture);
-              }
-            }}
+        <View style={styles.storiesContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.storiesContent}
           >
-            <LinearGradient
-              colors={STORY_RING_COLORS}
-              style={styles.storyRing}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+            {/* Add Story Button */}
+            <TouchableOpacity
+              style={styles.storyItem}
+              onPress={() => {
+                if (hasUserStories && userLatestStory && user && user.id) {
+                  // Show user's own stories
+                  openUserStories(user.id, user.username, user.profilePicture);
+                } else {
+                  // Navigate to create new story
+                  router.push("/(create)/newStory");
+                }
+              }}
             >
-              <View style={styles.storyImageContainer}>
-                {userStory ? (
-                  <Image source={{ uri: userStory.mediaUrl }} style={styles.storyImage} />
-                ) : (
-                  <Ionicons name="add" size={28} color="white" style={styles.addStoryIcon} />
+              <View style={hasUserStories ? styles.storyRing : styles.storyImageContainer}>
+                <Image
+                  source={{
+                    uri: hasUserStories && userLatestStory 
+                      ? userLatestStory.mediaUrl 
+                      : (user && user.profilePicture) ? user.profilePicture : DEFAULT_PROFILE_PHOTO,
+                  }}
+                  style={styles.storyImage}
+                />
+                {!hasUserStories && (
+                  <View style={styles.addStoryIcon}>
+                    <Ionicons name="add" size={16} color="white" />
+                  </View>
                 )}
               </View>
-            </LinearGradient>
-            <Text style={styles.storyLabel}>{userStory ? 'Your Story' : 'Add Story'}</Text>
-          </TouchableOpacity>
-          
-          {/* Friends' stories */}
-          {uniqueStoryUsers.filter(s => s.userId !== user?.id).map((story, index) => (
-            <TouchableOpacity
-              key={story.userId}
-              style={styles.storyItem}
-              onPress={() => openUserStories(story.userId, story.username, story.profilePicture)}
-            >
-              <LinearGradient
-                colors={[
-                  STORY_RING_COLORS[index % STORY_RING_COLORS.length],
-                  STORY_RING_COLORS[(index + 1) % STORY_RING_COLORS.length]
-                ]}
-                style={styles.storyRing}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <View style={styles.storyImageContainer}>
-                  <Image source={{ uri: story.mediaUrl }} style={styles.storyImage} />
-                </View>
-              </LinearGradient>
-              <Text style={styles.storyLabel}>{story.username}</Text>
+              <Text style={styles.storyLabel}>
+                {hasUserStories ? 'Your Story' : 'Add Story'}
+              </Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
+
+            {/* Other Stories */}
+            {uniqueStoryUsers.map((story) => (
+              <TouchableOpacity
+                key={story.id}
+                style={styles.storyItem}
+                onPress={() => openUserStories(story.userId, story.username, story.profilePicture)}
+              >
+                <View style={styles.storyRing}>
+                  <Image
+                    source={{
+                      uri: story.profilePicture ? story.profilePicture : DEFAULT_PROFILE_PHOTO,
+                    }}
+                    style={styles.storyImage}
+                  />
+                </View>
+                <Text style={styles.storyLabel} numberOfLines={1}>
+                  {story.username}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
 
         {/* Posts */}
         {loadingPosts ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
+            <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.loadingText}>Loading posts...</Text>
           </View>
         ) : posts.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Ionicons name="newspaper-outline" size={60} color={COLORS.lightText} />
+            <Ionicons name="newspaper-outline" size={60} color={colors.lightText} />
             <Text style={styles.emptyText}>No posts yet</Text>
             <Text style={styles.emptySubtext}>Be the first to share something!</Text>
             <TouchableOpacity 
@@ -560,7 +555,7 @@ export default function HomeScreen() {
                     style={styles.moreButton}
                     onPress={() => handleDeletePost(post.id)}
                   >
-                    <Ionicons name="ellipsis-horizontal" size={24} color={COLORS.lightText} />
+                    <Ionicons name="ellipsis-horizontal" size={24} color={colors.lightText} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -706,7 +701,7 @@ export default function HomeScreen() {
                   <Ionicons
                     name={(optimisticLikes[post.id] || post.likedBy || []).includes(user.id) ? 'heart' : 'heart-outline'}
                     size={24}
-                    color={(optimisticLikes[post.id] || post.likedBy || []).includes(user.id) ? LIKE_ACTIVE_COLOR : COLORS.lightText}
+                    color={(optimisticLikes[post.id] || post.likedBy || []).includes(user.id) ? LIKE_ACTIVE_COLOR : colors.lightText}
                   />
                   <Text style={[
                     styles.actionText,
@@ -727,7 +722,7 @@ export default function HomeScreen() {
                   <Ionicons 
                     name="chatbubble-outline" 
                     size={22} 
-                    color={COLORS.lightText} 
+                    color={colors.lightText} 
                   />
                   <Text style={styles.actionText}>Comment</Text>
                 </TouchableOpacity>
@@ -739,7 +734,7 @@ export default function HomeScreen() {
                   <Ionicons 
                     name="arrow-redo-outline" 
                     size={24} 
-                    color={COLORS.lightText} 
+                    color={colors.lightText} 
                   />
                   <Text style={styles.actionText}>Share</Text>
                 </TouchableOpacity>
@@ -815,36 +810,42 @@ function formatPostTime(isoString: string) {
   return date.toLocaleDateString();
 }
 
-const styles = StyleSheet.create({
+const getStyles = (currentColors: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: currentColors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.light.background,
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: COLORS.lightText,
+    color: currentColors.lightText,
   },
   header: {
+    paddingTop: 50,
+    paddingBottom: 12,
+    borderBottomWidth: 0.5,
+  },
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 50,
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    overflow: 'hidden',
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   logo: {
     fontSize: 28,
     fontWeight: '800',
-    color: 'white',
+    color: currentColors.text,
     letterSpacing: 0.5,
   },
   headerIcons: {
@@ -863,7 +864,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -5,
     right: -5,
-    backgroundColor: COLORS.accent,
+    backgroundColor: currentColors.accent,
     width: 20,
     height: 20,
     borderRadius: 10,
@@ -885,7 +886,7 @@ const styles = StyleSheet.create({
   statusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.card,
+    backgroundColor: currentColors.card,
     padding: 16,
     margin: 16,
     marginBottom: 8,
@@ -908,22 +909,22 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderWidth: 2,
-    borderColor: COLORS.card,
+    borderColor: COLORS.light.card,
   },
   statusInput: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: currentColors.background,
     borderRadius: 24,
     paddingVertical: 12,
     paddingHorizontal: 20,
     marginHorizontal: 12,
   },
   statusPlaceholder: {
-    color: COLORS.lightText,
+    color: currentColors.lightText,
     fontSize: 16,
   },
   photoBtn: {
-    backgroundColor: COLORS.background,
+    backgroundColor: currentColors.background,
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -948,12 +949,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
+    borderWidth: 3,
+    borderColor: currentColors.accent,
   },
   storyImageContainer: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: COLORS.card,
+    backgroundColor: currentColors.background,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
@@ -961,21 +964,25 @@ const styles = StyleSheet.create({
   storyImage: {
     width: '100%',
     height: '100%',
+    borderRadius: 30,
   },
   addStoryIcon: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: currentColors.primary,
     borderRadius: 20,
     padding: 4,
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
   },
   storyLabel: {
     fontSize: 12,
-    color: COLORS.text,
+    color: currentColors.text,
     fontWeight: '500',
     maxWidth: 70,
     textAlign: 'center',
   },
   postCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: currentColors.card,
     borderRadius: 0,
     margin: 0,
     marginBottom: 16,
@@ -1009,11 +1016,11 @@ const styles = StyleSheet.create({
   postUserName: {
     fontWeight: '700',
     fontSize: 16,
-    color: COLORS.text,
+    color: currentColors.text,
     marginBottom: 2,
   },
   postTime: {
-    color: COLORS.lightText,
+    color: currentColors.lightText,
     fontSize: 13,
   },
   moreButton: {
@@ -1021,7 +1028,7 @@ const styles = StyleSheet.create({
   },
   postText: {
     fontSize: 16,
-    color: COLORS.text,
+    color: currentColors.text,
     lineHeight: 24,
     paddingHorizontal: 16,
     marginBottom: 16,
@@ -1080,7 +1087,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: currentColors.border,
   },
   likeCountContainer: {
     flexDirection: 'row',
@@ -1088,12 +1095,12 @@ const styles = StyleSheet.create({
   },
   likeCountText: {
     marginLeft: 6,
-    color: COLORS.text,
+    color: currentColors.text,
     fontSize: 14,
     fontWeight: '500',
   },
   commentCountText: {
-    color: COLORS.lightText,
+    color: currentColors.lightText,
     fontSize: 14,
   },
   postActions: {
@@ -1111,7 +1118,7 @@ const styles = StyleSheet.create({
   actionText: {
     marginLeft: 8,
     fontSize: 16,
-    color: COLORS.lightText,
+    color: currentColors.lightText,
     fontWeight: '500',
   },
   modalOverlay: {
@@ -1124,7 +1131,7 @@ const styles = StyleSheet.create({
     marginTop: 60,
     marginRight: 16,
     borderRadius: 20,
-    backgroundColor: COLORS.card,
+    backgroundColor: currentColors.card,
     paddingVertical: 8,
     width: 220,
     shadowColor: '#000',
@@ -1149,7 +1156,7 @@ const styles = StyleSheet.create({
   },
   addMenuText: {
     fontSize: 16,
-    color: COLORS.text,
+    color: currentColors.text,
     fontWeight: '500',
   },
   emptyContainer: {
@@ -1161,17 +1168,17 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 20,
     fontWeight: '600',
-    color: COLORS.text,
+    color: currentColors.text,
     marginTop: 16,
   },
   emptySubtext: {
     fontSize: 16,
-    color: COLORS.lightText,
+    color: currentColors.lightText,
     marginBottom: 24,
     textAlign: 'center',
   },
   createBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: currentColors.primary,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 32,
@@ -1234,7 +1241,7 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     borderWidth: 2,
-    borderColor: COLORS.primary,
+    borderColor: COLORS.light.primary,
   },
   storyUsername: {
     color: 'white',
@@ -1314,4 +1321,54 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  modernHeader: {
+    paddingTop: 50,
+    paddingBottom: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  addMenuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addMenuContainer: {
+    backgroundColor: currentColors.card,
+    borderRadius: 20,
+    padding: 24,
+    width: 260,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  addMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    width: '100%',
+  },
+  addMenuIcon: {
+    marginRight: 16,
+  },
+  addMenuLabel: {
+    fontSize: 16,
+    color: currentColors.text,
+    fontWeight: '500',
+  },
+  addMenuClose: {
+    marginTop: 12,
+    alignSelf: 'center',
+  },
+
 });

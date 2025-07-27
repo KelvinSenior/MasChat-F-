@@ -18,20 +18,44 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  StatusBar
+  StatusBar,
+  useColorScheme,
 } from "react-native";
 import { useAuth } from '../context/AuthContext';
 import { getUserProfile, updateProfile, uploadImage, UserProfile } from '../lib/services/userService';
 import client, { BASE_URL } from '../api/client';
+import ModernHeader from '../components/ModernHeader';
 
 // Color Palette (matching home screen)
 const COLORS = {
-  primary: '#3A8EFF',  // Deep Blue
-  accent: '#FF7F11',   // Vibrant Orange
-  background: '#F5F7FA',
-  white: '#FFFFFF',
-  text: '#333333',
-  lightText: '#888888',
+  light: {
+    primary: '#4361EE',
+    secondary: '#3A0CA3',
+    accent: '#FF7F11',
+    background: '#F8F9FA',
+    card: '#FFFFFF',
+    text: '#212529',
+    lightText: '#6C757D',
+    border: '#E9ECEF',
+    success: '#4CC9F0',
+    dark: '#1A1A2E',
+    tabBarBg: 'rgba(255, 255, 255, 0.95)',
+    tabBarBorder: 'rgba(0, 0, 0, 0.1)',
+  },
+  dark: {
+    primary: '#4361EE',
+    secondary: '#3A0CA3',
+    accent: '#FF7F11',
+    background: '#1A1A2E',
+    card: '#2D2D44',
+    text: '#FFFFFF',
+    lightText: '#B0B0B0',
+    border: '#404040',
+    success: '#4CC9F0',
+    dark: '#1A1A2E',
+    tabBarBg: 'rgba(26, 26, 46, 0.95)',
+    tabBarBorder: 'rgba(255, 255, 255, 0.1)',
+  },
 };
 
 const DEFAULT_PROFILE_PIC = "https://randomuser.me/api/portraits/men/1.jpg";
@@ -56,6 +80,8 @@ export default function EditProfile() {
   const router = useRouter();
   const { user, updateUser } = useAuth();
   const [loading, setLoading] = useState(false);
+  const colorScheme = useColorScheme();
+  const currentColors = colorScheme === 'dark' ? COLORS.dark : COLORS.light;
   const [profileData, setProfileData] = useState<UserProfile>({
     id: user?.id ?? "",
     username: user?.username ?? "",
@@ -108,35 +134,35 @@ export default function EditProfile() {
     {
       key: 'details.profileType',
       label: 'Profile Type',
-      icon: <Ionicons name="information-circle-outline" size={20} color={COLORS.primary} />,
+      icon: <Ionicons name="information-circle-outline" size={20} color={currentColors.primary} />,
       placeholder: 'Select profile type',
       value: profileData.details.profileType ?? ''
     },
     {
       key: 'details.worksAt1',
       label: 'Workplace',
-      icon: <MaterialIcons name="work-outline" size={20} color={COLORS.primary} />,
+      icon: <MaterialIcons name="work-outline" size={20} color={currentColors.primary} />,
       placeholder: 'Add workplace',
       value: profileData.details.worksAt1 ?? ''
     },
     {
       key: 'details.studiedAt',
       label: 'Education',
-      icon: <FontAwesome5 name="university" size={18} color={COLORS.primary} />,
+      icon: <FontAwesome5 name="university" size={18} color={currentColors.primary} />,
       placeholder: 'Add education',
       value: profileData.details.studiedAt ?? ''
     },
     {
       key: 'details.currentCity',
       label: 'Current City',
-      icon: <Ionicons name="location-outline" size={20} color={COLORS.primary} />,
+      icon: <Ionicons name="location-outline" size={20} color={currentColors.primary} />,
       placeholder: 'Add current city',
       value: profileData.details.currentCity ?? ''
     },
     {
       key: 'details.relationshipStatus',
       label: 'Relationship',
-      icon: <Ionicons name="heart-outline" size={20} color={COLORS.primary} />,
+      icon: <Ionicons name="heart-outline" size={20} color={currentColors.primary} />,
       placeholder: 'Add relationship status',
       value: profileData.details.relationshipStatus ?? ''
     }
@@ -311,7 +337,7 @@ export default function EditProfile() {
                 onChangeText={setTempValue}
                 autoFocus
                 placeholder={field.placeholder}
-                placeholderTextColor={COLORS.lightText}
+                placeholderTextColor={currentColors.lightText}
               />
               <View style={styles.editButtonsContainer}>
                 <TouchableOpacity onPress={cancelEdit} style={styles.cancelButton}>
@@ -331,7 +357,7 @@ export default function EditProfile() {
             <Text style={[styles.detailText, !field.value && styles.placeholderText]}>
               {field.value || field.placeholder}
             </Text>
-            <Ionicons name="chevron-forward" size={20} color={COLORS.lightText} />
+            <Ionicons name="chevron-forward" size={20} color={currentColors.lightText} />
           </TouchableOpacity>
         )}
       </View>
@@ -412,41 +438,25 @@ export default function EditProfile() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
-      <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" translucent />
+      <StatusBar backgroundColor={currentColors.primary} barStyle="light-content" translucent />
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollViewContent}
         keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
-        <LinearGradient
-          colors={[COLORS.primary, '#2B6CD9']}
-          style={styles.header}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-        >
-          <TouchableOpacity onPress={() => {
+        <ModernHeader
+          title="Edit Profile"
+          onBackPress={() => {
             if (router.canGoBack?.()) {
               router.back();
             } else {
               router.replace('/(tabs)/profile');
             }
-          }} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="white" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Edit Profile</Text>
-          <TouchableOpacity 
-            onPress={handleSave}
-            disabled={loading}
-            style={styles.saveButtonHeader}
-          >
-            {loading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text style={styles.saveButtonTextHeader}>Save</Text>
-            )}
-          </TouchableOpacity>
-        </LinearGradient>
+          }}
+          onSavePress={handleSave}
+          loading={loading}
+        />
 
         {/* Profile Picture */}
         <View style={styles.section}>
@@ -457,7 +467,7 @@ export default function EditProfile() {
                 <Text style={styles.editLink}>Edit</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={generateAIProfilePic} disabled={aiLoadingProfile} style={{ marginLeft: 12 }}>
-                <Ionicons name="sparkles" size={20} color={COLORS.accent} />
+                <Ionicons name="sparkles" size={20} color={currentColors.accent} />
               </TouchableOpacity>
             </View>
           </View>
@@ -555,7 +565,7 @@ export default function EditProfile() {
             <Switch
               value={profileData.details.showAvatar}
               onValueChange={toggleAvatarVisibility}
-              thumbColor={profileData.details.showAvatar ? COLORS.primary : "#f4f3f4"}
+              thumbColor={profileData.details.showAvatar ? currentColors.primary : "#f4f3f4"}
               trackColor={{ false: "#767577", true: "#81b0ff" }}
             />
           </View>
@@ -571,7 +581,7 @@ export default function EditProfile() {
               <Switch
                 value={profileData.details.avatarSwipeEnabled}
                 onValueChange={toggleSwipeEffect}
-                thumbColor={profileData.details.avatarSwipeEnabled ? COLORS.primary : "#f4f3f4"}
+                thumbColor={profileData.details.avatarSwipeEnabled ? currentColors.primary : "#f4f3f4"}
                 trackColor={{ false: "#767577", true: "#81b0ff" }}
               />
             </View>
@@ -587,7 +597,7 @@ export default function EditProfile() {
                 <Text style={styles.editLink}>Edit</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={generateAICoverPhoto} disabled={aiLoadingCover} style={{ marginLeft: 12 }}>
-                <Ionicons name="sparkles" size={20} color={COLORS.accent} />
+                <Ionicons name="sparkles" size={20} color={currentColors.accent} />
               </TouchableOpacity>
             </View>
           </View>
@@ -605,7 +615,7 @@ export default function EditProfile() {
             value={profileData.fullName}
             onChangeText={text => setProfileData(prev => ({ ...prev, fullName: text }))}
             placeholder="Enter your full name"
-            placeholderTextColor={COLORS.lightText}
+            placeholderTextColor={currentColors.lightText}
             autoCapitalize="words"
             maxLength={50}
           />
@@ -622,7 +632,7 @@ export default function EditProfile() {
                 multiline
                 autoFocus
                 placeholder="Tell people about yourself"
-                placeholderTextColor={COLORS.lightText}
+                placeholderTextColor={currentColors.lightText}
               />
               <View style={styles.bioEditButtons}>
                 <TouchableOpacity onPress={cancelEdit} style={styles.bioCancelButton}>
@@ -661,7 +671,7 @@ export default function EditProfile() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.light.background,
   },
   loadingContainer: {
     flex: 1,
@@ -703,7 +713,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   section: {
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.light.card,
     borderRadius: 12,
     marginHorizontal: 16,
     marginTop: 16,
@@ -726,10 +736,10 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: COLORS.text,
+    color: COLORS.light.text,
   },
   editLink: {
-    color: COLORS.primary,
+    color: COLORS.light.primary,
     fontWeight: "bold",
     fontSize: 16,
   },
@@ -742,14 +752,14 @@ const styles = StyleSheet.create({
     height: 150,
     borderRadius: 75,
     borderWidth: 3,
-    borderColor: COLORS.white,
+    borderColor: COLORS.light.white,
   },
   avatarImg: {
     width: 150,
     height: 150,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: COLORS.white,
+    borderColor: COLORS.light.white,
   },
   avatarPickerContainer: {
     marginTop: 12,
@@ -757,7 +767,7 @@ const styles = StyleSheet.create({
   avatarPickerTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: COLORS.light.text,
     marginBottom: 12,
   },
   avatarOptions: {
@@ -774,14 +784,14 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   selectedAvatar: {
-    borderColor: COLORS.primary,
+    borderColor: COLORS.light.primary,
   },
   avatarOption: {
     width: '100%',
     height: '100%',
   },
   customAvatarButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.light.primary,
     borderRadius: 8,
     padding: 12,
     alignItems: 'center',
@@ -805,12 +815,12 @@ const styles = StyleSheet.create({
   },
   settingLabel: {
     fontSize: 16,
-    color: COLORS.text,
+    color: COLORS.light.text,
     fontWeight: "500",
   },
   settingDescription: {
     fontSize: 14,
-    color: COLORS.lightText,
+    color: COLORS.light.lightText,
     marginTop: 4,
   },
   coverPhoto: {
@@ -834,10 +844,10 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 16,
-    color: COLORS.text,
+    color: COLORS.light.text,
   },
   placeholderText: {
-    color: COLORS.lightText,
+    color: COLORS.light.lightText,
   },
   editContainer: {
     flex: 1,
@@ -851,7 +861,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    color: COLORS.text,
+    color: COLORS.light.text,
     paddingRight: 120, // Space for buttons
   },
   editButtonsContainer: {
@@ -868,11 +878,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   cancelButtonText: {
-    color: COLORS.text,
+    color: COLORS.light.text,
     fontWeight: 'bold',
   },
   saveButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.light.primary,
     borderRadius: 6,
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -901,7 +911,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   bioSaveButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.light.primary,
     borderRadius: 6,
     paddingVertical: 8,
     paddingHorizontal: 16,
@@ -918,7 +928,7 @@ const styles = StyleSheet.create({
   },
   bioText: {
     fontSize: 16,
-    color: COLORS.text,
+    color: COLORS.light.text,
     lineHeight: 24,
   },
 });
