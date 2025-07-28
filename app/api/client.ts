@@ -1,8 +1,26 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { Platform } from 'react-native';
 
-// Use the same BASE_URL as your login screen
-export const BASE_URL = "http://10.132.74.85:8080/api";
+// Function to get the device's IP address
+const getDeviceIP = (): string => {
+  // Auto-detected IP address
+  return '10.179.79.125'; // Default fallback
+};
+
+// Centralized configuration
+export const API_CONFIG = {
+  BASE_URL: `http://${getDeviceIP()}:8080/api`,
+  WS_URL: `http://${getDeviceIP()}:8080/ws-chat`,
+  UPLOAD_URL: `http://${getDeviceIP()}:8080/uploads`,
+  PORT: 8080,
+  IP: getDeviceIP(),
+};
+
+// Export individual URLs for convenience
+export const BASE_URL = API_CONFIG.BASE_URL;
+export const WS_BASE_URL = API_CONFIG.WS_URL;
+export const UPLOAD_BASE_URL = API_CONFIG.UPLOAD_URL;
 
 const client = axios.create({
   baseURL: BASE_URL,
@@ -56,6 +74,16 @@ export const testConnection = async () => {
     console.error("Backend connection test failed:", error);
     return false;
   }
+};
+
+// Utility function to get full URL for uploads
+export const getUploadUrl = (fileName: string): string => {
+  return `${UPLOAD_BASE_URL}/${fileName}`;
+};
+
+// Utility function to get WebSocket URL
+export const getWebSocketUrl = (): string => {
+  return WS_BASE_URL;
 };
 
 export default client;

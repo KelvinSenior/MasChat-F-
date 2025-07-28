@@ -1,11 +1,11 @@
 {
   "expo": {
     "name": "MasChat",
-    "slug": "MasChat",
+    "slug": "maschat",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "maschat",
+    "scheme": "MasChat",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -15,6 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.maschat.app",
       "splash": {
         "image": "./assets/GROUP 88-MasChat.png",
         "resizeMode": "contain",
@@ -22,6 +23,7 @@
       }
     },
     "android": {
+      "package": "com.maschat.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#4361EE"
@@ -59,6 +61,15 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "11448f8f-45d1-4c2c-a061-f9227f473390"
+      },
+      "API_URL": "http://10.179.79.125:8080/api",
+      "ENV": "development",
+      "router": {}
+    },
+    "owner": "masterlimit360"
   }
 }

@@ -7,6 +7,7 @@ import { messageService, RecentChat } from '../lib/services/messageService';
 import { BlurView } from 'expo-blur';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
+import { getWebSocketUrl } from '../api/client';
 
 // Color Palette (matching home screen)
 const COLORS = {
@@ -66,8 +67,8 @@ export default function MessengerScreen({ navigation }: MessengerScreenProps) {
   useEffect(() => {
     if (!user?.id) return;
     loadRecentChats();
-    // WebSocket subscription for real-time updates
-    const socket = new SockJS('http://10.132.74.85:8080/ws-chat');
+    // Connect to WebSocket
+    const socket = new SockJS(getWebSocketUrl());
     const client = new Client({
       webSocketFactory: () => socket,
       debug: str => console.log(str),
@@ -483,7 +484,7 @@ const styles = StyleSheet.create({
     gap: 15,
   },
 
-  header: {
+  mainHeader: {
     paddingTop: Platform.OS === 'ios' ? 50 : 40,
     paddingBottom: 12,
     borderBottomWidth: 0.5,

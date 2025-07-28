@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { useAuth } from '../context/AuthContext';
 import { createPost } from '../lib/services/postService';
-import { uploadImage } from '../lib/services/userService';
+import { uploadImageToCloudinary } from '../lib/services/cloudinaryService';
 import { BlurView } from 'expo-blur';
 
 // Color Palette (matching home/friends screens)
@@ -84,14 +84,24 @@ export default function NewPost() {
     setIsLoading(true);
     try {
       let imageUrl = null;
+      let videoUrl = null;
+      
       if (image) {
-        // For posts, we'll handle the image URL directly without using uploadImage
-        imageUrl = image; // Use the local URI directly for now
+        // Upload image to Cloudinary
+        const folder = 'maschat/posts';
+        imageUrl = await uploadImageToCloudinary(image, folder);
       }
+      
+      if (video) {
+        // Upload video to Cloudinary
+        const folder = 'maschat/posts/videos';
+        videoUrl = await uploadImageToCloudinary(video, folder);
+      }
+      
       await createPost({
         content: post,
-        imageUrl: image || undefined,
-        videoUrl: video || undefined,
+        imageUrl: imageUrl || undefined,
+        videoUrl: videoUrl || undefined,
       }, user.id);
       router.back();
     } catch (error) {

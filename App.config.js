@@ -1,16 +1,77 @@
-export default {
-  extra: {
-    openrouterApiKey: process.env.OPENROUTER_API_KEY,
-  },
-};
-// File: ./app.config.js
+import { ExpoConfig, ConfigContext } from 'expo/config';
 
-module.exports = ({ config }) => {
-  return {
-    ...config,
-    extra: {
-      API_URL: process.env.API_URL || 'http://10.132.74.85:8080/api',
-      ENV: process.env.ENV || 'development',
+export default ({ config }: ConfigContext): ExpoConfig => ({
+  ...config,
+  name: 'MasChat',
+  slug: 'maschat',
+  version: '1.0.0',
+  orientation: 'portrait',
+  icon: './assets/images/icon.png',
+  scheme: 'MasChat',
+  userInterfaceStyle: 'automatic',
+  newArchEnabled: true,
+  splash: {
+    image: './assets/GROUP 88-MasChat.png',
+    resizeMode: 'contain',
+    backgroundColor: '#4361EE'
+  },
+  ios: {
+    supportsTablet: true,
+    bundleIdentifier: 'com.maschat.app',
+    splash: {
+      image: './assets/GROUP 88-MasChat.png',
+      resizeMode: 'contain',
+      backgroundColor: '#4361EE'
+    }
+  },
+  android: {
+    package: 'com.maschat.app',
+    adaptiveIcon: {
+      foregroundImage: './assets/images/adaptive-icon.png',
+      backgroundColor: '#4361EE'
     },
-  };
-};
+    splash: {
+      image: './assets/GROUP 88-MasChat.png',
+      resizeMode: 'contain',
+      backgroundColor: '#4361EE'
+    },
+    edgeToEdgeEnabled: true
+  },
+  web: {
+    bundler: 'metro',
+    output: 'static',
+    favicon: './assets/images/favicon.png'
+  },
+  plugins: [
+    'expo-router',
+    [
+      'expo-splash-screen',
+      {
+        image: './assets/GROUP 88-MasChat.png',
+        resizeMode: 'contain',
+        backgroundColor: '#4361EE'
+      }
+    ],
+    [
+      'expo-camera',
+      {
+        cameraPermission: 'Allow $(PRODUCT_NAME) to access your camera',
+        microphonePermission: 'Allow $(PRODUCT_NAME) to access your microphone',
+        recordAudioAndroid: true
+      }
+    ]
+  ],
+  experiments: {
+    typedRoutes: true
+  },
+  extra: {
+    eas: {
+      projectId: '11448f8f-45d1-4c2c-a061-f9227f473390'
+    },
+    // Use environment variable or fallback to local IP
+    API_URL: process.env.API_URL || 'http://10.179.79.125:8080/api',
+    ENV: process.env.NODE_ENV || 'development',
+    router: {}
+  },
+  owner: 'masterlimit360'
+});

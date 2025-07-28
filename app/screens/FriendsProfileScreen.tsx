@@ -218,6 +218,13 @@ export default function FriendsProfileScreen() {
             )}
           </Text>
           
+          {/* Username beneath full name */}
+          {profileData.username && profileData.fullName && (
+            <Text style={styles.username}>
+              @{profileData.username}
+            </Text>
+          )}
+          
           <Text style={styles.stats}>
             {profileData.details?.followerCount || 0} followers · {profileData.details?.followingCount || 0} following
           </Text>
@@ -530,6 +537,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: COLORS.text,
     marginBottom: 4,
+  },
+  username: {
+    fontSize: 16,
+    color: COLORS.lightText,
+    marginBottom: 8,
+    fontWeight: '500',
   },
   verifiedBadge: {
     marginLeft: 6,

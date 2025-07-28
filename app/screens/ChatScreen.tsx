@@ -2,34 +2,45 @@ import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { StatusBar, ActivityIndicator, FlatList, Image, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert, useColorScheme } from 'react-native';
+import { StatusBar, ActivityIndicator, FlatList, Image, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { messageService, Message } from '../lib/services/messageService';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import * as ImagePicker from 'expo-image-picker';
-import { uploadImage } from '../lib/services/userService';
-import ModernHeader from '../components/ModernHeader';
+import { uploadImageSimple } from '../lib/services/userService';
+import { useTheme } from '../context/ThemeContext';
+import { getWebSocketUrl } from '../api/client';
 
-// Color Palette (matching Home screen)
+// Modern Color Palette (matching Home screen)
 const COLORS = {
   light: {
-    primary: '#3A8EFF',  // New Blue
-    accent: '#FF7F11',   // Vibrant Orange
-    background: '#F5F7FA',
-    white: '#FFFFFF',
-    text: '#333333',
-    lightText: '#888888',
-    card: '#FFFFFF',
+    primary: '#4361EE',    // Vibrant Blue
+    secondary: '#3A0CA3',  // Deep Purple
+    accent: '#FF7F11',     // Orange
+    background: '#F8F9FA',  // Light Gray
+    card: '#FFFFFF',       // White
+    text: '#212529',       // Dark Gray
+    lightText: '#6C757D',  // Medium Gray
+    border: '#E9ECEF',     // Light Border
+    success: '#4CC9F0',    // Teal
+    dark: '#1A1A2E',       // Dark Blue
+    sentMessage: '#4361EE', // Blue for sent messages
+    receivedMessage: '#E9ECEF', // Light gray for received messages
   },
   dark: {
-    primary: '#3A8EFF',  // New Blue
-    accent: '#FF7F11',   // Vibrant Orange
-    background: '#1A1A2E',
-    white: '#FFFFFF',
-    text: '#FFFFFF',
-    lightText: '#B0B0B0',
-    card: '#2D2D44',
+    primary: '#4361EE',    // Vibrant Blue
+    secondary: '#3A0CA3',  // Deep Purple
+    accent: '#FF7F11',     // Orange
+    background: '#1A1A2E', // Match marketplace dark background
+    card: '#2D2D44',       // Match marketplace dark card
+    text: '#FFFFFF',       // White
+    lightText: '#B0B0B0',  // Light Gray
+    border: '#404040',     // Match marketplace dark border
+    success: '#4CC9F0',    // Teal
+    dark: '#1A1A2E',       // Dark Blue
+    sentMessage: '#4361EE', // Blue for sent messages
+    receivedMessage: '#404040', // Dark gray for received messages
   },
 };
 
@@ -37,8 +48,8 @@ export default function ChatScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { user: currentUser } = useAuth();
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? COLORS.dark : COLORS.light;
+  const { currentTheme } = useTheme();
+  const colors = COLORS[currentTheme === 'dark' ? 'dark' : 'light'];
   let recipient: any = undefined;
   try {
     recipient = params.recipient ? JSON.parse(params.recipient as string) : null;
@@ -48,7 +59,7 @@ export default function ChatScreen() {
 
   if (!currentUser?.id || !recipient?.id) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
         <Text style={{ color: 'red', fontSize: 18, textAlign: 'center' }}>
           Error: Unable to load chat. User or recipient information is missing or invalid.
         </Text>
@@ -112,7 +123,8 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (!currentUser?.id || !recipient?.id) return;
-    const socket = new SockJS('http://10.132.74.85:8080/ws-chat');
+    // Connect to WebSocket
+    const socket = new SockJS(getWebSocketUrl());
     const client = new Client({
       webSocketFactory: () => socket,
       debug: str => console.log(str),
@@ -188,7 +200,7 @@ export default function ChatScreen() {
     setImageSending(true);
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaType.Images,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -196,7 +208,7 @@ export default function ChatScreen() {
 
       if (!result.canceled && result.assets[0]) {
         const imageUri = result.assets[0].uri;
-        const uploadedUrl = await uploadImage(imageUri);
+        const uploadedUrl = await uploadImageSimple(imageUri);
         
         if (uploadedUrl) {
           await messageService.sendImageMessage(currentUser.id, recipient.id, uploadedUrl, '');
@@ -263,35 +275,30 @@ export default function ChatScreen() {
       // Skip rendering this message if sender or recipient is missing
       return null;
     }
+    const isSentByMe = item.sender.id === currentUser?.id;
+    
     return (
       <TouchableOpacity 
         style={[
           styles.messageRow,
-          item.sender.id === currentUser?.id ? styles.rowRight : styles.rowLeft
+          isSentByMe ? styles.rowRight : styles.rowLeft
         ]}
         onLongPress={() => {
-          if (item.sender.id === currentUser?.id) {
+          if (isSentByMe) {
             deleteMessage(item.id);
           }
         }}
       >
-        {item.sender.id !== currentUser?.id && (
+        {!isSentByMe && (
           <Image 
             source={{ uri: recipient?.image || recipient?.profilePicture || "https://randomuser.me/api/portraits/men/5.jpg" }} 
             style={styles.bubbleProfilePic} 
           />
         )}
-        <LinearGradient
-          colors={
-            item.sender.id === currentUser?.id 
-              ? [COLORS.primary, '#3A8EFF'] 
-              : ['#f0f2f5', '#e4e6eb']
-          }
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+        <View
           style={[
             styles.messageBubble,
-            item.sender.id === currentUser?.id ? styles.sent : styles.received,
+            isSentByMe ? styles.sentBubble : styles.receivedBubble,
             item.failed && styles.failedMessage,
             item.isPending && styles.pendingMessage
           ]}
@@ -299,7 +306,7 @@ export default function ChatScreen() {
           {item.content && (
             <Text style={[
               styles.messageText,
-              item.sender.id === currentUser?.id ? styles.sentText : styles.receivedText
+              isSentByMe ? styles.sentText : styles.receivedText
             ]}>
               {item.content}
             </Text>
@@ -309,7 +316,7 @@ export default function ChatScreen() {
             {item.time && (
               <Text style={[
                 styles.timeText,
-                item.sender.id === currentUser?.id ? styles.sentTime : styles.receivedTime
+                isSentByMe ? styles.sentTime : styles.receivedTime
               ]}>
                 {item.time}
               </Text>
@@ -317,50 +324,51 @@ export default function ChatScreen() {
             {item.failed ? (
               <Ionicons name="warning" size={16} color="#ff4444" style={styles.statusIcon} />
             ) : item.isPending ? (
-              <ActivityIndicator size="small" color={item.sender.id === currentUser?.id ? "#fff" : "#888"} style={styles.statusIcon} />
-            ) : item.sender.id === currentUser?.id ? (
+              <ActivityIndicator size="small" color={isSentByMe ? "#fff" : colors.lightText} style={styles.statusIcon} />
+            ) : isSentByMe ? (
               <Ionicons name="checkmark-done" size={16} color="#fff" style={styles.statusIcon} />
             ) : null}
           </View>
-        </LinearGradient>
+        </View>
       </TouchableOpacity>
     );
   };
 
   return (
-    <View style={styles.container}>
-      <ModernHeader
-        title={recipient?.name || recipient?.username || "Chat"}
-        showBackButton={true}
-        onBack={() => {
-          if (router.canGoBack?.()) {
-            router.back();
-          } else {
-            router.replace('/(tabs)/videos');
-          }
-        }}
-      />
-      {/* Profile Info and Action Buttons */}
-      <View style={[styles.profileInfoContainer, { backgroundColor: colors.card }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: colors.background }]}>
         <TouchableOpacity 
-          style={styles.profileContainer}
-          onPress={() => router.push({ pathname: "/(tabs)/profile", params: { user: JSON.stringify(recipient) } })}
+          style={styles.backButton}
+          onPress={() => {
+            if (router.canGoBack?.()) {
+              router.back();
+            } else {
+              router.replace('/(tabs)/videos');
+            }
+          }}
         >
-          <Image 
-            source={{ uri: recipient?.image || "https://randomuser.me/api/portraits/men/5.jpg" }} 
-            style={styles.profilePic}
-          />
-          <View style={styles.headerInfo}>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>{recipient?.name || recipient?.username || "Chat"}</Text>
-            <Text style={[styles.headerSubtitle, { color: colors.lightText }]}>Active now</Text>
-          </View>
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
+        
+        <View style={styles.headerProfile}>
+          <View style={styles.profileRing}>
+            <Image 
+              source={{ uri: recipient?.image || recipient?.profilePicture || "https://randomuser.me/api/portraits/men/5.jpg" }} 
+              style={styles.profilePic}
+            />
+          </View>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
+            {recipient?.name || recipient?.username || "Chat"}
+          </Text>
+        </View>
+        
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.headerIconBtn}>
-            <Ionicons name="call-outline" size={22} color={colors.text} />
+            <Ionicons name="call-outline" size={22} color={colors.primary} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerIconBtn}>
-            <Ionicons name="videocam-outline" size={24} color={colors.text} />
+            <Ionicons name="videocam-outline" size={24} color={colors.primary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -381,8 +389,8 @@ export default function ChatScreen() {
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No messages yet</Text>
-              <Text style={styles.emptySubtext}>Send a message to start the conversation</Text>
+              <Text style={[styles.emptyText, { color: colors.text }]}>No messages yet</Text>
+              <Text style={[styles.emptySubtext, { color: colors.lightText }]}>Send a message to start the conversation</Text>
             </View>
           }
         />
@@ -393,21 +401,28 @@ export default function ChatScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
       >
-        <View style={styles.inputContainer}>
-          <View style={styles.inputRow}>
+        <View style={[styles.inputContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.inputRow, { backgroundColor: colors.card }]}>
             <View style={styles.leftIcons}>
               <TouchableOpacity style={styles.iconBtn} onPress={pickAndSendImage} disabled={imageSending}>
-                <Ionicons name="image" size={24} color={colors.primary} />
+                <Ionicons name="add" size={24} color={colors.primary} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.iconBtn}>
-                <Feather name="paperclip" size={24} color={colors.primary} />
+                <Ionicons name="camera-outline" size={24} color={colors.lightText} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.iconBtn}>
-                <MaterialIcons name="photo-camera" size={24} color={colors.primary} />
+                <Ionicons name="image-outline" size={24} color={colors.lightText} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.iconBtn}>
+                <Ionicons name="mic-outline" size={24} color={colors.lightText} />
               </TouchableOpacity>
             </View>
             <TextInput
-              style={[styles.input, { height: Math.max(44, inputHeight) }]}
+              style={[styles.input, { 
+                height: Math.max(44, inputHeight),
+                color: colors.text,
+                backgroundColor: colors.background
+              }]}
               placeholder="Aa"
               placeholderTextColor={colors.lightText}
               value={text}
@@ -416,21 +431,25 @@ export default function ChatScreen() {
               onContentSizeChange={e => setInputHeight(e.nativeEvent.contentSize.height)}
               editable={!isSending}
             />
-            <TouchableOpacity 
-              style={[
-                styles.sendBtn, 
-                !text.trim() ? styles.sendBtnDisabled : {},
-                isSending ? styles.sendBtnSending : {}
-              ]} 
-              onPress={sendMessage}
-              disabled={!text.trim() || isSending}
-            >
-              {isSending ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <Ionicons name="send" size={20} color="white" />
-              )}
-            </TouchableOpacity>
+            <View style={styles.rightIcons}>
+              <TouchableOpacity style={styles.iconBtn}>
+                <Ionicons name="happy-outline" size={24} color={colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[
+                  styles.sendBtn, 
+                  text.trim() ? { backgroundColor: colors.primary } : { backgroundColor: colors.lightText }
+                ]} 
+                onPress={sendMessage}
+                disabled={!text.trim() || isSending}
+              >
+                {isSending ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <Ionicons name="send" size={20} color="white" />
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -441,46 +460,41 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: { 
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingBottom: 12,
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    paddingVertical: 12,
+    paddingTop: 50,
   },
   backButton: {
-    padding: 6,
-    marginRight: 10,
+    padding: 8,
   },
-  profileContainer: {
+  headerProfile: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    justifyContent: 'center',
   },
-  profilePic: {
+  profileRing: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    borderWidth: 2,
-    borderColor: COLORS.accent,
+    backgroundColor: '#4361EE',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
   },
-  headerInfo: { 
-    marginLeft: 10,
+  profilePic: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   headerTitle: { 
-    color: 'white', 
-    fontWeight: 'bold', 
-    fontSize: 18,
-  },
-  headerSubtitle: { 
-    color: 'rgba(255,255,255,0.8)', 
-    fontSize: 13,
+    fontWeight: '600', 
+    fontSize: 16,
   },
   headerActions: { 
     flexDirection: 'row', 
@@ -502,12 +516,10 @@ const styles = StyleSheet.create({
     paddingTop: 100,
   },
   emptyText: {
-    color: COLORS.text,
     fontSize: 16,
     fontWeight: '500',
   },
   emptySubtext: {
-    color: COLORS.lightText,
     fontSize: 14,
     marginTop: 4,
   },
@@ -547,10 +559,12 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
   },
-  sent: {
+  sentBubble: {
+    backgroundColor: '#4361EE',
     borderBottomRightRadius: 4,
   },
-  received: {
+  receivedBubble: {
+    backgroundColor: '#E9ECEF',
     borderBottomLeftRadius: 4,
   },
   pendingMessage: {
@@ -569,7 +583,7 @@ const styles = StyleSheet.create({
     color: 'white',
   },
   receivedText: {
-    color: COLORS.text,
+    color: '#212529',
   },
   messageImage: {
     width: 200,
@@ -591,30 +605,20 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
   },
   receivedTime: {
-    color: COLORS.lightText,
+    color: '#6C757D',
   },
   statusIcon: {
     marginLeft: 4,
   },
   inputContainer: {
-    backgroundColor: COLORS.white,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderTopWidth: 1,
-    borderTopColor: '#e4e6eb',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    borderTopColor: '#E9ECEF',
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    backgroundColor: '#f0f2f5',
     borderRadius: 22,
     paddingHorizontal: 8,
     paddingVertical: 6,
@@ -624,9 +628,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 4,
   },
+  rightIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 4,
+  },
   input: {
     flex: 1,
-    color: COLORS.text,
     borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -640,27 +648,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   sendBtn: {
-    backgroundColor: COLORS.primary,
     borderRadius: 20,
     width: 36,
     height: 36,
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 4,
-  },
-  sendBtnDisabled: {
-    backgroundColor: '#b0c4de',
-  },
-  sendBtnSending: {
-    opacity: 0.7,
-  },
-  profileInfoContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e4e6eb',
   },
 });

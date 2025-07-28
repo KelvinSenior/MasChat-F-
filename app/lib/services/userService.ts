@@ -1,5 +1,6 @@
 import client, { BASE_URL } from '../../api/client';
 import { Post } from './postService';
+import { uploadImageToCloudinary } from './cloudinaryService';
 
 export type UserDetails = {
   profileType?: string;
@@ -71,13 +72,11 @@ export const uploadImage = async (
   showAvatar?: boolean // <-- add this optional argument
 ): Promise<string> => {
   try {
-    const formData = new FormData();
-    formData.append('file', {
-      uri: imageUri,
-      name: `${type}.jpg`,
-      type: 'image/jpeg',
-    } as any);
+    // Upload to Cloudinary first
+    const folder = `maschat/${type}`;
+    const cloudinaryUrl = await uploadImageToCloudinary(imageUri, folder);
 
+    // Then save the Cloudinary URL to your backend
     let endpoint = '';
     if (type === 'profilePicture') {
       endpoint = `/users/${userId}/profile/picture`;
@@ -89,8 +88,8 @@ export const uploadImage = async (
 
     const response = await client.post(
       endpoint,
-      formData,
-      { headers: { 'Content-Type': 'multipart/form-data' } }
+      { imageUrl: cloudinaryUrl },
+      { headers: { 'Content-Type': 'application/json' } }
     );
     return response.data;
   } catch (error: any) {
@@ -102,6 +101,20 @@ export const uploadImage = async (
     } else {
       throw new Error('Failed to upload image. Please try again.');
     }
+  }
+};
+
+/**
+ * Simple image upload function for general use (used in ChatScreen)
+ */
+export const uploadImageSimple = async (imageUri: string): Promise<string> => {
+  try {
+    const folder = 'maschat/general';
+    const cloudinaryUrl = await uploadImageToCloudinary(imageUri, folder);
+    return cloudinaryUrl;
+  } catch (error: any) {
+    console.error('Error uploading image:', error);
+    throw new Error('Failed to upload image. Please try again.');
   }
 };
 

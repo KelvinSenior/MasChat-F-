@@ -18,6 +18,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { fetchNotifications, markNotificationRead, Notification, acceptFriendRequest, deleteFriendRequest, deleteNotification } from '../lib/services/userService';
 import client from '../api/client';
+import { getWebSocketUrl } from '../api/client';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -104,7 +105,7 @@ export default function Notifications() {
       .finally(() => setLoading(false));
 
     // WebSocket for real-time notifications
-    const socket = new SockJS('http://10.132.74.85:8080/ws-chat');
+    const socket = new SockJS(getWebSocketUrl());
     const client = new Client({
       webSocketFactory: () => socket,
       debug: str => console.log(str),

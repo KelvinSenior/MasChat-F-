@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import marketplaceService, { MarketplaceCategory } from '../lib/services/marketplaceService';
 import { useAuth } from '../context/AuthContext';
+import { uploadImageToCloudinary } from '../lib/services/cloudinaryService';
 
 const COLORS = {
   primary: '#3A8EFF',
@@ -75,25 +76,16 @@ export default function SellItemScreen() {
 
     setLoading(true);
     try {
-      // Upload images to server and get URLs
+      // Upload images to Cloudinary
       const uploadedImages: string[] = [];
       for (const img of images) {
         if (img.startsWith('http')) {
           uploadedImages.push(img);
         } else {
-          const formData = new FormData();
-          formData.append('file', {
-            uri: img,
-            name: `photo.jpg`,
-            type: 'image/jpeg',
-          } as any);
-          const res = await fetch('http://10.132.74.85:8080/api/marketplace/upload-image', {
-            method: 'POST',
-            body: formData,
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
-          const url = await res.text();
-          uploadedImages.push(url.replace(/"/g, ''));
+          // Upload to Cloudinary
+          const folder = 'maschat/marketplace';
+          const cloudinaryUrl = await uploadImageToCloudinary(img, folder);
+          uploadedImages.push(cloudinaryUrl);
         }
       }
       const itemData = {

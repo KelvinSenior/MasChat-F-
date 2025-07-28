@@ -6,6 +6,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, TextInput, Image, Alert, ActivityIndicator, useColorScheme, Platform } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { createReel } from '../lib/services/reelService';
+import { uploadImageToCloudinary, uploadVideoToCloudinary } from '../lib/services/cloudinaryService';
 
 const COLORS = {
   light: {
@@ -73,8 +74,18 @@ export default function NewReel() {
     }
     setIsLoading(true);
     try {
-      // For demo, assume video is already uploaded. In production, upload to server/cloud first.
-      await createReel({ mediaUrl: video, caption }, user.id);
+      // Upload media to Cloudinary first
+      let mediaUrl = video;
+      if (!video.startsWith('http')) {
+        const folder = 'maschat/reels';
+        if (mediaType === 'video') {
+          mediaUrl = await uploadVideoToCloudinary(video, folder);
+        } else {
+          mediaUrl = await uploadImageToCloudinary(video, folder);
+        }
+      }
+      
+      await createReel({ mediaUrl, caption }, user.id);
       router.replace('/(tabs)/videos');
     } catch (error) {
       Alert.alert('Error', 'Failed to create reel. Please try again.');

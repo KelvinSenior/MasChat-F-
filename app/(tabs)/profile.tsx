@@ -252,11 +252,18 @@ export default function Profile() {
         {/* Profile Info */}
         <View style={styles.infoContainer}>
           <Text style={styles.name}>
-            {profileData.fullName || profileData.username || 'User'}
+            {profileData.fullName || 'User'}
             {profileData.verified && (
               <Ionicons name="checkmark-circle" size={18} color={COLORS.light.primary} style={styles.verifiedBadge} />
             )}
           </Text>
+          
+          {/* Username beneath full name */}
+          {profileData.username && profileData.fullName && (
+            <Text style={styles.username}>
+              @{profileData.username}
+            </Text>
+          )}
           
           <Text style={styles.stats}>
             {profileData.details?.followerCount || 0} followers · {profileData.details?.followingCount || 0} following
@@ -760,6 +767,12 @@ const getStyles = (currentColors: any) => StyleSheet.create({
     fontWeight: 'bold',
     color: currentColors.text,
     marginBottom: 4,
+  },
+  username: {
+    fontSize: 16,
+    color: currentColors.lightText,
+    marginBottom: 8,
+    fontWeight: '500',
   },
   verifiedBadge: {
     marginLeft: 6,

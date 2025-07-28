@@ -6,6 +6,7 @@ import React, { useState } from "react";
 import { Image, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator, Alert, useColorScheme, Platform } from "react-native";
 import { useAuth } from '../context/AuthContext';
 import { createStory } from '../lib/services/storyService';
+import { uploadImageToCloudinary, uploadVideoToCloudinary } from '../lib/services/cloudinaryService';
 
 const COLORS = {
   light: {
@@ -72,8 +73,18 @@ export default function NewStory() {
     }
     setIsLoading(true);
     try {
-      // For demo, assume media is already uploaded. In production, upload to server/cloud first.
-      await createStory({ mediaUrl: media, caption }, user.id);
+      // Upload media to Cloudinary first
+      let mediaUrl = media;
+      if (!media.startsWith('http')) {
+        const folder = 'maschat/stories';
+        if (mediaType === 'video') {
+          mediaUrl = await uploadVideoToCloudinary(media, folder);
+        } else {
+          mediaUrl = await uploadImageToCloudinary(media, folder);
+        }
+      }
+      
+      await createStory({ mediaUrl, caption }, user.id);
       router.replace('/(tabs)/home');
     } catch (error) {
       Alert.alert("Error", "Failed to create story. Please try again.");

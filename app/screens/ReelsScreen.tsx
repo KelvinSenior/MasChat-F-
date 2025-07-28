@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
-import { fetchReels, deleteReel, Reel, likeReel, unlikeReel, addReelComment, shareReel, fetchReelComments, ReelComment } from '../lib/services/reelService';
+import { fetchReels, deleteReel, Reel, likeReel, unlikeReel, addReelComment, shareReel, getReelComments, ReelComment } from '../lib/services/reelService';
 import { Video, ResizeMode } from 'expo-av';
 import CommentDialog from "../components/CommentDialog";
 
@@ -190,6 +190,55 @@ export default function ReelsScreen() {
                 <Text style={styles.username}>{reel.username}</Text>
                 <Text style={styles.caption}>{reel.caption}</Text>
                 <Text style={styles.time}>{new Date(reel.createdAt).toLocaleString()}</Text>
+                
+                {/* Like and Comment Stats */}
+                <View style={styles.statsContainer}>
+                  <View style={styles.likeCountContainer}>
+                    <Ionicons name="heart" size={16} color={LIKE_ACTIVE_COLOR} />
+                    <Text style={styles.likeCountText}>
+                      {reel.likeCount || (optimisticLikes[reel.id] || reel.likedBy || []).length}
+                    </Text>
+                  </View>
+                  <Text style={styles.commentCountText}>
+                    {reel.commentCount || 0} comments • {reel.shareCount || 0} shares
+                  </Text>
+                </View>
+                
+                {/* Action Buttons */}
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity 
+                    style={styles.actionButton}
+                    onPress={() => user && handleLikeReel(reel)}
+                  >
+                    <Ionicons
+                      name={(optimisticLikes[reel.id] || reel.likedBy || []).includes(user?.id || '') ? 'heart' : 'heart-outline'}
+                      size={24}
+                      color={(optimisticLikes[reel.id] || reel.likedBy || []).includes(user?.id || '') ? LIKE_ACTIVE_COLOR : LIKE_INACTIVE_COLOR}
+                    />
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={styles.actionButton}
+                    onPress={() => setCommentModalReel(reel)}
+                  >
+                    <Ionicons 
+                      name="chatbubble-outline" 
+                      size={22} 
+                      color={LIKE_INACTIVE_COLOR} 
+                    />
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={styles.actionButton}
+                    onPress={() => handleShare(reel.id)}
+                  >
+                    <Ionicons 
+                      name="arrow-redo-outline" 
+                      size={24} 
+                      color={LIKE_INACTIVE_COLOR} 
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           ))}
@@ -316,5 +365,38 @@ const styles = StyleSheet.create({
   time: {
     fontSize: 13,
     color: COLORS.lightText,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  likeCountContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  likeCountText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginLeft: 4,
+  },
+  commentCountText: {
+    fontSize: 14,
+    color: COLORS.lightText,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    width: '100%',
+    paddingHorizontal: 20,
+  },
+  actionButton: {
+    padding: 8,
+    borderRadius: 20,
   },
 }); 

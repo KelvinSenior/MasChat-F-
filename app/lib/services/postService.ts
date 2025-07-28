@@ -19,6 +19,8 @@ export type Post = {
   createdAt: string;
   user: User;
   likedBy?: string[];
+  likeCount?: number;
+  commentCount?: number;
   shareCount?: number;
   comments?: PostComment[];
 };
@@ -32,29 +34,20 @@ export type PostComment = {
   createdAt: string;
 };
 
-export async function getPosts() {
+export const getPosts = async (): Promise<Post[]> => {
   const res = await client.get('/posts');
-  return res.data as Post[];
-}
-
-export async function createPost(post: { content?: string; imageUrl?: string; videoUrl?: string }, userId: string) {
-  const res = await client.post(`/posts`, post, { params: { userId } });
   return res.data;
-}
+};
 
-export async function deletePost(postId: string, userId: string) {
-  return client.delete(`/posts/${postId}?userId=${userId}`);
-}
+export const createPost = async (post: { content?: string; imageUrl?: string; videoUrl?: string }, userId: string) => {
+  const res = await client.post(`/posts?userId=${userId}`, post);
+  return res.data;
+};
 
-export async function getPost(postId: string) {
-  const res = await client.get(`/posts/${postId}`);
-  return res.data as Post;
-}
-
-export async function fetchPostComments(postId: string) {
-  const res = await client.get(`/posts/${postId}/comments`);
-  return res.data as PostComment[];
-}
+export const deletePost = async (postId: string, userId: string) => {
+  const res = await client.delete(`/posts/${postId}?userId=${userId}`);
+  return res.data;
+};
 
 export const likePost = async (postId: string, userId: string) => {
   const res = await client.post(`/posts/${postId}/like?userId=${userId}`);
@@ -67,26 +60,11 @@ export const unlikePost = async (postId: string, userId: string) => {
 };
 
 export const addComment = async (postId: string, userId: string, text: string) => {
-  const res = await client.post(`/posts/${postId}/comment?userId=${userId}`, text, {
-    headers: { "Content-Type": "text/plain" }
-  });
+  const res = await client.post(`/posts/${postId}/comment?userId=${userId}`, text);
   return res.data;
 };
 
-export async function sharePost(postId: string) {
-  const res = await client.post(`/posts/${postId}/share`);
+export const getComments = async (postId: string): Promise<PostComment[]> => {
+  const res = await client.get(`/posts/${postId}/comments`);
   return res.data;
-}
-
-// Default export to fix warning
-export default {
-  getPosts,
-  createPost,
-  deletePost,
-  getPost,
-  fetchPostComments,
-  likePost,
-  unlikePost,
-  addComment,
-  sharePost
 };
