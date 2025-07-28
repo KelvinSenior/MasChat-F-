@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../app/context/ThemeContext';
 import { massCoinService, WalletInfo } from '../app/lib/services/massCoinService';
+import { useAuth } from '../app/context/AuthContext';
 
 interface MassCoinBalanceProps {
   size?: 'small' | 'medium' | 'large';
@@ -20,6 +21,7 @@ export default function MassCoinBalance({
 }: MassCoinBalanceProps) {
   const router = useRouter();
   const { currentTheme } = useTheme();
+  const { user } = useAuth();
   const colors = {
     light: { text: '#212529' },
     dark: { text: '#FFFFFF' }
@@ -29,8 +31,10 @@ export default function MassCoinBalance({
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadWallet();
-  }, []);
+    if (user?.id) {
+      loadWallet();
+    }
+  }, [user?.id]);
 
   // Fallback to mock data if wallet is null
   const displayWallet = wallet || massCoinService.getMockWallet();
@@ -38,11 +42,15 @@ export default function MassCoinBalance({
   const loadWallet = async () => {
     try {
       setIsLoading(true);
-      const walletData = await massCoinService.getWallet();
+      const walletData = await massCoinService.getWallet(Number(user.id));
       setWallet(walletData);
-    } catch (error) {
-      console.error('Error loading wallet:', error);
-      // Use mock data when API is not available
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        Alert.alert('Wallet not found', 'No wallet exists for your account. Please contact support.');
+      } else {
+        console.error('Error loading wallet:', error);
+        Alert.alert('Error', 'Failed to load wallet.');
+      }
       setWallet(massCoinService.getMockWallet());
     } finally {
       setIsLoading(false);

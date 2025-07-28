@@ -68,24 +68,29 @@ export default function MassCoinDashboardScreen() {
   const [activeTab, setActiveTab] = useState<'overview' | 'transactions' | 'staking'>('overview');
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (user?.id) {
+      loadData();
+    }
+  }, [user?.id]);
 
   const loadData = async () => {
     try {
       setLoading(true);
       const [walletData, transactionsData, statsData] = await Promise.all([
-        massCoinService.getWallet(),
+        massCoinService.getWallet(Number(user.id)),
         massCoinService.getUserTransactions(0, 10),
         massCoinService.getUserStats()
       ]);
-      
       setWallet(walletData);
       setTransactions(transactionsData);
       setUserStats(statsData);
-    } catch (error) {
-      console.error('Error loading Mass Coin data:', error);
-      // Use mock data for development
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        Alert.alert('Wallet not found', 'No wallet exists for your account. Please contact support.');
+      } else {
+        console.error('Error loading Mass Coin data:', error);
+        Alert.alert('Error', 'Failed to load Mass Coin data.');
+      }
       setWallet(massCoinService.getMockWallet());
       setTransactions(massCoinService.getMockTransactions());
       setUserStats({

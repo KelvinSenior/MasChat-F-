@@ -64,17 +64,23 @@ export default function StakingScreen() {
   const [walletLoading, setWalletLoading] = useState(true);
 
   useEffect(() => {
-    loadWallet();
-  }, []);
+    if (user?.id) {
+      loadWallet();
+    }
+  }, [user?.id]);
 
   const loadWallet = async () => {
     try {
       setWalletLoading(true);
-      const walletData = await massCoinService.getWallet();
+      const walletData = await massCoinService.getWallet(Number(user.id));
       setWallet(walletData);
-    } catch (error) {
-      console.error('Error loading wallet:', error);
-      // Use mock data for development
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        Alert.alert('Wallet not found', 'No wallet exists for your account. Please contact support.');
+      } else {
+        console.error('Error loading wallet:', error);
+        Alert.alert('Error', 'Failed to load wallet.');
+      }
       setWallet(massCoinService.getMockWallet());
     } finally {
       setWalletLoading(false);

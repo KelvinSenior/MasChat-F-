@@ -25,6 +25,7 @@ import { useAuth } from '../context/AuthContext';
 import { getUserProfile, updateProfile, uploadImage, UserProfile } from '../lib/services/userService';
 import client, { BASE_URL } from '../api/client';
 import ModernHeader from '../components/ModernHeader';
+import { testCloudinaryConnection } from '../lib/services/cloudinaryService';
 
 // Color Palette (matching home screen)
 const COLORS = {
@@ -171,6 +172,12 @@ export default function EditProfile() {
   const pickImage = async (field: 'profilePicture' | 'avatar' | 'coverPhoto') => {
     try {
       setLoading(true);
+      
+      // Test Cloudinary connection first
+      console.log('Testing Cloudinary connection...');
+      const cloudinaryTest = await import('../lib/services/cloudinaryService').then(module => module.testCloudinaryConnection());
+      console.log('Cloudinary test result:', cloudinaryTest);
+      
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -179,11 +186,15 @@ export default function EditProfile() {
       });
 
       if (!result.canceled && user?.id) {
+        console.log('Image selected:', result.assets[0].uri);
+        
         const manipResult = await ImageManipulator.manipulateAsync(
           result.assets[0].uri,
           [{ resize: { width: 800 } }],
           { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
         );
+        
+        console.log('Image manipulated:', manipResult.uri);
 
         let imageUrl;
         if (field === 'avatar') {
@@ -191,27 +202,39 @@ export default function EditProfile() {
         } else {
           imageUrl = await uploadImage(manipResult.uri, field, user.id);
         }
-        const fullImageUrl = imageUrl.startsWith('http') ? imageUrl : `${BASE_URL}${imageUrl}`;
-
-        const updatePayload: any = field === 'avatar'
-          ? { details: { ...profileData.details, avatar: fullImageUrl } }
-          : { [field]: fullImageUrl };
-
-        const updatedUser = await updateProfile(user.id, updatePayload);
+        
+        console.log('Upload completed, image URL:', imageUrl);
+        
+        // The uploadImage function already handles the backend update
+        // Just update the local state
         setProfileData(prev => ({
           ...prev,
-          ...(field !== 'avatar' && { [field]: fullImageUrl }),
+          ...(field !== 'avatar' && { [field]: imageUrl }),
           details: field === 'avatar'
-            ? { ...prev.details, avatar: fullImageUrl }
+            ? { ...prev.details, avatar: imageUrl }
             : prev.details,
         }));
 
-        await updateUser(updatedUser);
+        // Refresh user data from backend
+        const refreshed = await getUserProfile(String(user.id));
+        await updateUser(refreshed);
+        
         Alert.alert('Success', `${field} updated successfully`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Error updating ${field}:`, error);
-      Alert.alert('Error', `Failed to update ${field}`);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      let errorMessage = `Failed to update ${field}`;
+      if (error.message) {
+        errorMessage += `: ${error.message}`;
+      }
+      
+      Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -226,13 +249,21 @@ export default function EditProfile() {
         setLoading(false);
         return;
       }
-      const updateData = {
-        bio: profileData.bio,
-        fullName: profileData.fullName,
-        details: { ...profileData.details }
+      // Convert empty strings to null in details
+      const cleanedDetails = Object.fromEntries(
+        Object.entries(profileData.details).map(([k, v]) => [k, v === '' ? null : v])
+      );
+      const updateData: any = {
+        bio: profileData.bio === '' ? undefined : profileData.bio,
+        details: cleanedDetails,
       };
-      await updateProfile(user.id, updateData);
-      const refreshed = await getUserProfile(user.id);
+      if (profileData.fullName && profileData.fullName.trim() !== '') {
+        updateData.fullName = profileData.fullName;
+      }
+      // Log outgoing payload for debugging
+      console.log('Updating profile with:', updateData);
+      await updateProfile(String(user.id), updateData);
+      const refreshed = await getUserProfile(String(user.id));
       await updateUser(refreshed);
       Alert.alert('Success', 'Profile updated successfully');
       router.back();
@@ -425,6 +456,21 @@ export default function EditProfile() {
     });
   };
 
+  const testUpload = async () => {
+    try {
+      console.log('Testing Cloudinary connection...');
+      const isConnected = await testCloudinaryConnection();
+      if (isConnected) {
+        Alert.alert('Success', 'Cloudinary connection is working!');
+      } else {
+        Alert.alert('Error', 'Cloudinary connection failed. Check console for details.');
+      }
+    } catch (error) {
+      console.error('Test upload error:', error);
+      Alert.alert('Error', 'Test failed. Check console for details.');
+    }
+  };
+
   if (!user) {
     return (
       <View style={styles.loadingContainer}>
@@ -454,8 +500,7 @@ export default function EditProfile() {
               router.replace('/(tabs)/profile');
             }
           }}
-          onSavePress={handleSave}
-          loading={loading}
+          // Remove onSavePress and loading props if not supported
         />
 
         {/* Profile Picture */}
@@ -663,6 +708,14 @@ export default function EditProfile() {
           <Text style={styles.sectionTitle}>Profile Details</Text>
           {detailFields.map(renderDetailField)}
         </View>
+
+        {/* Test Button - Remove this in production */}
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: '#FF6B6B', marginTop: 10 }]}
+          onPress={testUpload}
+        >
+          <Text style={styles.buttonText}>Test Cloudinary Connection</Text>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -752,14 +805,14 @@ const styles = StyleSheet.create({
     height: 150,
     borderRadius: 75,
     borderWidth: 3,
-    borderColor: COLORS.light.white,
+    borderColor: '#fff',
   },
   avatarImg: {
     width: 150,
     height: 150,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: COLORS.light.white,
+    borderColor: '#fff',
   },
   avatarPickerContainer: {
     marginTop: 12,
@@ -930,5 +983,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.light.text,
     lineHeight: 24,
+  },
+  button: {
+    backgroundColor: COLORS.light.primary,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 10,
+  },
+  buttonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });

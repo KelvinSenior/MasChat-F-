@@ -14,6 +14,7 @@ export type Reel = {
   likeCount?: number;
   commentCount?: number;
   shareCount?: number;
+  comments?: ReelComment[];
 };
 
 export type ReelComment = {
@@ -26,13 +27,28 @@ export type ReelComment = {
 };
 
 export const fetchReels = async (): Promise<Reel[]> => {
-  const res = await client.get('/reels');
-  return res.data;
+  try {
+    console.log('Fetching reels from backend...');
+    const res = await client.get('/reels');
+    console.log('Reels response:', res.data);
+    console.log('Number of reels received:', res.data.length);
+    return res.data;
+  } catch (error) {
+    console.error('Error fetching reels:', error);
+    throw error;
+  }
 };
 
 export const createReel = async (reel: { mediaUrl: string; caption?: string }, userId: string) => {
-  const res = await client.post(`/reels/create`, { ...reel, userId });
-  return res.data;
+  try {
+    console.log('Creating reel with data:', { ...reel, userId });
+    const res = await client.post(`/reels/create`, { ...reel, userId });
+    console.log('Reel created successfully:', res.data);
+    return res.data;
+  } catch (error) {
+    console.error('Error creating reel:', error);
+    throw error;
+  }
 };
 
 export const deleteReel = async (reelId: string, userId: string) => {

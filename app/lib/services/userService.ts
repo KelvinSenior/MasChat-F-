@@ -69,12 +69,18 @@ export const uploadImage = async (
   imageUri: string,
   type: 'profilePicture' | 'coverPhoto' | 'avatar',
   userId: string,
-  showAvatar?: boolean // <-- add this optional argument
+  showAvatar?: boolean
 ): Promise<string> => {
   try {
+    console.log(`Starting ${type} upload for user ${userId}`);
+    console.log('Image URI:', imageUri);
+    
     // Upload to Cloudinary first
     const folder = `maschat/${type}`;
+    console.log('Uploading to Cloudinary folder:', folder);
+    
     const cloudinaryUrl = await uploadImageToCloudinary(imageUri, folder);
+    console.log('Cloudinary upload successful:', cloudinaryUrl);
 
     // Then save the Cloudinary URL to your backend
     let endpoint = '';
@@ -86,20 +92,32 @@ export const uploadImage = async (
       endpoint = `/users/${userId}/avatar/picture${showAvatar !== undefined ? `?showAvatar=${showAvatar}` : ''}`;
     }
 
+    console.log('Sending to backend endpoint:', endpoint);
+    console.log('Payload:', { imageUrl: cloudinaryUrl });
+
     const response = await client.post(
       endpoint,
       { imageUrl: cloudinaryUrl },
       { headers: { 'Content-Type': 'application/json' } }
     );
+    
+    console.log('Backend response:', response.data);
     return response.data;
   } catch (error: any) {
-    console.error('Error uploading image:', error);
+    console.error(`Error uploading ${type}:`, error);
+    console.error('Error response:', error.response?.data);
+    console.error('Error status:', error.response?.status);
+    
     if (error.response?.status === 413) {
       throw new Error('Image file is too large. Please choose a smaller image.');
     } else if (error.response?.status === 415) {
       throw new Error('Invalid image format. Please choose a JPEG or PNG image.');
+    } else if (error.response?.status === 400) {
+      throw new Error(`Upload failed: ${error.response.data || 'Bad request'}`);
+    } else if (error.response?.status === 500) {
+      throw new Error('Server error. Please try again later.');
     } else {
-      throw new Error('Failed to upload image. Please try again.');
+      throw new Error(`Failed to upload image: ${error.message || 'Unknown error'}`);
     }
   }
 };

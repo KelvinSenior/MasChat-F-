@@ -26,7 +26,6 @@ const COLORS = {
     lightText: '#6C757D',  // Medium Gray
     border: '#E9ECEF',     // Light Border
     success: '#4CC9F0',    // Teal
-    dark: '#1A1A2E',       // Dark Blue
     tabBarBg: 'rgba(255, 255, 255, 0.95)',
     tabBarBorder: 'rgba(0, 0, 0, 0.1)',
   },
@@ -40,7 +39,6 @@ const COLORS = {
     lightText: '#B0B0B0',  // Light Gray
     border: '#404040',     // Match marketplace dark border
     success: '#4CC9F0',    // Teal
-    dark: '#1A1A2E',       // Dark Blue
     tabBarBg: 'rgba(26, 26, 46, 0.95)',
     tabBarBorder: 'rgba(255, 255, 255, 0.1)',
   },
@@ -90,6 +88,23 @@ export default function HomeScreen() {
     acc[story.userId].push(story);
     return acc;
   }, {} as { [userId: string]: Story[] });
+  
+  // Get the latest story for each user
+  const getLatestStoryForUser = (userId: string) => {
+    const userStories = storiesByUser[userId] || [];
+    return userStories.length > 0 ? userStories[userStories.length - 1] : null;
+  };
+  
+  // Generate thumbnail for video stories
+  const getStoryThumbnail = (story: Story) => {
+    if (story.mediaUrl) {
+      // If it's a video, we'll use the mediaUrl as is (it should be a thumbnail)
+      // For now, we'll use the mediaUrl directly
+      return story.mediaUrl;
+    }
+    return story.profilePicture || DEFAULT_PROFILE_PHOTO;
+  };
+  
   const uniqueStoryUsers = Object.values(storiesByUser).map(stories => stories[0]);
 
   // Check if current user has stories
@@ -97,12 +112,8 @@ export default function HomeScreen() {
   const userLatestStory = userStories.length > 0 ? userStories[userStories.length - 1] : null;
   const hasUserStories = userStories.length > 0;
 
-  const openUserStories = async (userId: string, username: string, profilePicture?: string) => {
-    const userStories = await fetchStoriesByUser(userId);
-    setCurrentUserStories(userStories);
-    setCurrentStoryUser({ userId, username, profilePicture });
-    setCurrentStoryIndex(0);
-    setStoryViewerVisible(true);
+  const openUserStories = (userId: string) => {
+    router.push({ pathname: '/screens/StoryViewerScreen', params: { userId } });
   };
 
   useEffect(() => {
@@ -439,7 +450,7 @@ export default function HomeScreen() {
       <ScrollView 
         style={styles.scroll} 
         showsVerticalScrollIndicator={false} 
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 }]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
         }
@@ -488,12 +499,12 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={styles.storyItem}
               onPress={() => {
-                if (hasUserStories && user && user.id) {
+                if (user && hasUserStories && user.id) {
                   // Show user's own stories
-                  openUserStories(user.id, user.username, user.profilePicture);
+                  openUserStories(user.id);
                 } else {
                   // Navigate to create new story
-                  router.push("/(create)/newStory");
+                  router.push('/(create)/newStory');
                 }
               }}
             >
@@ -501,7 +512,7 @@ export default function HomeScreen() {
                 <Image
                   source={{
                     uri: hasUserStories && userLatestStory 
-                      ? userLatestStory.mediaUrl 
+                      ? getStoryThumbnail(userLatestStory)
                       : (user && user.profilePicture) ? user.profilePicture : DEFAULT_PROFILE_PHOTO,
                   }}
                   style={styles.storyImage}
@@ -520,25 +531,28 @@ export default function HomeScreen() {
             {/* Other Users' Stories - Each user gets their own circle */}
             {uniqueStoryUsers
               .filter(story => story.userId !== (user?.id || '')) // Exclude current user since they're already shown above
-              .map((story) => (
-                <TouchableOpacity
-                  key={story.id}
-                  style={styles.storyItem}
-                  onPress={() => openUserStories(story.userId, story.username, story.profilePicture)}
-                >
-                  <View style={styles.storyRing}>
-                    <Image
-                      source={{
-                        uri: story.profilePicture ? story.profilePicture : DEFAULT_PROFILE_PHOTO,
-                      }}
-                      style={styles.storyImage}
-                    />
-                  </View>
-                  <Text style={styles.storyLabel} numberOfLines={1}>
-                    {story.username}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              .map((story) => {
+                const latestStory = getLatestStoryForUser(story.userId);
+                return (
+                  <TouchableOpacity
+                    key={story.id}
+                    style={styles.storyItem}
+                    onPress={() => story.userId && openUserStories(story.userId)}
+                  >
+                    <View style={styles.storyRing}>
+                      <Image
+                        source={{
+                          uri: getStoryThumbnail(latestStory || story),
+                        }}
+                        style={styles.storyImage}
+                      />
+                    </View>
+                    <Text style={styles.storyLabel} numberOfLines={1}>
+                      {story.username}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
           </ScrollView>
         </View>
 

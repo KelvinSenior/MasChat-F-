@@ -11,6 +11,7 @@ import { Video, ResizeMode } from 'expo-av';
 import CommentDialog from "../components/CommentDialog";
 import MenuModal from '../components/MenuModal';
 import { Colors } from '../../constants/Colors';
+import client from '../api/client';
 
 const COLORS = {
   light: {
@@ -63,8 +64,20 @@ export default function Videos() {
   const appState = useRef(AppState.currentState);
   const [videoLoading, setVideoLoading] = useState<{ [key: number]: boolean }>({});
 
+  const testReelsEndpoint = async () => {
+    try {
+      console.log('Testing reels endpoint...');
+      const response = await client.get('/reels/test');
+      console.log('Test endpoint response:', response.data);
+    } catch (error) {
+      console.error('Test endpoint error:', error);
+    }
+  };
+
   useEffect(() => {
     fetchAllReels();
+    // Test the endpoint to see what's in the database
+    testReelsEndpoint();
   }, []);
 
   useEffect(() => {
@@ -104,8 +117,38 @@ export default function Videos() {
   const fetchAllReels = async () => {
     setLoading(true);
     try {
+      console.log('Videos tab: Fetching reels...');
       const data = await fetchReels();
-      setReels(data.filter(r => typeof r.id === 'string' && r.id && r.id !== 'undefined'));
+      console.log('Videos tab: Raw reels data:', data);
+      console.log('Videos tab: Data type:', typeof data);
+      console.log('Videos tab: Is array:', Array.isArray(data));
+      
+      if (!Array.isArray(data)) {
+        console.error('Videos tab: Data is not an array:', data);
+        setReels([]);
+        return;
+      }
+      
+      const filteredReels = data.filter(r => r.id && r.id !== 'undefined' && r.id !== undefined);
+      console.log('Videos tab: Filtered reels:', filteredReels);
+      console.log('Videos tab: Number of reels after filtering:', filteredReels.length);
+      
+      // Log each reel's structure
+      filteredReels.forEach((reel, index) => {
+        console.log(`Reel ${index}:`, {
+          id: reel.id,
+          userId: reel.userId,
+          username: reel.username,
+          mediaUrl: reel.mediaUrl,
+          videoUrl: reel.videoUrl,
+          caption: reel.caption
+        });
+      });
+      
+      setReels(filteredReels);
+    } catch (error) {
+      console.error('Videos tab: Error fetching reels:', error);
+      setReels([]);
     } finally {
       setLoading(false);
     }
@@ -271,14 +314,14 @@ export default function Videos() {
                 style={styles.mediaContainer}
                 onPress={() => handleVideoPress(index)}
               >
-                {(reel as any).videoUrl ? (
+                {reel.videoUrl && reel.videoUrl.startsWith('http') ? (
                   <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     {videoLoading[index] && (
                       <ActivityIndicator size="large" color="#fff" style={{ position: 'absolute', top: '50%', left: '50%', zIndex: 10 }} />
                     )}
                     <Video
                       ref={ref => { videoRefs.current[index] = ref; return undefined; }}
-                      source={{ uri: (reel as any).videoUrl }}
+                      source={{ uri: reel.videoUrl }}
                       style={styles.fullVideo}
                       resizeMode={ResizeMode.COVER}
                       shouldPlay={index === currentReelIndex && !paused}
@@ -286,21 +329,38 @@ export default function Videos() {
                       useNativeControls={false}
                       isMuted={muted}
                       rate={videoSpeed}
-                      onLoadStart={() => setVideoLoading(v => ({ ...v, [index]: true }))}
-                      onReadyForDisplay={() => setVideoLoading(v => ({ ...v, [index]: false }))}
-                      onError={error => {
+                      onLoadStart={() => {
+                        console.log('Video loading started for reel:', reel.id, 'URL:', reel.videoUrl);
+                        setVideoLoading(v => ({ ...v, [index]: true }));
+                      }}
+                      onReadyForDisplay={() => {
+                        console.log('Video ready for display for reel:', reel.id);
                         setVideoLoading(v => ({ ...v, [index]: false }));
-                        // Silently handle video errors - they're common and not critical
-                        // Alert.alert('Video Error', 'This video cannot be played. Please try another reel.');
-                        // console.error('Reel video error:', error);
+                      }}
+                      onError={error => {
+                        console.error('Video error for reel:', reel.id, 'URL:', reel.videoUrl, error);
+                        setVideoLoading(v => ({ ...v, [index]: false }));
                       }}
                     />
                   </View>
-                ) : (reel as any).imageUrl ? (
-                  <Image source={{ uri: (reel as any).imageUrl }} style={styles.fullImage} resizeMode="cover" />
-                ) : null}
+                ) : reel.mediaUrl && reel.mediaUrl.startsWith('http') ? (
+                  <Image 
+                    source={{ uri: reel.mediaUrl }} 
+                    style={styles.fullImage} 
+                    resizeMode="cover"
+                    onError={(error) => console.error('Image error for reel:', reel.id, 'URL:', reel.mediaUrl, error)}
+                  />
+                ) : (
+                  <View style={[styles.fullVideo, { backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }]}>
+                    <Ionicons name="videocam-off" size={48} color="#fff" />
+                    <Text style={{ color: '#fff', fontSize: 16, marginTop: 8 }}>Invalid media URL</Text>
+                    <Text style={{ color: '#fff', fontSize: 12, marginTop: 4, textAlign: 'center' }}>
+                      {reel.videoUrl || reel.mediaUrl || 'No URL provided'}
+                    </Text>
+                  </View>
+                )}
                 {/* Mute/Unmute Button */}
-                {(reel as any).videoUrl && (
+                {reel.videoUrl && reel.videoUrl.startsWith('http') && (
                   <TouchableOpacity style={styles.muteBtn} onPress={handleMuteToggle}>
                     <Ionicons name={muted ? 'volume-mute' : 'volume-high'} size={28} color="#fff" />
                   </TouchableOpacity>

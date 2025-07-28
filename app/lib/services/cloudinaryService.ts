@@ -18,6 +18,10 @@ export const uploadImageToCloudinary = async (
   folder: string = 'maschat'
 ): Promise<string> => {
   try {
+    console.log('Starting Cloudinary upload...');
+    console.log('Image URI:', imageUri);
+    console.log('Folder:', folder);
+    
     // Create form data
     const formData = new FormData();
     formData.append('file', {
@@ -44,9 +48,13 @@ export const uploadImageToCloudinary = async (
       }
     );
 
+    console.log('Cloudinary response status:', response.status);
+    console.log('Cloudinary response headers:', response.headers);
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Cloudinary response error:', errorText);
+      console.error('Response status:', response.status);
       throw new Error(`Upload failed: ${response.status} - ${errorText}`);
     }
 
@@ -55,6 +63,8 @@ export const uploadImageToCloudinary = async (
     return result.secure_url;
   } catch (error: any) {
     console.error('Error uploading to Cloudinary:', error);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
     throw new Error(`Failed to upload image to cloud storage: ${error.message || error}`);
   }
 };
@@ -218,6 +228,7 @@ export const testCloudinaryConnection = async (): Promise<boolean> => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Cloudinary test failed:', errorText);
+      console.error('Response status:', response.status);
       return false;
     }
 
@@ -226,6 +237,7 @@ export const testCloudinaryConnection = async (): Promise<boolean> => {
     return true;
   } catch (error: any) {
     console.error('Cloudinary test error:', error);
+    console.error('Error message:', error.message);
     return false;
   }
 };
