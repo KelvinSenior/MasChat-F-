@@ -22,16 +22,22 @@ export type Post = {
   likeCount?: number;
   commentCount?: number;
   shareCount?: number;
-  comments?: PostComment[];
+  comments?: Comment[];
 };
 
-export type PostComment = {
+export type Comment = {
   id: string;
   userId: string;
   username: string;
   profilePicture?: string;
-  text: string;
+  content: string;
   createdAt: string;
+  parentCommentId?: string;
+  replies?: Comment[];
+  likeCount: number;
+  replyCount: number;
+  isLikedByCurrentUser: boolean;
+  timeAgo: string;
 };
 
 export const getPosts = async (): Promise<Post[]> => {
@@ -60,11 +66,54 @@ export const unlikePost = async (postId: string, userId: string) => {
 };
 
 export const addComment = async (postId: string, userId: string, text: string) => {
-  const res = await client.post(`/posts/${postId}/comment?userId=${userId}`, text);
+  const res = await client.post(`/posts/${postId}/comment?userId=${userId}`, { content: text }, {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
   return res.data;
 };
 
-export const getComments = async (postId: string): Promise<PostComment[]> => {
-  const res = await client.get(`/posts/${postId}/comments`);
+export const addReply = async (postId: string, userId: string, parentCommentId: string, text: string) => {
+  const res = await client.post(`/posts/${postId}/comment/${parentCommentId}/reply?userId=${userId}`, { content: text }, {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
   return res.data;
+};
+
+export const likeComment = async (commentId: string, userId: string) => {
+  const res = await client.post(`/posts/comment/${commentId}/like?userId=${userId}`);
+  return res.data;
+};
+
+export const unlikeComment = async (commentId: string, userId: string) => {
+  const res = await client.post(`/posts/comment/${commentId}/unlike?userId=${userId}`);
+  return res.data;
+};
+
+export const fetchPostComments = async (postId: string, currentUserId?: string): Promise<Comment[]> => {
+  const params = currentUserId ? `?currentUserId=${currentUserId}` : '';
+  const res = await client.get(`/posts/${postId}/comments${params}`);
+  return res.data;
+};
+
+export const searchComments = async (postId: string, searchTerm: string, currentUserId?: string): Promise<Comment[]> => {
+  const params = new URLSearchParams();
+  params.append('searchTerm', searchTerm);
+  if (currentUserId) params.append('currentUserId', currentUserId);
+  const res = await client.get(`/posts/${postId}/comments/search?${params}`);
+  return res.data;
+};
+
+export const getCommentReplies = async (commentId: string, currentUserId?: string): Promise<Comment[]> => {
+  const params = currentUserId ? `?currentUserId=${currentUserId}` : '';
+  const res = await client.get(`/posts/comment/${commentId}/replies${params}`);
+  return res.data;
+};
+
+// Legacy function for backward compatibility
+export const getComments = async (postId: string): Promise<Comment[]> => {
+  return fetchPostComments(postId);
 };

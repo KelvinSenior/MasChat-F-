@@ -1,26 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-  RefreshControl,
-  Dimensions,
-  useColorScheme,
-  Image
-} from 'react-native';
-import { Ionicons, MaterialIcons, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../context/AuthContext';
-import ModernHeader from '../../components/ModernHeader';
+import { useTheme } from '../context/ThemeContext';
+import { massCoinService, WalletInfo, UserStats } from '../lib/services/massCoinService';
+import { getBestFriends, getUserFriends } from '../lib/services/userService';
+import MassCoinIcon from '../../components/MassCoinIcon';
 
-const { width } = Dimensions.get('window');
-
-// Color Palette
 const COLORS = {
   light: {
     primary: '#4361EE',
@@ -33,9 +21,8 @@ const COLORS = {
     border: '#E9ECEF',
     success: '#4CC9F0',
     dark: '#1A1A2E',
-    gold: '#FFD700',
-    silver: '#C0C0C0',
-    bronze: '#CD7F32',
+    tabBarBg: 'rgba(255, 255, 255, 0.95)',
+    tabBarBorder: 'rgba(0, 0, 0, 0.1)',
   },
   dark: {
     primary: '#4361EE',
@@ -48,9 +35,8 @@ const COLORS = {
     border: '#404040',
     success: '#4CC9F0',
     dark: '#1A1A2E',
-    gold: '#FFD700',
-    silver: '#C0C0C0',
-    bronze: '#CD7F32',
+    tabBarBg: 'rgba(26, 26, 46, 0.95)',
+    tabBarBorder: 'rgba(255, 255, 255, 0.1)',
   },
 };
 
@@ -58,102 +44,77 @@ interface DashboardStats {
   totalPosts: number;
   totalLikes: number;
   totalComments: number;
+  totalFollowers: number;
+  totalFollowing: number;
+  totalViews: number;
   totalShares: number;
-  followers: number;
-  following: number;
-  profileViews: number;
-  engagementRate: number;
-  weeklyGrowth: number;
-  monthlyGrowth: number;
-}
-
-interface RecentActivity {
-  id: string;
-  type: 'post' | 'like' | 'comment' | 'follow' | 'mention';
-  title: string;
-  description: string;
-  timestamp: string;
-  icon: string;
-  color: string;
 }
 
 export default function DashboardScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const colorScheme = useColorScheme();
-  const colors = COLORS[colorScheme === 'dark' ? 'dark' : 'light'];
+  const { currentTheme } = useTheme();
+  const colors = COLORS[currentTheme === 'dark' ? 'dark' : 'light'];
   
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'activity'>('overview');
+  const [wallet, setWallet] = useState<WalletInfo | null>(null);
+  const [stats, setStats] = useState<UserStats | null>(null);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
+    totalPosts: 0,
+    totalLikes: 0,
+    totalComments: 0,
+    totalFollowers: 0,
+    totalFollowing: 0,
+    totalViews: 0,
+    totalShares: 0,
+  });
+  const [friendCount, setFriendCount] = useState(0);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (user?.id) {
+      loadDashboardData();
+    }
+  }, [user?.id]);
 
-  const loadData = async () => {
+  const loadDashboardData = async () => {
+    if (!user?.id) return;
+    
+    setLoading(true);
     try {
-      setLoading(true);
-      // Simulate API calls
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock data for development
-      setStats({
-        totalPosts: 45,
-        totalLikes: 1234,
-        totalComments: 567,
-        totalShares: 89,
-        followers: 1234,
-        following: 567,
-        profileViews: 8901,
-        engagementRate: 8.5,
-        weeklyGrowth: 12.3,
-        monthlyGrowth: 23.7
-      });
-
-      setRecentActivity([
-        {
-          id: '1',
-          type: 'post',
-          title: 'New Post Created',
-          description: 'Your post "Amazing sunset!" received 23 likes',
-          timestamp: '2 hours ago',
-          icon: 'document-text',
-          color: colors.primary
-        },
-        {
-          id: '2',
-          type: 'like',
-          title: 'Post Liked',
-          description: 'John Doe liked your post',
-          timestamp: '4 hours ago',
-          icon: 'heart',
-          color: '#FF6B6B'
-        },
-        {
-          id: '3',
-          type: 'comment',
-          title: 'New Comment',
-          description: 'Jane Smith commented on your post',
-          timestamp: '6 hours ago',
-          icon: 'chatbubble',
-          color: colors.accent
-        },
-        {
-          id: '4',
-          type: 'follow',
-          title: 'New Follower',
-          description: 'Mike Johnson started following you',
-          timestamp: '1 day ago',
-          icon: 'person-add',
-          color: colors.success
-        }
+      const [walletData, statsData, friendsData] = await Promise.all([
+        massCoinService.getWallet(Number(user.id)),
+        massCoinService.getUserStats(Number(user.id)),
+        getUserFriends(user.id)
       ]);
+      
+      setWallet(walletData);
+      setStats(statsData);
+      setFriendCount(friendsData.length);
+      
+      // Mock dashboard stats (in real app, these would come from backend)
+      setDashboardStats({
+        totalPosts: Math.floor(Math.random() * 50) + 10,
+        totalLikes: Math.floor(Math.random() * 500) + 100,
+        totalComments: Math.floor(Math.random() * 200) + 50,
+        totalFollowers: friendsData.length,
+        totalFollowing: friendsData.length,
+        totalViews: Math.floor(Math.random() * 10000) + 1000,
+        totalShares: Math.floor(Math.random() * 100) + 20,
+      });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
-      Alert.alert('Error', 'Failed to load dashboard data');
+      // Set default values
+      setWallet(massCoinService.getMockWallet());
+      setStats({
+        totalTransactions: 0,
+        totalVolume: 0,
+        averageTransactionAmount: 0,
+        totalTipsReceived: 0,
+        totalTipsAmount: 0,
+        totalTipsSent: 0,
+        totalTipsSentAmount: 0,
+      });
     } finally {
       setLoading(false);
     }
@@ -161,233 +122,212 @@ export default function DashboardScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadData();
+    await loadDashboardData();
     setRefreshing(false);
   };
 
-  const renderOverview = () => (
-    <View style={styles.tabContent}>
-      {/* Stats Cards */}
-      <View style={styles.statsGrid}>
-        <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-          <LinearGradient
-            colors={[colors.primary, colors.secondary]}
-            style={styles.statGradient}
-          >
-            <MaterialIcons name="post-add" size={24} color="white" />
-          </LinearGradient>
-          <Text style={[styles.statNumber, { color: colors.text }]}>{stats?.totalPosts || 0}</Text>
-          <Text style={[styles.statLabel, { color: colors.lightText }]}>Total Posts</Text>
-        </View>
+  const formatAmount = (amount: number) => {
+    return massCoinService.formatAmount(amount);
+  };
 
-        <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-          <LinearGradient
-            colors={['#FF6B6B', '#FF8E8E']}
-            style={styles.statGradient}
-          >
-            <MaterialIcons name="favorite" size={24} color="white" />
-          </LinearGradient>
-          <Text style={[styles.statNumber, { color: colors.text }]}>{stats?.totalLikes || 0}</Text>
-          <Text style={[styles.statLabel, { color: colors.lightText }]}>Total Likes</Text>
-        </View>
+  const formatNumber = (num: number): string => {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + 'M';
+    } else if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toString();
+  };
 
-        <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-          <LinearGradient
-            colors={[colors.accent, '#FFA366']}
-            style={styles.statGradient}
-          >
-            <MaterialIcons name="chat" size={24} color="white" />
-          </LinearGradient>
-          <Text style={[styles.statNumber, { color: colors.text }]}>{stats?.totalComments || 0}</Text>
-          <Text style={[styles.statLabel, { color: colors.lightText }]}>Comments</Text>
-        </View>
-
-        <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-          <LinearGradient
-            colors={[colors.success, '#66D9FF']}
-            style={styles.statGradient}
-          >
-            <MaterialIcons name="share" size={24} color="white" />
-          </LinearGradient>
-          <Text style={[styles.statNumber, { color: colors.text }]}>{stats?.totalShares || 0}</Text>
-          <Text style={[styles.statLabel, { color: colors.lightText }]}>Shares</Text>
-        </View>
+  const renderStatCard = (title: string, value: string | number, icon: string, color: string, onPress?: () => void) => (
+    <TouchableOpacity 
+      style={[styles.statCard, { backgroundColor: colors.card }]} 
+      onPress={onPress}
+      disabled={!onPress}
+    >
+      <View style={[styles.statIcon, { backgroundColor: color + '20' }]}>
+        <Ionicons name={icon as any} size={24} color={color} />
       </View>
-
-      {/* Growth Metrics */}
-      <View style={[styles.growthCard, { backgroundColor: colors.card }]}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Growth Metrics</Text>
-        <View style={styles.growthRow}>
-          <View style={styles.growthItem}>
-            <Text style={[styles.growthNumber, { color: colors.success }]}>+{stats?.weeklyGrowth || 0}%</Text>
-            <Text style={[styles.growthLabel, { color: colors.lightText }]}>This Week</Text>
-          </View>
-          <View style={styles.growthItem}>
-            <Text style={[styles.growthNumber, { color: colors.primary }]}>+{stats?.monthlyGrowth || 0}%</Text>
-            <Text style={[styles.growthLabel, { color: colors.lightText }]}>This Month</Text>
-          </View>
-          <View style={styles.growthItem}>
-            <Text style={[styles.growthNumber, { color: colors.accent }]}>{stats?.engagementRate || 0}%</Text>
-            <Text style={[styles.growthLabel, { color: colors.lightText }]}>Engagement</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Quick Actions */}
-      <View style={[styles.quickActionsCard, { backgroundColor: colors.card }]}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
-        <View style={styles.actionsGrid}>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => router.push('/(create)/newPost')}
-          >
-            <MaterialIcons name="post-add" size={24} color={colors.primary} />
-            <Text style={[styles.actionText, { color: colors.text }]}>New Post</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => router.push('/(create)/newStory')}
-          >
-            <MaterialIcons name="add-circle" size={24} color={colors.accent} />
-            <Text style={[styles.actionText, { color: colors.text }]}>New Story</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => router.push('/(create)/newReel')}
-          >
-            <MaterialIcons name="video-library" size={24} color={colors.success} />
-            <Text style={[styles.actionText, { color: colors.text }]}>New Reel</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => router.push('/screens/SearchScreen')}
-          >
-            <MaterialIcons name="search" size={24} color={colors.secondary} />
-            <Text style={[styles.actionText, { color: colors.text }]}>Search</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  );
-
-  const renderAnalytics = () => (
-    <View style={styles.tabContent}>
-      <View style={[styles.analyticsCard, { backgroundColor: colors.card }]}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Profile Analytics</Text>
-        
-        <View style={styles.analyticsRow}>
-          <View style={styles.analyticsItem}>
-            <Text style={[styles.analyticsNumber, { color: colors.primary }]}>{stats?.followers || 0}</Text>
-            <Text style={[styles.analyticsLabel, { color: colors.lightText }]}>Followers</Text>
-          </View>
-          <View style={styles.analyticsItem}>
-            <Text style={[styles.analyticsNumber, { color: colors.accent }]}>{stats?.following || 0}</Text>
-            <Text style={[styles.analyticsLabel, { color: colors.lightText }]}>Following</Text>
-          </View>
-        </View>
-
-        <View style={styles.analyticsRow}>
-          <View style={styles.analyticsItem}>
-            <Text style={[styles.analyticsNumber, { color: colors.success }]}>{stats?.profileViews || 0}</Text>
-            <Text style={[styles.analyticsLabel, { color: colors.lightText }]}>Profile Views</Text>
-          </View>
-          <View style={styles.analyticsItem}>
-            <Text style={[styles.analyticsNumber, { color: colors.gold }]}>{stats?.engagementRate || 0}%</Text>
-            <Text style={[styles.analyticsLabel, { color: colors.lightText }]}>Engagement Rate</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Chart Placeholder */}
-      <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Engagement Trend</Text>
-        <View style={[styles.chartPlaceholder, { backgroundColor: colors.border }]}>
-          <MaterialIcons name="insert-chart" size={48} color={colors.lightText} />
-          <Text style={[styles.chartText, { color: colors.lightText }]}>Chart coming soon</Text>
-        </View>
-      </View>
-    </View>
-  );
-
-  const renderActivity = () => (
-    <View style={styles.tabContent}>
-      <View style={[styles.activityCard, { backgroundColor: colors.card }]}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Activity</Text>
-        
-        {recentActivity.map((activity) => (
-          <View key={activity.id} style={styles.activityItem}>
-            <View style={[styles.activityIcon, { backgroundColor: activity.color }]}>
-              <Ionicons name={activity.icon as any} size={16} color="white" />
-            </View>
-            <View style={styles.activityContent}>
-              <Text style={[styles.activityTitle, { color: colors.text }]}>{activity.title}</Text>
-              <Text style={[styles.activityDescription, { color: colors.lightText }]}>{activity.description}</Text>
-              <Text style={[styles.activityTime, { color: colors.lightText }]}>{activity.timestamp}</Text>
-            </View>
-          </View>
-        ))}
-      </View>
-    </View>
+      <Text style={[styles.statValue, { color: colors.text }]}>{value}</Text>
+      <Text style={[styles.statTitle, { color: colors.lightText }]}>{title}</Text>
+    </TouchableOpacity>
   );
 
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <ModernHeader title="Dashboard" showBackButton={true} />
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Dashboard</Text>
+          <View style={styles.headerRight} />
+        </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.text }]}>Loading dashboard...</Text>
+          <Text style={[styles.loadingText, { color: colors.lightText }]}>Loading dashboard...</Text>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ModernHeader title="Dashboard" showBackButton={true} />
-      
-      {/* Tab Navigation */}
-      <View style={[styles.tabContainer, { backgroundColor: colors.card }]}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'overview' && styles.activeTab]}
-          onPress={() => setActiveTab('overview')}
-        >
-          <Text style={[styles.tabText, { color: activeTab === 'overview' ? colors.primary : colors.lightText }]}>
-            Overview
-          </Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'analytics' && styles.activeTab]}
-          onPress={() => setActiveTab('analytics')}
-        >
-          <Text style={[styles.tabText, { color: activeTab === 'analytics' ? colors.primary : colors.lightText }]}>
-            Analytics
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'activity' && styles.activeTab]}
-          onPress={() => setActiveTab('activity')}
-        >
-          <Text style={[styles.tabText, { color: activeTab === 'activity' ? colors.primary : colors.lightText }]}>
-            Activity
-          </Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Dashboard</Text>
+        <TouchableOpacity onPress={onRefresh} style={styles.refreshButton}>
+          <Ionicons name="refresh" size={24} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
+      <ScrollView 
+        style={styles.content}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        showsVerticalScrollIndicator={false}
       >
-        {activeTab === 'overview' && renderOverview()}
-        {activeTab === 'analytics' && renderAnalytics()}
-        {activeTab === 'activity' && renderActivity()}
+        {/* Welcome Section */}
+        <View style={[styles.welcomeSection, { backgroundColor: colors.card }]}>
+          <LinearGradient
+            colors={[colors.primary, colors.secondary]}
+            style={styles.welcomeGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Text style={styles.welcomeTitle}>Welcome back, {user?.fullName || user?.username || 'User'}!</Text>
+            <Text style={styles.welcomeSubtitle}>Here's your activity overview</Text>
+          </LinearGradient>
+        </View>
+
+        {/* MassCoin Wallet Section */}
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleContainer}>
+              <MassCoinIcon size={24} />
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>MassCoin Wallet</Text>
+            </View>
+            <TouchableOpacity onPress={() => router.push('/screens/MassCoinDashboardScreen')}>
+              <Ionicons name="chevron-forward" size={20} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.walletInfo}>
+            <View style={styles.walletBalance}>
+              <Text style={[styles.balanceLabel, { color: colors.lightText }]}>Available Balance</Text>
+              <Text style={[styles.balanceAmount, { color: colors.text }]}>
+                {formatAmount(wallet?.balance || 0)} MASS
+              </Text>
+              <Text style={[styles.balanceUsd, { color: colors.lightText }]}>
+                ≈ {massCoinService.formatUsdValue(wallet?.balance || 0)}
+              </Text>
+            </View>
+            
+            <View style={styles.walletStats}>
+              <View style={styles.walletStat}>
+                <Text style={[styles.walletStatValue, { color: colors.text }]}>
+                  {formatAmount(wallet?.stakedAmount || 0)}
+                </Text>
+                <Text style={[styles.walletStatLabel, { color: colors.lightText }]}>Staked</Text>
+              </View>
+              <View style={styles.walletStat}>
+                <Text style={[styles.walletStatValue, { color: colors.text }]}>
+                  {stats?.totalTransactions || 0}
+                </Text>
+                <Text style={[styles.walletStatLabel, { color: colors.lightText }]}>Transactions</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Activity Stats */}
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Activity Overview</Text>
+          <View style={styles.statsGrid}>
+            {renderStatCard('Posts', dashboardStats.totalPosts, 'document-text', colors.primary)}
+            {renderStatCard('Likes', formatNumber(dashboardStats.totalLikes), 'heart', '#FF3040')}
+            {renderStatCard('Comments', formatNumber(dashboardStats.totalComments), 'chatbubble', colors.accent)}
+            {renderStatCard('Followers', formatNumber(dashboardStats.totalFollowers), 'people', colors.success)}
+            {renderStatCard('Views', formatNumber(dashboardStats.totalViews), 'eye', colors.secondary)}
+            {renderStatCard('Shares', formatNumber(dashboardStats.totalShares), 'share', '#A259E6')}
+          </View>
+        </View>
+
+        {/* Quick Actions */}
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
+          <View style={styles.quickActions}>
+            <TouchableOpacity 
+              style={[styles.actionButton, { backgroundColor: colors.primary + '20' }]}
+              onPress={() => router.push('/(create)/newPost')}
+            >
+              <Ionicons name="add-circle" size={24} color={colors.primary} />
+              <Text style={[styles.actionText, { color: colors.primary }]}>New Post</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.actionButton, { backgroundColor: colors.accent + '20' }]}
+              onPress={() => router.push('/(create)/newReel')}
+            >
+              <Ionicons name="videocam" size={24} color={colors.accent} />
+              <Text style={[styles.actionText, { color: colors.accent }]}>New Reel</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.actionButton, { backgroundColor: colors.success + '20' }]}
+              onPress={() => router.push('/screens/MassCoinSendScreen')}
+            >
+              <MassCoinIcon size={24} />
+              <Text style={[styles.actionText, { color: '#FFD700' }]}>Send MASS</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.actionButton, { backgroundColor: colors.secondary + '20' }]}
+              onPress={() => router.push('/(tabs)/marketplace')}
+            >
+              <FontAwesome5 name="store" size={20} color={colors.secondary} />
+              <Text style={[styles.actionText, { color: colors.secondary }]}>Marketplace</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Recent Activity */}
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Activity</Text>
+            <TouchableOpacity onPress={() => router.push('/screens/MassCoinTransactionsScreen')}>
+              <Text style={[styles.viewAllText, { color: colors.primary }]}>View All</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.recentActivity}>
+            <View style={styles.activityItem}>
+              <View style={[styles.activityIcon, { backgroundColor: colors.success + '20' }]}>
+                <Ionicons name="trending-up" size={16} color={colors.success} />
+              </View>
+              <View style={styles.activityContent}>
+                <Text style={[styles.activityTitle, { color: colors.text }]}>Wallet Created</Text>
+                <Text style={[styles.activityTime, { color: colors.lightText }]}>Just now</Text>
+              </View>
+            </View>
+            
+            <View style={styles.activityItem}>
+              <View style={[styles.activityIcon, { backgroundColor: colors.primary + '20' }]}>
+                <Ionicons name="gift" size={16} color={colors.primary} />
+              </View>
+              <View style={styles.activityContent}>
+                <Text style={[styles.activityTitle, { color: colors.text }]}>Welcome Bonus</Text>
+                <Text style={[styles.activityTime, { color: colors.lightText }]}>1,000 MASS received</Text>
+              </View>
+            </View>
+          </View>
+        </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -395,60 +335,129 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  refreshButton: {
+    padding: 8,
+  },
+  headerRight: {
+    width: 40,
+  },
+  content: {
+    flex: 1,
+    padding: 16,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 16,
     fontSize: 16,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    marginHorizontal: 16,
     marginTop: 16,
-    borderRadius: 12,
-    padding: 4,
   },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
+  welcomeSection: {
+    borderRadius: 16,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  welcomeGradient: {
+    padding: 20,
+  },
+  welcomeTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 4,
+  },
+  welcomeSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  section: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 8,
+    justifyContent: 'space-between',
+    marginBottom: 16,
   },
-  activeTab: {
-    backgroundColor: 'rgba(67, 97, 238, 0.1)',
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  tabText: {
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  viewAllText: {
     fontSize: 14,
     fontWeight: '600',
   },
-  scrollView: {
-    flex: 1,
+  walletInfo: {
+    gap: 16,
   },
-  tabContent: {
-    padding: 16,
+  walletBalance: {
+    alignItems: 'center',
+  },
+  balanceLabel: {
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  balanceAmount: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  balanceUsd: {
+    fontSize: 14,
+  },
+  walletStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  walletStat: {
+    alignItems: 'center',
+  },
+  walletStatValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  walletStatLabel: {
+    fontSize: 12,
+    marginTop: 2,
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    gap: 12,
   },
   statCard: {
-    width: (width - 48) / 2,
+    width: '48%',
     padding: 16,
     borderRadius: 12,
-    marginBottom: 12,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  statGradient: {
+  statIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
@@ -456,134 +465,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  growthCard: {
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  growthRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  growthItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  growthNumber: {
+  statValue: {
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 4,
   },
-  growthLabel: {
+  statTitle: {
     fontSize: 12,
+    textAlign: 'center',
   },
-  quickActionsCard: {
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  actionsGrid: {
+  quickActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    gap: 12,
   },
   actionButton: {
-    width: (width - 72) / 2,
+    width: '48%',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
-    marginBottom: 12,
-    backgroundColor: 'rgba(67, 97, 238, 0.05)',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
   },
   actionText: {
-    fontSize: 12,
-    marginTop: 8,
-    fontWeight: '500',
-  },
-  analyticsCard: {
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  analyticsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  analyticsItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  analyticsNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  analyticsLabel: {
-    fontSize: 12,
-  },
-  chartCard: {
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  chartPlaceholder: {
-    height: 200,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  chartText: {
-    marginTop: 8,
     fontSize: 14,
+    fontWeight: '600',
   },
-  activityCard: {
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+  recentActivity: {
+    gap: 12,
   },
   activityItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+    gap: 12,
   },
   activityIcon: {
     width: 32,
@@ -591,7 +506,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
   },
   activityContent: {
     flex: 1,
@@ -599,13 +513,9 @@ const styles = StyleSheet.create({
   activityTitle: {
     fontSize: 14,
     fontWeight: '600',
-    marginBottom: 2,
-  },
-  activityDescription: {
-    fontSize: 12,
-    marginBottom: 2,
   },
   activityTime: {
-    fontSize: 10,
+    fontSize: 12,
+    marginTop: 2,
   },
 }); 

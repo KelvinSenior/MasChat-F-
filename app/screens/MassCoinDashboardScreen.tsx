@@ -1,26 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-  RefreshControl,
-  Dimensions,
-  useColorScheme
-} from 'react-native';
-import { Ionicons, MaterialIcons, FontAwesome } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, TextInput, FlatList, RefreshControl, ActivityIndicator, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { massCoinService, WalletInfo, TransactionInfo, UserStats } from '../lib/services/massCoinService';
-import ModernHeader from '../../components/ModernHeader';
+import MassCoinIcon from '../../components/MassCoinIcon';
+import MassCoinSendButton from '../../components/MassCoinSendButton';
 
-const { width } = Dimensions.get('window');
-
-// Color Palette
 const COLORS = {
   light: {
     primary: '#4361EE',
@@ -33,9 +22,8 @@ const COLORS = {
     border: '#E9ECEF',
     success: '#4CC9F0',
     dark: '#1A1A2E',
-    gold: '#FFD700',
-    silver: '#C0C0C0',
-    bronze: '#CD7F32',
+    tabBarBg: 'rgba(255, 255, 255, 0.95)',
+    tabBarBorder: 'rgba(0, 0, 0, 0.1)',
   },
   dark: {
     primary: '#4361EE',
@@ -48,24 +36,26 @@ const COLORS = {
     border: '#404040',
     success: '#4CC9F0',
     dark: '#1A1A2E',
-    gold: '#FFD700',
-    silver: '#C0C0C0',
-    bronze: '#CD7F32',
+    tabBarBg: 'rgba(26, 26, 46, 0.95)',
+    tabBarBorder: 'rgba(255, 255, 255, 0.1)',
   },
 };
 
 export default function MassCoinDashboardScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const colorScheme = useColorScheme();
-  const colors = COLORS[colorScheme === 'dark' ? 'dark' : 'light'];
+  const { currentTheme } = useTheme();
+  const colors = COLORS[currentTheme === 'dark' ? 'dark' : 'light'];
   
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [transactions, setTransactions] = useState<TransactionInfo[]>([]);
-  const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'transactions' | 'staking'>('overview');
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [recipientId, setRecipientId] = useState('');
+  const [amount, setAmount] = useState('');
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
     if (user?.id) {
@@ -74,16 +64,19 @@ export default function MassCoinDashboardScreen() {
   }, [user?.id]);
 
   const loadData = async () => {
+    if (!user?.id) return;
+    
+    setLoading(true);
     try {
-      setLoading(true);
       const [walletData, transactionsData, statsData] = await Promise.all([
         massCoinService.getWallet(Number(user.id)),
-        massCoinService.getUserTransactions(0, 10),
-        massCoinService.getUserStats()
+        massCoinService.getUserTransactions(Number(user.id), 0, 10),
+        massCoinService.getUserStats(Number(user.id))
       ]);
+      
       setWallet(walletData);
-      setTransactions(transactionsData);
-      setUserStats(statsData);
+      setTransactions(transactionsData.content || []);
+      setStats(statsData);
     } catch (error: any) {
       if (error.response?.status === 404) {
         Alert.alert('Wallet not found', 'No wallet exists for your account. Please contact support.');
@@ -93,15 +86,6 @@ export default function MassCoinDashboardScreen() {
       }
       setWallet(massCoinService.getMockWallet());
       setTransactions(massCoinService.getMockTransactions());
-      setUserStats({
-        balance: 1000.0,
-        stakedAmount: 500.0,
-        totalEarned: 2000.0,
-        totalSpent: 500.0,
-        transactionCount: 15,
-        totalSent: 800.0,
-        totalReceived: 1200.0
-      });
     } finally {
       setLoading(false);
     }
@@ -113,27 +97,39 @@ export default function MassCoinDashboardScreen() {
     setRefreshing(false);
   };
 
-  const handleSendMass = () => {
-    router.push('/screens/SendMassScreen');
-  };
+  const handleSendTokens = async () => {
+    if (!user?.id || !recipientId || !amount) {
+      Alert.alert('Error', 'Please fill in all fields.');
+      return;
+    }
 
-  const handleReceiveMass = () => {
-    Alert.alert(
-      'Receive MASS',
-      `Your wallet address:\n${wallet?.walletAddress || 'Loading...'}`,
-      [
-        { text: 'Copy Address', onPress: () => {/* Copy to clipboard */} },
-        { text: 'Cancel', style: 'cancel' }
-      ]
-    );
-  };
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      Alert.alert('Error', 'Please enter a valid amount.');
+      return;
+    }
 
-  const handleStake = () => {
-    router.push('/screens/StakingScreen');
-  };
+    try {
+      const transferRequest = {
+        recipientId: Number(recipientId),
+        amount: numAmount,
+        message: message.trim() || undefined,
+        contextType: 'MASS_COIN_SECTION' as const,
+        transactionType: 'P2P_TRANSFER' as const,
+      };
 
-  const handleViewTransactions = () => {
-    setActiveTab('transactions');
+      await massCoinService.transferMass(Number(user.id), transferRequest);
+      
+      Alert.alert('Success!', `Successfully sent ${massCoinService.formatAmount(numAmount)} MASS`);
+      setShowSendModal(false);
+      setRecipientId('');
+      setAmount('');
+      setMessage('');
+      loadData(); // Refresh data
+    } catch (error: any) {
+      console.error('Error sending tokens:', error);
+      Alert.alert('Error', error.response?.data?.message || 'Failed to send tokens. Please try again.');
+    }
   };
 
   const formatAmount = (amount: number) => {
@@ -144,188 +140,39 @@ export default function MassCoinDashboardScreen() {
     return massCoinService.formatUsdValue(amount);
   };
 
-  const renderOverview = () => (
-    <View style={styles.tabContent}>
-      {/* Balance Card */}
-      <View style={[styles.balanceCard, { backgroundColor: colors.card }]}>
-        <LinearGradient
-          colors={[colors.primary, colors.secondary]}
-          style={styles.balanceGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <View style={styles.balanceHeader}>
-            <View style={styles.coinIconContainer}>
-              <MaterialIcons name="monetization-on" size={32} color={colors.gold} />
-            </View>
-            <Text style={styles.balanceLabel}>Total Balance</Text>
-          </View>
-          <Text style={styles.balanceAmount}>
-            {wallet ? formatAmount(wallet.balance + wallet.stakedAmount) : '0.00'} MASS
+  const renderTransaction = ({ item }: { item: TransactionInfo }) => (
+    <View style={[styles.transactionItem, { backgroundColor: colors.card }]}>
+      <View style={styles.transactionHeader}>
+        <View style={styles.transactionInfo}>
+          <Text style={[styles.transactionType, { color: colors.text }]}>
+            {massCoinService.getTransactionTypeLabel(item.transactionType)}
           </Text>
-          <Text style={styles.balanceUsd}>
-            ≈ {wallet ? formatUsdValue(wallet.balance + wallet.stakedAmount) : '$0.00'}
-          </Text>
-        </LinearGradient>
-      </View>
-
-      {/* Quick Actions */}
-      <View style={styles.quickActions}>
-        <TouchableOpacity style={[styles.actionButton, { backgroundColor: colors.card }]} onPress={handleSendMass}>
-          <Ionicons name="send" size={24} color={colors.primary} />
-          <Text style={[styles.actionText, { color: colors.text }]}>Send</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={[styles.actionButton, { backgroundColor: colors.card }]} onPress={handleReceiveMass}>
-          <Ionicons name="download" size={24} color={colors.accent} />
-          <Text style={[styles.actionText, { color: colors.text }]}>Receive</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={[styles.actionButton, { backgroundColor: colors.card }]} onPress={handleStake}>
-          <FontAwesome name="lock" size={24} color={colors.success} />
-          <Text style={[styles.actionText, { color: colors.text }]}>Stake</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={[styles.actionButton, { backgroundColor: colors.card }]} onPress={handleViewTransactions}>
-          <Ionicons name="list" size={24} color={colors.secondary} />
-          <Text style={[styles.actionText, { color: colors.text }]}>History</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Stats Cards */}
-      <View style={styles.statsContainer}>
-        <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-          <View style={styles.statHeader}>
-            <Ionicons name="wallet" size={20} color={colors.primary} />
-            <Text style={[styles.statLabel, { color: colors.lightText }]}>Available</Text>
-          </View>
-          <Text style={[styles.statValue, { color: colors.text }]}>
-            {wallet ? formatAmount(wallet.balance) : '0.00'} MASS
+          <Text style={[styles.transactionDate, { color: colors.lightText }]}>
+            {new Date(item.createdAt).toLocaleDateString()}
           </Text>
         </View>
-
-        <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-          <View style={styles.statHeader}>
-            <FontAwesome name="lock" size={20} color={colors.success} />
-            <Text style={[styles.statLabel, { color: colors.lightText }]}>Staked</Text>
-          </View>
-          <Text style={[styles.statValue, { color: colors.text }]}>
-            {wallet ? formatAmount(wallet.stakedAmount) : '0.00'} MASS
+        <View style={styles.transactionAmount}>
+          <Text style={[styles.amountText, { color: colors.text }]}>
+            {item.senderId === Number(user?.id) ? '-' : '+'}{formatAmount(item.amount)} MASS
+          </Text>
+          <Text style={[styles.usdValue, { color: colors.lightText }]}>
+            ≈ {formatUsdValue(item.amount)}
           </Text>
         </View>
       </View>
-
-      {/* Recent Transactions */}
-      <View style={styles.recentTransactions}>
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Transactions</Text>
-          <TouchableOpacity onPress={handleViewTransactions}>
-            <Text style={[styles.viewAllText, { color: colors.primary }]}>View All</Text>
-          </TouchableOpacity>
-        </View>
-        
-        {transactions.slice(0, 3).map((transaction) => (
-          <View key={transaction.id} style={[styles.transactionItem, { backgroundColor: colors.card }]}>
-            <View style={styles.transactionIcon}>
-              <Ionicons 
-                name={transaction.transactionType === 'P2P_TRANSFER' ? 'swap-horizontal' : 'gift'} 
-                size={20} 
-                color={colors.primary} 
-              />
-            </View>
-            <View style={styles.transactionDetails}>
-              <Text style={[styles.transactionTitle, { color: colors.text }]}>
-                {massCoinService.getTransactionTypeLabel(transaction.transactionType)}
-              </Text>
-              <Text style={[styles.transactionSubtitle, { color: colors.lightText }]}>
-                {transaction.description || 'No description'}
-              </Text>
-            </View>
-            <View style={styles.transactionAmount}>
-              <Text style={[styles.amountText, { color: colors.text }]}>
-                {transaction.senderId === user?.id ? '-' : '+'}{formatAmount(transaction.amount)}
-              </Text>
-              <Text style={[styles.amountUsd, { color: colors.lightText }]}>
-                {formatUsdValue(transaction.amount)}
-              </Text>
-            </View>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-
-  const renderTransactions = () => (
-    <View style={styles.tabContent}>
-      {transactions.map((transaction) => (
-        <View key={transaction.id} style={[styles.transactionItem, { backgroundColor: colors.card }]}>
-          <View style={styles.transactionIcon}>
-            <Ionicons 
-              name={transaction.transactionType === 'P2P_TRANSFER' ? 'swap-horizontal' : 'gift'} 
-              size={20} 
-              color={colors.primary} 
-            />
-          </View>
-          <View style={styles.transactionDetails}>
-            <Text style={[styles.transactionTitle, { color: colors.text }]}>
-              {massCoinService.getTransactionTypeLabel(transaction.transactionType)}
-            </Text>
-            <Text style={[styles.transactionSubtitle, { color: colors.lightText }]}>
-              {transaction.senderId === user?.id ? `To ${transaction.recipientName}` : `From ${transaction.senderName}`}
-            </Text>
-            <Text style={[styles.transactionDate, { color: colors.lightText }]}>
-              {new Date(transaction.createdAt).toLocaleDateString()}
-            </Text>
-          </View>
-          <View style={styles.transactionAmount}>
-            <Text style={[styles.amountText, { color: colors.text }]}>
-              {transaction.senderId === user?.id ? '-' : '+'}{formatAmount(transaction.amount)}
-            </Text>
-            <Text style={[styles.amountUsd, { color: colors.lightText }]}>
-              {formatUsdValue(transaction.amount)}
-            </Text>
-            <View style={[styles.statusBadge, { backgroundColor: massCoinService.getStatusColor(transaction.status) }]}>
-              <Text style={styles.statusText}>
-                {massCoinService.getStatusLabel(transaction.status)}
-              </Text>
-            </View>
-          </View>
-        </View>
-      ))}
-    </View>
-  );
-
-  const renderStaking = () => (
-    <View style={styles.tabContent}>
-      <View style={[styles.stakingCard, { backgroundColor: colors.card }]}>
-        <Text style={[styles.stakingTitle, { color: colors.text }]}>Staking Rewards</Text>
-        <Text style={[styles.stakingSubtitle, { color: colors.lightText }]}>
-          Earn up to 15% APY by staking your MASS tokens
+      
+      {item.description && (
+        <Text style={[styles.transactionDescription, { color: colors.lightText }]}>
+          {item.description}
         </Text>
-        
-        <View style={styles.stakingStats}>
-          <View style={styles.stakingStat}>
-            <Text style={[styles.stakingStatValue, { color: colors.text }]}>
-              {wallet ? formatAmount(wallet.stakedAmount) : '0.00'}
-            </Text>
-            <Text style={[styles.stakingStatLabel, { color: colors.lightText }]}>Staked Amount</Text>
-          </View>
-          <View style={styles.stakingStat}>
-            <Text style={[styles.stakingStatValue, { color: colors.success }]}>15%</Text>
-            <Text style={[styles.stakingStatLabel, { color: colors.lightText }]}>APY</Text>
-          </View>
+      )}
+      
+      <View style={styles.transactionFooter}>
+        <View style={[styles.statusBadge, { backgroundColor: massCoinService.getStatusColor(item.status) }]}>
+          <Text style={styles.statusText}>
+            {massCoinService.getStatusLabel(item.status)}
+          </Text>
         </View>
-        
-        <TouchableOpacity style={styles.stakeButton} onPress={handleStake}>
-          <LinearGradient
-            colors={[colors.success, '#2E8B57']}
-            style={styles.stakeButtonGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          >
-            <Text style={styles.stakeButtonText}>Manage Staking</Text>
-          </LinearGradient>
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -333,13 +180,14 @@ export default function MassCoinDashboardScreen() {
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <ModernHeader
-          title="Mass Coin"
-          showBackButton={true}
-          onBack={() => router.back()}
-        />
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Mass Coin</Text>
+          <View style={styles.headerRight} />
+        </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.loadingText, { color: colors.lightText }]}>Loading wallet...</Text>
         </View>
       </View>
@@ -347,55 +195,189 @@ export default function MassCoinDashboardScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ModernHeader
-        title="Mass Coin"
-        showBackButton={true}
-        onBack={() => router.back()}
-      />
-      
-      <ScrollView
-        style={styles.scrollView}
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Mass Coin</Text>
+        <TouchableOpacity onPress={() => setShowSendModal(true)} style={styles.sendButton}>
+          <Ionicons name="send" size={24} color={colors.primary} />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView 
+        style={styles.content}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Tab Navigation */}
-        <View style={styles.tabNavigation}>
-          <TouchableOpacity
-            style={[styles.tabButton, activeTab === 'overview' && { backgroundColor: colors.primary }]}
-            onPress={() => setActiveTab('overview')}
+        {/* Wallet Balance Card */}
+        <View style={[styles.balanceCard, { backgroundColor: colors.card }]}>
+          <LinearGradient
+            colors={['#FFD700', '#FFA500', '#FFD700']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.balanceGradient}
           >
-            <Text style={[styles.tabText, { color: activeTab === 'overview' ? 'white' : colors.text }]}>
-              Overview
+            <View style={styles.coinIconContainer}>
+              <MassCoinIcon size={48} />
+            </View>
+            <Text style={styles.totalBalanceLabel}>Total Balance</Text>
+            <Text style={styles.totalBalanceAmount}>
+              {wallet ? formatAmount(wallet.balance + wallet.stakedAmount) : '0.00'} MASS
             </Text>
+            <Text style={styles.totalBalanceUsd}>
+              ≈ {wallet ? formatUsdValue(wallet.balance + wallet.stakedAmount) : '$0.00'}
+            </Text>
+          </LinearGradient>
+        </View>
+
+        {/* Wallet Details */}
+        <View style={[styles.walletDetails, { backgroundColor: colors.card }]}>
+          <View style={styles.walletDetailItem}>
+            <View style={styles.detailHeader}>
+              <Ionicons name="wallet" size={20} color={colors.primary} />
+              <Text style={[styles.detailLabel, { color: colors.text }]}>Available Balance</Text>
+            </View>
+            <Text style={[styles.detailAmount, { color: colors.text }]}>
+              {wallet ? formatAmount(wallet.balance) : '0.00'} MASS
+            </Text>
+          </View>
+
+          <View style={styles.walletDetailItem}>
+            <View style={styles.detailHeader}>
+              <Ionicons name="trending-up" size={20} color={colors.success} />
+              <Text style={[styles.detailLabel, { color: colors.text }]}>Staked Amount</Text>
+            </View>
+            <Text style={[styles.detailAmount, { color: colors.text }]}>
+              {wallet ? formatAmount(wallet.stakedAmount) : '0.00'} MASS
+            </Text>
+          </View>
+        </View>
+
+        {/* Quick Actions */}
+        <View style={[styles.quickActions, { backgroundColor: colors.card }]}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/screens/MassCoinSendScreen')}>
+            <Ionicons name="send" size={24} color={colors.primary} />
+            <Text style={[styles.actionText, { color: colors.text }]}>Send</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity
-            style={[styles.tabButton, activeTab === 'transactions' && { backgroundColor: colors.primary }]}
-            onPress={() => setActiveTab('transactions')}
-          >
-            <Text style={[styles.tabText, { color: activeTab === 'transactions' ? 'white' : colors.text }]}>
-              Transactions
-            </Text>
+          <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/screens/MassCoinTransactionsScreen')}>
+            <Ionicons name="list" size={24} color={colors.success} />
+            <Text style={[styles.actionText, { color: colors.text }]}>History</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity
-            style={[styles.tabButton, activeTab === 'staking' && { backgroundColor: colors.primary }]}
-            onPress={() => setActiveTab('staking')}
-          >
-            <Text style={[styles.tabText, { color: activeTab === 'staking' ? 'white' : colors.text }]}>
-              Staking
-            </Text>
+          <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/screens/MassCoinTransferRequestsScreen')}>
+            <Ionicons name="swap-horizontal" size={24} color={colors.accent} />
+            <Text style={[styles.actionText, { color: colors.text }]}>Requests</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Tab Content */}
-        {activeTab === 'overview' && renderOverview()}
-        {activeTab === 'transactions' && renderTransactions()}
-        {activeTab === 'staking' && renderStaking()}
+        {/* Recent Transactions */}
+        <View style={[styles.transactionsSection, { backgroundColor: colors.card }]}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Transactions</Text>
+            <TouchableOpacity>
+              <Text style={[styles.viewAllText, { color: colors.primary }]}>View All</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {transactions.length > 0 ? (
+            <FlatList
+              data={transactions}
+              renderItem={renderTransaction}
+              keyExtractor={(item) => item.id.toString()}
+              scrollEnabled={false}
+            />
+          ) : (
+            <View style={styles.emptyTransactions}>
+              <Ionicons name="receipt-outline" size={48} color={colors.lightText} />
+              <Text style={[styles.emptyText, { color: colors.lightText }]}>No transactions yet</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Staking Info */}
+        <View style={[styles.stakingCard, { backgroundColor: colors.card }]}>
+          <View style={styles.stakingHeader}>
+            <Ionicons name="trending-up" size={24} color={colors.success} />
+            <Text style={[styles.stakingTitle, { color: colors.text }]}>Staking Rewards</Text>
+          </View>
+          <Text style={[styles.stakingDescription, { color: colors.lightText }]}>
+            Earn up to 15% APY by staking your MASS tokens
+          </Text>
+          <View style={styles.stakingStats}>
+            <Text style={[styles.stakingAmount, { color: colors.text }]}>
+              {wallet ? formatAmount(wallet.stakedAmount) : '0.00'}
+            </Text>
+            <Text style={[styles.stakingLabel, { color: colors.lightText }]}>MASS Staked</Text>
+          </View>
+        </View>
       </ScrollView>
-    </View>
+
+      {/* Send Modal */}
+      <Modal
+        visible={showSendModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowSendModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Send MASS Tokens</Text>
+              <TouchableOpacity onPress={() => setShowSendModal(false)}>
+                <Ionicons name="close" size={24} color={colors.lightText} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: colors.text }]}>Recipient ID</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                value={recipientId}
+                onChangeText={setRecipientId}
+                placeholder="Enter user ID"
+                keyboardType="numeric"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: colors.text }]}>Amount (MASS)</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                value={amount}
+                onChangeText={setAmount}
+                placeholder="0.00"
+                keyboardType="numeric"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: colors.text }]}>Message (Optional)</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                value={message}
+                onChangeText={setMessage}
+                placeholder="Add a message..."
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.sendButtonLarge, { backgroundColor: colors.primary }]}
+              onPress={handleSendTokens}
+            >
+              <MassCoinIcon size={20} />
+              <Text style={styles.sendButtonText}>Send Tokens</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
   );
 }
 
@@ -403,133 +385,104 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  scrollView: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-  },
-  tabNavigation: {
+  header: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
   },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    alignItems: 'center',
+  backButton: {
+    padding: 8,
   },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  tabContent: {
-    padding: 16,
-  },
-  balanceCard: {
-    borderRadius: 16,
-    marginBottom: 24,
-    overflow: 'hidden',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-  },
-  balanceGradient: {
-    padding: 24,
-  },
-  balanceHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  coinIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  balanceLabel: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontWeight: '500',
-  },
-  balanceAmount: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 4,
-  },
-  balanceUsd: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
-  },
-  quickActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-  actionButton: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    marginHorizontal: 4,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  actionText: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    marginBottom: 24,
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  statHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  statLabel: {
-    fontSize: 12,
-    marginLeft: 8,
-  },
-  statValue: {
+  headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
   },
-  recentTransactions: {
-    marginBottom: 24,
+  headerRight: {
+    width: 40,
+  },
+  sendButton: {
+    padding: 8,
+  },
+  content: {
+    flex: 1,
+  },
+  balanceCard: {
+    margin: 16,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  balanceGradient: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  coinIconContainer: {
+    marginBottom: 16,
+  },
+  totalBalanceLabel: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  totalBalanceAmount: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  totalBalanceUsd: {
+    fontSize: 16,
+    color: '#666',
+  },
+  walletDetails: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 16,
+    padding: 16,
+  },
+  walletDetailItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  detailHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  detailLabel: {
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  detailAmount: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  quickActions: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  actionButton: {
+    alignItems: 'center',
+    padding: 12,
+  },
+  actionText: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  transactionsSection: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 16,
+    padding: 16,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -543,111 +496,152 @@ const styles = StyleSheet.create({
   },
   viewAllText: {
     fontSize: 14,
-    fontWeight: '600',
   },
   transactionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
+    padding: 12,
     borderRadius: 12,
     marginBottom: 8,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
   },
-  transactionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(67, 97, 238, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
+  transactionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
-  transactionDetails: {
+  transactionInfo: {
     flex: 1,
   },
-  transactionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  transactionSubtitle: {
+  transactionType: {
     fontSize: 14,
-    marginBottom: 2,
+    fontWeight: '600',
   },
   transactionDate: {
     fontSize: 12,
+    marginTop: 2,
   },
   transactionAmount: {
     alignItems: 'flex-end',
   },
   amountText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
-    marginBottom: 2,
   },
-  amountUsd: {
+  usdValue: {
     fontSize: 12,
-    marginBottom: 4,
+    marginTop: 2,
+  },
+  transactionDescription: {
+    fontSize: 12,
+    marginTop: 8,
+  },
+  transactionFooter: {
+    marginTop: 8,
   },
   statusBadge: {
+    alignSelf: 'flex-start',
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   statusText: {
     fontSize: 10,
     color: 'white',
     fontWeight: '600',
   },
-  stakingCard: {
-    padding: 24,
-    borderRadius: 16,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+  emptyTransactions: {
+    alignItems: 'center',
+    padding: 32,
   },
-  stakingTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  emptyText: {
+    fontSize: 14,
+    marginTop: 8,
+  },
+  stakingCard: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 16,
+    padding: 16,
+  },
+  stakingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 8,
   },
-  stakingSubtitle: {
-    fontSize: 14,
-    marginBottom: 24,
-  },
-  stakingStats: {
-    flexDirection: 'row',
-    marginBottom: 24,
-    gap: 24,
-  },
-  stakingStat: {
-    alignItems: 'center',
-  },
-  stakingStatValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  stakingStatLabel: {
-    fontSize: 12,
-  },
-  stakeButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  stakeButtonGradient: {
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  stakeButtonText: {
-    color: 'white',
+  stakingTitle: {
     fontSize: 16,
     fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  stakingDescription: {
+    fontSize: 14,
+    marginBottom: 16,
+  },
+  stakingStats: {
+    alignItems: 'center',
+  },
+  stakingAmount: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  stakingLabel: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '90%',
+    maxWidth: 400,
+    borderRadius: 20,
+    padding: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 16,
+  },
+  sendButtonLarge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+  },
+  sendButtonText: {
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: 'white',
   },
 }); 

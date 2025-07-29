@@ -1,8 +1,26 @@
-import React, { useState, useEffect } from "react";
-import { View, TextInput, TouchableOpacity, Text, StyleSheet, FlatList, KeyboardAvoidingView, Platform, Image, Alert } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { 
+  View, 
+  TextInput, 
+  TouchableOpacity, 
+  Text, 
+  StyleSheet, 
+  FlatList, 
+  KeyboardAvoidingView, 
+  Platform, 
+  Image, 
+  Alert,
+  ScrollView,
+  Dimensions,
+  LayoutAnimation
+} from "react-native";
 import Modal from "react-native-modal";
-import { addComment, fetchPostComments } from "../lib/services/postService";
+import { addComment, addReply, fetchPostComments, likeComment, unlikeComment } from "../lib/services/postService";
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 interface CommentDialogProps {
   postId: string;
@@ -10,20 +28,79 @@ interface CommentDialogProps {
   onClose: () => void;
   onComment: () => void;
   postOwnerId?: string;
+  postOwnerName?: string;
 }
 
-export default function CommentDialog({ postId, userId, onClose, onComment, postOwnerId }: CommentDialogProps) {
+interface Comment {
+  id: string;
+  userId: string;
+  username: string;
+  profilePicture?: string;
+  content: string;
+  createdAt: string;
+  parentCommentId?: string;
+  replies?: Comment[];
+  likeCount: number;
+  replyCount: number;
+  isLikedByCurrentUser: boolean;
+  timeAgo: string;
+}
+
+const EMOJI_REACTIONS = ['😂', '😭', '💀', '🤣', '😢', '🥰', '😊', '😂'];
+
+export default function CommentDialog({ 
+  postId, 
+  userId, 
+  onClose, 
+  onComment, 
+  postOwnerId, 
+  postOwnerName = "justinwillman" 
+}: CommentDialogProps) {
   const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(false);
-  const [comments, setComments] = useState<any[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
+  const [showReplies, setShowReplies] = useState<Set<string>>(new Set());
+  const { user } = useAuth();
+  const { currentTheme } = useTheme();
+  const inputRef = useRef<TextInput>(null);
+  const flatListRef = useRef<FlatList>(null);
+
+  const colors = {
+    light: {
+      background: '#FFFFFF',
+      card: '#F8F9FA',
+      text: '#212529',
+      lightText: '#6C757D',
+      border: '#E9ECEF',
+      primary: '#4361EE',
+      accent: '#FF7F11',
+    },
+    dark: {
+      background: '#1A1A2E',
+      card: '#2D2D44',
+      text: '#FFFFFF',
+      lightText: '#B0B0B0',
+      border: '#404040',
+      primary: '#4361EE',
+      accent: '#FF7F11',
+    }
+  }[currentTheme === 'dark' ? 'dark' : 'light'];
 
   const loadComments = async () => {
     setRefreshing(true);
-    const data = await fetchPostComments(postId);
-    setComments(data);
-    setRefreshing(false);
+    try {
+      const data = await fetchPostComments(postId, user?.id);
+      setComments(data);
+    } catch (error) {
+      console.error('Error loading comments:', error);
+      Alert.alert('Error', 'Failed to load comments');
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   useEffect(() => {
@@ -31,44 +108,165 @@ export default function CommentDialog({ postId, userId, onClose, onComment, post
   }, [postId]);
 
   const handleComment = async () => {
+    if (!comment.trim()) return;
+    
     setLoading(true);
-    await addComment(postId, userId, comment);
-    setComment("");
-    setLoading(false);
-    await loadComments();
-    onComment();
+    try {
+      if (replyingTo) {
+        await addReply(postId, userId, replyingTo.id, comment);
+        setReplyingTo(null);
+      } else {
+        await addComment(postId, userId, comment);
+      }
+      setComment("");
+      await loadComments();
+      onComment();
+      
+      // Scroll to bottom after adding comment
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      Alert.alert('Error', 'Failed to add comment');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // AI image generation for comment
-  const generateAICommentImage = async () => {
-    Alert.prompt('AI Comment Image', 'Describe the image for your comment:', async (prompt) => {
-      if (!prompt) return;
-      setAiLoading(true);
-      try {
-        const url = 'https://open-ai21.p.rapidapi.com/texttoimage2';
-        const options = {
-          method: 'POST',
-          headers: {
-            'x-rapidapi-key': '355060685fmsh742abd58eb438d7p1f4d66jsn22cd506769c9',
-            'x-rapidapi-host': 'open-ai21.p.rapidapi.com',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ text: prompt }),
-        };
-        const response = await fetch(url, options);
-        const result = await response.json();
-        if (result && result.generated_image) {
-          setComment(result.generated_image);
-        } else {
-          Alert.alert('Error', 'Failed to generate image.');
+  const handleLikeComment = async (commentId: string) => {
+    try {
+      // Optimistic update
+      setComments(prev => prev.map(c => {
+        if (c.id === commentId) {
+          return {
+            ...c,
+            likeCount: c.isLikedByCurrentUser ? c.likeCount - 1 : c.likeCount + 1,
+            isLikedByCurrentUser: !c.isLikedByCurrentUser
+          };
         }
-      } catch (error) {
-        Alert.alert('Error', 'Failed to generate image.');
-      } finally {
-        setAiLoading(false);
+        return c;
+      }));
+
+      // API call
+      const comment = comments.find(c => c.id === commentId);
+      if (comment) {
+        if (comment.isLikedByCurrentUser) {
+          await unlikeComment(commentId, userId);
+        } else {
+          await likeComment(commentId, userId);
+        }
       }
+    } catch (error) {
+      console.error('Error liking comment:', error);
+      // Revert optimistic update on error
+      await loadComments();
+    }
+  };
+
+  const handleReply = (comment: Comment) => {
+    setReplyingTo(comment);
+    inputRef.current?.focus();
+  };
+
+  const toggleReplies = (commentId: string) => {
+    setShowReplies(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(commentId)) {
+        newSet.delete(commentId);
+      } else {
+        newSet.add(commentId);
+      }
+      return newSet;
     });
   };
+
+  const toggleEmojiPicker = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setShowEmojiPicker(prev => !prev);
+  };
+
+  const filteredComments = searchTerm 
+    ? comments.filter(c => 
+        c.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.username.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : comments;
+
+  const renderComment = ({ item }: { item: Comment }) => (
+    <View style={[styles.commentItem, { backgroundColor: colors.card }]}>
+      <View style={styles.commentHeader}>
+        <Image 
+          source={{ uri: item.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} 
+          style={styles.profilePhoto} 
+        />
+        <View style={styles.commentInfo}>
+          <Text style={[styles.commentUser, { color: colors.text }]}>{item.username}</Text>
+          <Text style={[styles.commentTime, { color: colors.lightText }]}>{item.timeAgo}</Text>
+        </View>
+        <View style={styles.commentActions}>
+          <TouchableOpacity 
+            style={styles.likeButton} 
+            onPress={() => handleLikeComment(item.id)}
+          >
+            <Ionicons 
+              name={item.isLikedByCurrentUser ? "heart" : "heart-outline"} 
+              size={16} 
+              color={item.isLikedByCurrentUser ? "#FF3040" : colors.lightText} 
+            />
+            <Text style={[styles.likeCount, { color: colors.lightText }]}>{item.likeCount}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+      
+      <Text style={[styles.commentText, { color: colors.text }]}>{item.content}</Text>
+      
+      <View style={styles.commentFooter}>
+        <TouchableOpacity onPress={() => handleReply(item)}>
+          <Text style={[styles.replyButton, { color: colors.lightText }]}>Reply</Text>
+        </TouchableOpacity>
+        
+        {item.replyCount > 0 && (
+          <TouchableOpacity onPress={() => toggleReplies(item.id)}>
+            <Text style={[styles.viewRepliesButton, { color: colors.lightText }]}>
+              View {item.replyCount} more replies
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {showReplies.has(item.id) && item.replies && item.replies.length > 0 && (
+        <View style={styles.repliesContainer}>
+          {item.replies.map((reply) => (
+            <View key={reply.id} style={[styles.replyItem, { backgroundColor: colors.background }]}>
+              <View style={styles.replyHeader}>
+                <Image 
+                  source={{ uri: reply.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} 
+                  style={styles.replyProfilePhoto} 
+                />
+                <View style={styles.replyInfo}>
+                  <Text style={[styles.replyUser, { color: colors.text }]}>{reply.username}</Text>
+                  <Text style={[styles.replyTime, { color: colors.lightText }]}>{reply.timeAgo}</Text>
+                </View>
+                <TouchableOpacity 
+                  style={styles.likeButton} 
+                  onPress={() => handleLikeComment(reply.id)}
+                >
+                  <Ionicons 
+                    name={reply.isLikedByCurrentUser ? "heart" : "heart-outline"} 
+                    size={14} 
+                    color={reply.isLikedByCurrentUser ? "#FF3040" : colors.lightText} 
+                  />
+                  <Text style={[styles.likeCount, { color: colors.lightText, fontSize: 12 }]}>{reply.likeCount}</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={[styles.replyText, { color: colors.text }]}>{reply.content}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
 
   return (
     <Modal
@@ -80,50 +278,114 @@ export default function CommentDialog({ postId, userId, onClose, onComment, post
       propagateSwipe
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.sheet}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === "ios" ? -24 : 0}
       >
-        <View style={styles.handle} />
-        <Text style={styles.title}>Comments</Text>
-        <FlatList
-          data={comments}
-          keyExtractor={item => item.id?.toString() || Math.random().toString()}
-          refreshing={refreshing}
-          onRefresh={loadComments}
-          style={styles.commentsList}
-          contentContainerStyle={{ paddingBottom: 16 }}
-          renderItem={({ item }) => (
-            <View style={styles.commentItem}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-                {item.profilePicture ? (
-                  <Image source={{ uri: item.profilePicture }} style={styles.profilePhoto} />
-                ) : (
-                  <View style={styles.profilePhotoPlaceholder} />
-                )}
-                <Text style={styles.commentUser}>{item.username}</Text>
-                {postOwnerId && item.userId?.toString() === postOwnerId?.toString() && (
-                  <View style={styles.ownerTag}><Text style={styles.ownerTagText}>Owner</Text></View>
-                )}
+        <View style={[styles.sheet, { backgroundColor: colors.background }]}>
+          <View style={styles.handle} />
+          
+          <View style={styles.header}>
+            <Text style={[styles.title, { color: colors.text }]}>Comments</Text>
+            
+            <View style={[styles.searchContainer, { backgroundColor: colors.card }]}>
+              <Ionicons name="search" size={20} color={colors.lightText} style={styles.searchIcon} />
+              <TextInput
+                style={[styles.searchInput, { color: colors.text }]}
+                placeholder={`Search ${postOwnerName}'s magic tricks`}
+                placeholderTextColor={colors.lightText}
+                value={searchTerm}
+                onChangeText={setSearchTerm}
+              />
+            </View>
+          </View>
+
+          <FlatList
+            ref={flatListRef}
+            data={filteredComments}
+            keyExtractor={item => item.id}
+            refreshing={refreshing}
+            onRefresh={loadComments}
+            style={styles.commentsList}
+            contentContainerStyle={{ paddingBottom: 100 }}
+            renderItem={renderComment}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Ionicons name="chatbubble-outline" size={48} color={colors.lightText} />
+                <Text style={[styles.emptyText, { color: colors.text }]}>No comments yet</Text>
+                <Text style={[styles.emptySubtext, { color: colors.lightText }]}>Be the first to comment!</Text>
               </View>
-              <Text style={styles.commentText}>{item.text || item.content}</Text>
-              <Text style={styles.commentTime}>{item.createdAt ? new Date(item.createdAt).toLocaleString() : ""}</Text>
+            }
+            keyboardDismissMode="on-drag"
+          />
+
+          {replyingTo && (
+            <View style={[styles.replyingToContainer, { backgroundColor: colors.card }]}>
+              <Text style={[styles.replyingToText, { color: colors.lightText }]}>
+                Replying to {replyingTo.username}
+              </Text>
+              <TouchableOpacity onPress={() => setReplyingTo(null)}>
+                <Ionicons name="close" size={20} color={colors.lightText} />
+              </TouchableOpacity>
             </View>
           )}
-        />
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            placeholder="Write a comment..."
-            value={comment}
-            onChangeText={setComment}
-            multiline
-          />
-          <TouchableOpacity onPress={generateAICommentImage} disabled={aiLoading} style={{ marginLeft: 8 }}>
-            <Ionicons name="sparkles" size={22} color="#1877f2" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleComment} disabled={loading || !comment.trim()} style={styles.sendBtn}>
-            <Text style={styles.sendText}>{loading ? "..." : "Send"}</Text>
-          </TouchableOpacity>
+
+          <View style={[styles.inputWrapper, { backgroundColor: colors.background }]}>
+            {showEmojiPicker && (
+              <View style={[styles.emojiContainer, { backgroundColor: colors.card }]}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {EMOJI_REACTIONS.map((emoji, index) => (
+                    <TouchableOpacity 
+                      key={index} 
+                      style={styles.emojiButton}
+                      onPress={() => setComment(prev => prev + emoji)}
+                    >
+                      <Text style={styles.emojiText}>{emoji}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            <View style={[styles.inputRow, { backgroundColor: colors.card }]}>
+              <TouchableOpacity onPress={toggleEmojiPicker} style={styles.inputIcon}>
+                <Ionicons 
+                  name={showEmojiPicker ? "close" : "happy-outline"} 
+                  size={24} 
+                  color={colors.lightText} 
+                />
+              </TouchableOpacity>
+              
+              <Image 
+                source={{ uri: user?.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} 
+                style={styles.inputProfilePhoto} 
+              />
+              <TextInput
+                ref={inputRef}
+                style={[styles.input, { color: colors.text }]}
+                placeholder={`Add a comment for ${postOwnerName}`}
+                placeholderTextColor={colors.lightText}
+                value={comment}
+                onChangeText={setComment}
+                multiline
+                onFocus={() => setShowEmojiPicker(false)}
+              />
+              <TouchableOpacity style={styles.inputIcon}>
+                <Ionicons name="gift-outline" size={24} color={colors.lightText} />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.sendButton, { backgroundColor: comment.trim() ? colors.primary : colors.lightText }]}
+                onPress={handleComment}
+                disabled={loading || !comment.trim()}
+              >
+                <Ionicons 
+                  name="send" 
+                  size={20} 
+                  color="white" 
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -131,15 +393,17 @@ export default function CommentDialog({ postId, userId, onClose, onComment, post
 }
 
 const styles = StyleSheet.create({
-  modal: { justifyContent: "flex-end", margin: 0 },
+  modal: { 
+    justifyContent: "flex-end", 
+    margin: 0 
+  },
   sheet: {
-    backgroundColor: "#fff",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 12,
     paddingHorizontal: 16,
-    minHeight: 320,
-    maxHeight: "95%",
+    flex: 1,
+    maxHeight: screenHeight * 0.95,
   },
   handle: {
     width: 40,
@@ -149,94 +413,193 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginBottom: 8,
   },
+  header: {
+    marginBottom: 16,
+  },
   title: {
     fontWeight: "bold",
     fontSize: 18,
     marginBottom: 12,
     textAlign: "center",
   },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 40,
+  },
+  searchIcon: {
+    marginRight: 12,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+  },
   commentsList: {
-    flexGrow: 0,
-    marginBottom: 8,
+    flex: 1,
   },
   commentItem: {
-    marginBottom: 12,
-    backgroundColor: "#f7f7f7",
-    borderRadius: 8,
-    padding: 10,
-  },
-  commentUser: {
-    fontWeight: "bold",
-    color: "#3A8EFF",
-    marginBottom: 2,
-  },
-  commentText: {
-    color: "#333",
-    fontSize: 15,
-  },
-  commentTime: {
-    color: "#888",
-    fontSize: 12,
-    marginTop: 2,
-    textAlign: "right",
-  },
-  inputRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    borderTopWidth: 1,
-    borderColor: "#eee",
-    paddingTop: 8,
-    paddingBottom: 8,
-    backgroundColor: "#fff",
-  },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 20,
+    marginBottom: 16,
+    borderRadius: 12,
     padding: 12,
-    minHeight: 40,
-    maxHeight: 100,
-    marginRight: 8,
-    backgroundColor: "#f7f7f7",
   },
-  sendBtn: {
-    backgroundColor: "#1877f2",
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sendText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 16,
+  commentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   profilePhoto: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    marginRight: 8,
-    backgroundColor: '#e0e0e0',
+    marginRight: 12,
   },
-  profilePhotoPlaceholder: {
+  commentInfo: {
+    flex: 1,
+  },
+  commentUser: {
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  commentTime: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  commentActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  likeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  likeCount: {
+    fontSize: 12,
+    marginLeft: 4,
+  },
+  commentText: {
+    fontSize: 15,
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  commentFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  replyButton: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  viewRepliesButton: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  repliesContainer: {
+    marginTop: 12,
+    marginLeft: 20,
+  },
+  replyItem: {
+    marginBottom: 8,
+    borderRadius: 8,
+    padding: 8,
+  },
+  replyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  replyProfilePhoto: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    marginRight: 8,
+  },
+  replyInfo: {
+    flex: 1,
+  },
+  replyUser: {
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  replyTime: {
+    fontSize: 10,
+  },
+  replyText: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  replyingToContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  replyingToText: {
+    fontSize: 14,
+  },
+  inputWrapper: {
+    paddingBottom: 16,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    borderRadius: 20,
+    padding: 8,
+    paddingHorizontal: 12,
+  },
+  inputProfilePhoto: {
     width: 32,
     height: 32,
     borderRadius: 16,
     marginRight: 8,
-    backgroundColor: '#e0e0e0',
   },
-  ownerTag: {
-    backgroundColor: '#1877f2',
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginLeft: 6,
+  input: {
+    flex: 1,
+    fontSize: 16,
+    maxHeight: 80,
+    paddingVertical: 8,
   },
-  ownerTagText: {
-    color: '#fff',
-    fontSize: 11,
+  sendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  inputIcon: {
+    padding: 4,
+    marginRight: 4,
+  },
+  emojiContainer: {
+    borderRadius: 20,
+    padding: 8,
+    marginBottom: 8,
+  },
+  emojiButton: {
+    padding: 8,
+    marginHorizontal: 4,
+  },
+  emojiText: {
+    fontSize: 20,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyText: {
+    fontSize: 18,
     fontWeight: 'bold',
+    marginTop: 16,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
   },
 });

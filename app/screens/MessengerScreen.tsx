@@ -1,54 +1,74 @@
 import React, { useEffect, useState } from "react";
-import { FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator, Alert, useColorScheme, ScrollView, Platform } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator, Alert, ScrollView, Platform, Modal } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from '../context/AuthContext';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { messageService, RecentChat } from '../lib/services/messageService';
+import { fetchStories, Story } from '../lib/services/storyService';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { getWebSocketUrl } from '../api/client';
+import { useTheme } from '../context/ThemeContext';
 
-// Color Palette (matching home screen)
+// Color Palette
 const COLORS = {
   light: {
-    primary: '#3A8EFF',  // Deep Blue
-    accent: '#FF7F11',   // Vibrant Orange
-    background: '#F5F7FA',
-    white: '#FFFFFF',
-    text: '#333333',
-    lightText: '#888888',
+    primary: '#4361EE',
+    secondary: '#3A0CA3',
+    accent: '#FF7F11',
+    background: '#F8F9FA',
     card: '#FFFFFF',
+    text: '#212529',
+    lightText: '#6C757D',
+    border: '#E9ECEF',
+    success: '#4CC9F0',
+    danger: '#FF3040',
+    warning: '#FFC107',
+    white: '#FFFFFF',
+    dark: '#1A1A2E',
     tabBarBg: 'rgba(255, 255, 255, 0.95)',
     tabBarBorder: 'rgba(0, 0, 0, 0.1)',
   },
   dark: {
-    primary: '#3A8EFF',  // Deep Blue
-    accent: '#FF7F11',   // Vibrant Orange
-    background: '#1A1A2E', // Match marketplace dark background
-    white: '#FFFFFF',
+    primary: '#4361EE',
+    secondary: '#3A0CA3',
+    accent: '#FF7F11',
+    background: '#1A1A2E',
+    card: '#2D2D44',
     text: '#FFFFFF',
     lightText: '#B0B0B0',
-    card: '#2D2D44',       // Match marketplace dark card
+    border: '#404040',
+    success: '#4CC9F0',
+    danger: '#FF3040',
+    warning: '#FFC107',
+    white: '#FFFFFF',
+    dark: '#1A1A2E',
     tabBarBg: 'rgba(26, 26, 46, 0.95)',
     tabBarBorder: 'rgba(255, 255, 255, 0.1)',
   },
 };
 
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+const DEFAULT_PROFILE_PHOTO = "https://randomuser.me/api/portraits/men/1.jpg";
 
-type MessengerScreenProps = {
-  navigation: NativeStackNavigationProp<any>;
-};
-
-export default function MessengerScreen({ navigation }: MessengerScreenProps) {
+export default function MessengerScreen() {
   const [search, setSearch] = useState("");
   const [chats, setChats] = useState<RecentChat[]>([]);
+  const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingStories, setLoadingStories] = useState(true);
+  const [activeTab, setActiveTab] = useState('Inbox');
   const router = useRouter();
   const { user } = useAuth();
-  const colorScheme = useColorScheme();
-  const colors = colorScheme === 'dark' ? COLORS.dark : COLORS.light;
+  const { currentTheme } = useTheme();
+  const colors = COLORS[currentTheme === 'dark' ? 'dark' : 'light'];
+
+  // Story-related state
+  const [storyViewerVisible, setStoryViewerVisible] = useState(false);
+  const [currentUserStories, setCurrentUserStories] = useState<Story[]>([]);
+  const [currentStoryUser, setCurrentStoryUser] = useState<any>(null);
+  const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
 
   const loadRecentChats = async () => {
     if (!user?.id) return;
@@ -64,9 +84,63 @@ export default function MessengerScreen({ navigation }: MessengerScreenProps) {
     }
   };
 
+  const loadStories = async () => {
+    setLoadingStories(true);
+    try {
+      const data = await fetchStories();
+      setStories(data);
+    } catch (error) {
+      console.error('Error loading stories:', error);
+      setStories([]);
+    } finally {
+      setLoadingStories(false);
+    }
+  };
+
+  // Group stories by user
+  const storiesByUser = stories.reduce((acc, story) => {
+    if (!acc[story.userId]) {
+      acc[story.userId] = [];
+    }
+    acc[story.userId].push(story);
+    return acc;
+  }, {} as { [key: string]: Story[] });
+
+  const getLatestStoryForUser = (userId: string) => {
+    const userStories = storiesByUser[userId] || [];
+    return userStories.length > 0 ? userStories[userStories.length - 1] : null;
+  };
+
+  const getStoryThumbnail = (story: Story) => {
+    if (story.mediaUrl.endsWith('.mp4') || story.mediaUrl.endsWith('.mov')) {
+      // For video stories, use a placeholder or first frame
+      return story.profilePicture || DEFAULT_PROFILE_PHOTO;
+    }
+    return story.mediaUrl;
+  };
+
+  const uniqueStoryUsers = Object.values(storiesByUser).map(stories => stories[0]);
+
+  // Check if current user has stories
+  const userStories = user ? storiesByUser[user.id] || [] : [];
+  const userLatestStory = userStories.length > 0 ? userStories[userStories.length - 1] : null;
+  const hasUserStories = userStories.length > 0;
+
+  const openUserStories = (userId: string, username?: string, profilePicture?: string) => {
+    const userStories = storiesByUser[userId] || [];
+    if (userStories.length > 0) {
+      setCurrentUserStories(userStories);
+      setCurrentStoryUser({ id: userId, username, profilePicture });
+      setCurrentStoryIndex(0);
+      setStoryViewerVisible(true);
+    }
+  };
+
   useEffect(() => {
     if (!user?.id) return;
     loadRecentChats();
+    loadStories();
+    
     // Connect to WebSocket
     const socket = new SockJS(getWebSocketUrl());
     const client = new Client({
@@ -87,6 +161,7 @@ export default function MessengerScreen({ navigation }: MessengerScreenProps) {
   useFocusEffect(
     React.useCallback(() => {
       loadRecentChats();
+      loadStories();
     }, [user?.id])
   );
 
@@ -130,24 +205,24 @@ export default function MessengerScreen({ navigation }: MessengerScreenProps) {
 
   const renderChatItem = ({ item }: { item: RecentChat }) => (
     <TouchableOpacity
-      style={styles.chatItem}
+      style={[styles.chatItem, { backgroundColor: colors.card }]}
       onPress={() => handleChatPress(item)}
     >
       <View style={styles.chatImageContainer}>
         <Image 
-          source={{ uri: item.profilePicture || 'https://i.imgur.com/6XbK6bE.jpg' }} 
+          source={{ uri: item.profilePicture || DEFAULT_PROFILE_PHOTO }} 
           style={styles.chatImage} 
         />
         {item.isOnline && <View style={styles.onlineDot} />}
       </View>
       <View style={styles.chatContent}>
-        <Text style={styles.chatName}>{item.fullName || item.username}</Text>
-        <Text style={styles.chatMessage} numberOfLines={1}>
+        <Text style={[styles.chatName, { color: colors.text }]}>{item.fullName || item.username}</Text>
+        <Text style={[styles.chatMessage, { color: colors.lightText }]} numberOfLines={1}>
           {item.lastMessage || 'No messages yet'}
         </Text>
       </View>
       <View style={styles.chatMeta}>
-        <Text style={styles.chatDate}>{formatDateTime(item.lastMessageTime)}</Text>
+        <Text style={[styles.chatDate, { color: colors.lightText }]}>{formatDateTime(item.lastMessageTime)}</Text>
         {item.unreadCount > 0 && (
           <View style={styles.unreadBadge}>
             <Text style={styles.unreadText}>{item.unreadCount}</Text>
@@ -157,84 +232,141 @@ export default function MessengerScreen({ navigation }: MessengerScreenProps) {
     </TouchableOpacity>
   );
 
+  const tabs = ['Inbox', 'Communities', 'Requests', 'Spam'];
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Custom Header matching Home screen */}
+      {/* Header */}
       <BlurView
         intensity={80}
-        tint={colorScheme === 'dark' ? 'dark' : 'light'}
+        tint={currentTheme === 'dark' ? 'dark' : 'light'}
         style={[styles.header, { backgroundColor: colors.tabBarBg, borderBottomColor: colors.tabBarBorder }]}
       >
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>
-            <Text style={{ color: '#4361EE' }}>Mas</Text>
-            <Text style={{ color: '#FF7F11' }}>Chat</Text>
-          </Text>
-          
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Messenger</Text>
           <View style={styles.headerIcons}>
-            <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/(tabs)/home')}>
-              <Ionicons name="home" size={24} color={colors.text} />
-            </TouchableOpacity>
             <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/friends/SuggestionsScreen')}>
               <Ionicons name="person-add" size={24} color={colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/(tabs)/home')}>
+              <Ionicons name="home" size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
         </View>
       </BlurView>
-      {/* Stories Section */}
-      <View style={{ paddingVertical: 8, backgroundColor: colors.background }}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ paddingLeft: 16 }}>
-          {/* Example: Replace with actual stories data */}
-          {[...Array(8)].map((_, i) => (
-            <View key={i} style={{ alignItems: 'center', marginRight: 16 }}>
-              <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: colors.card, justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderWidth: 3, borderColor: colors.accent }}>
-                <Image source={{ uri: user?.profilePicture || 'https://i.imgur.com/6XbK6bE.jpg' }} style={{ width: 56, height: 56, borderRadius: 28 }} />
-              </View>
-              <Text style={{ color: colors.text, fontSize: 12, marginTop: 4 }}>{user?.username || 'You'}</Text>
-            </View>
-          ))}
-        </ScrollView>
-      </View>
-      {/* Profile Info and Action Buttons */}
-      <View style={[styles.profileInfoContainer, { backgroundColor: colors.card }]}>
-        <TouchableOpacity 
-          style={styles.profileContainer}
-          onPress={() => router.push({ pathname: "/(tabs)/profile", params: { user: JSON.stringify({ id: user?.id, username: user?.username }) } })}
-        >
-          <Image 
-            source={{ uri: user?.profilePicture || "https://randomuser.me/api/portraits/men/5.jpg" }} 
-            style={styles.profilePic}
-          />
-          <View style={styles.headerInfo}>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>{user?.fullName || user?.username || 'User'}</Text>
-            <Text style={[styles.headerSubtitle, { color: colors.lightText }]}>Active now</Text>
-          </View>
-        </TouchableOpacity>
-        <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.headerIconBtn}>
-            <Ionicons name="call-outline" size={22} color={COLORS.light.text} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconBtn}>
-            <Ionicons name="videocam-outline" size={24} color={COLORS.light.text} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconBtn}>
-            <Ionicons name="home-outline" size={24} color={COLORS.light.text} />
-          </TouchableOpacity>
-        </View>
-      </View>
 
       {/* Search Bar */}
       <View style={[styles.searchContainer, { backgroundColor: colors.card }]}>
         <View style={[styles.searchBar, { backgroundColor: colors.background }]}>
-          <Ionicons name="search" size={20} color={COLORS.light.lightText} style={styles.searchIcon} />
+          <Ionicons name="search" size={20} color={colors.lightText} style={styles.searchIcon} />
           <TextInput
             style={[styles.searchInput, { color: colors.text }]}
-            placeholder="Search messages"
+            placeholder="Search"
             placeholderTextColor={colors.lightText}
             value={search}
             onChangeText={setSearch}
           />
         </View>
+      </View>
+
+      {/* Stories Section */}
+      <View style={[styles.storiesContainer, { backgroundColor: colors.background }]}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.storiesContent}
+        >
+          {/* User's Story Circle - First Position */}
+          <TouchableOpacity
+            style={styles.storyItem}
+            onPress={() => {
+              if (user && hasUserStories && user.id) {
+                // Show user's own stories
+                openUserStories(user.id, user.username, user.profilePicture);
+              } else {
+                // Navigate to create new story
+                router.push('/(create)/newStory');
+              }
+            }}
+          >
+            <View style={hasUserStories ? styles.storyRing : styles.storyImageContainer}>
+              <Image
+                source={{
+                  uri: hasUserStories && userLatestStory 
+                    ? getStoryThumbnail(userLatestStory)
+                    : (user && user.profilePicture) ? user.profilePicture : DEFAULT_PROFILE_PHOTO,
+                }}
+                style={styles.storyImage}
+              />
+              {!hasUserStories && (
+                <View style={styles.addStoryIcon}>
+                  <Ionicons name="add" size={20} color="white" />
+                </View>
+              )}
+            </View>
+            <Text style={[styles.storyLabel, { color: colors.text }]}>
+              {hasUserStories ? 'Your note' : 'Post a note'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Other Users' Stories */}
+          {uniqueStoryUsers
+            .filter(story => story.userId !== (user?.id || ''))
+            .map((story) => {
+              const latestStory = getLatestStoryForUser(story.userId);
+              return (
+                <TouchableOpacity
+                  key={story.id}
+                  style={styles.storyItem}
+                  onPress={() => story.userId && openUserStories(story.userId, story.username, story.profilePicture)}
+                >
+                  <View style={styles.storyRing}>
+                    <Image
+                      source={{
+                        uri: getStoryThumbnail(latestStory || story),
+                      }}
+                      style={styles.storyImage}
+                    />
+                  </View>
+                  <Text style={[styles.storyLabel, { color: colors.text }]} numberOfLines={1}>
+                    {story.username}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+        </ScrollView>
+      </View>
+
+      {/* Navigation Tabs */}
+      <View style={[styles.tabsContainer, { backgroundColor: colors.card }]}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabsRow}
+        >
+          {tabs.map((tab) => (
+            <TouchableOpacity 
+              key={tab}
+              style={[
+                styles.tabButton, 
+                activeTab === tab && styles.tabButtonActive,
+                activeTab === tab && { backgroundColor: colors.primary + '20' }
+              ]}
+              onPress={() => setActiveTab(tab)}
+            >
+              <Text style={[
+                styles.tabText, 
+                { color: colors.lightText },
+                activeTab === tab && { color: colors.primary, fontWeight: 'bold' }
+              ]}>
+                {tab}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
       {/* Chats List */}
@@ -254,7 +386,7 @@ export default function MessengerScreen({ navigation }: MessengerScreenProps) {
               <Text style={[styles.emptyTitle, { color: colors.text }]}>No Messages Yet</Text>
               <Text style={[styles.emptySubtitle, { color: colors.lightText }]}>Start a conversation with friends</Text>
               <TouchableOpacity 
-                style={styles.newMessageBtn}
+                style={[styles.newMessageBtn, { backgroundColor: colors.primary }]}
                 onPress={() => router.push("/(create)/newMessage")}
               >
                 <Text style={styles.newMessageBtnText}>New Message</Text>
@@ -262,6 +394,44 @@ export default function MessengerScreen({ navigation }: MessengerScreenProps) {
             </View>
           }
         />
+      )}
+
+      {/* Story Viewer Modal */}
+      {storyViewerVisible && (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setStoryViewerVisible(false)}>
+          <View style={styles.storyViewerContainer}>
+            {currentUserStories.length > 0 && (
+              <FlatList
+                data={currentUserStories}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={item => item.id}
+                initialScrollIndex={currentStoryIndex}
+                renderItem={({ item }) => (
+                  item.mediaUrl.endsWith('.mp4') || item.mediaUrl.endsWith('.mov') ? (
+                    <View style={styles.storyVideoContainer}>
+                      <Text style={styles.storyVideoPlaceholder}>Video Story</Text>
+                      <Text style={styles.storyVideoText}>Tap to view video</Text>
+                    </View>
+                  ) : (
+                    <Image source={{ uri: item.mediaUrl }} style={styles.storyImageFull} />
+                  )
+                )}
+              />
+            )}
+            <TouchableOpacity style={styles.closeStoryButton} onPress={() => setStoryViewerVisible(false)}>
+              <Ionicons name="close" size={36} color="#fff" />
+            </TouchableOpacity>
+            <View style={styles.storyHeader}>
+              <Image 
+                source={{ uri: currentStoryUser?.profilePicture || DEFAULT_PROFILE_PHOTO }} 
+                style={styles.storyUserAvatar} 
+              />
+              <Text style={styles.storyUsername}>{currentStoryUser?.username}</Text>
+            </View>
+          </View>
+        </Modal>
       )}
     </View>
   );
@@ -286,27 +456,32 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'ios' ? 50 : 40,
     paddingBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    borderBottomWidth: 0.5,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  backButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: COLORS.light.text,
   },
   headerIcons: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
   },
-  headerIconBtn: {
+  iconBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -316,14 +491,12 @@ const styles = StyleSheet.create({
   searchContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: COLORS.light.white,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
   searchBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f0f2f5",
+    flexDirection: 'row',
+    alignItems: 'center',
     borderRadius: 12,
     paddingHorizontal: 16,
     height: 40,
@@ -333,8 +506,81 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    color: COLORS.light.text,
     fontSize: 16,
+  },
+  storiesContainer: {
+    paddingVertical: 8,
+  },
+  storiesContent: {
+    paddingLeft: 16,
+    paddingRight: 16,
+  },
+  storyItem: {
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  storyRing: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+    borderWidth: 3,
+    borderColor: '#FF7F11',
+  },
+  storyImageContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#f0f2f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  storyImage: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+  },
+  addStoryIcon: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#4361EE',
+    borderRadius: 15,
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+  },
+  storyLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  tabsContainer: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  tabsRow: {
+    paddingHorizontal: 16,
+  },
+  tabButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    marginRight: 8,
+    borderRadius: 20,
+  },
+  tabButtonActive: {
+    backgroundColor: '#4361EE20',
+  },
+  tabText: {
+    fontWeight: '500',
   },
   loadingContainer: {
     flex: 1,
@@ -345,15 +591,14 @@ const styles = StyleSheet.create({
     paddingBottom: 80,
   },
   chatItem: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: COLORS.light.white,
     marginHorizontal: 16,
-    marginVertical: 8,
+    marginVertical: 4,
     borderRadius: 12,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
@@ -385,31 +630,28 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     backgroundColor: '#31a24c',
     borderWidth: 2,
-    borderColor: COLORS.light.white,
+    borderColor: '#FFFFFF',
   },
   chatContent: {
     flex: 1,
     marginLeft: 12,
   },
   chatName: {
-    color: COLORS.light.text,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     fontSize: 16,
   },
   chatMessage: {
-    color: COLORS.light.lightText,
     fontSize: 14,
     marginTop: 4,
   },
   chatMeta: {
-    alignItems: "flex-end",
+    alignItems: 'flex-end',
   },
   chatDate: {
-    color: COLORS.light.lightText,
     fontSize: 12,
   },
   unreadBadge: {
-    backgroundColor: COLORS.light.primary,
+    backgroundColor: '#4361EE',
     borderRadius: 10,
     width: 20,
     height: 20,
@@ -418,7 +660,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   unreadText: {
-    color: COLORS.light.white,
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: 'bold',
   },
@@ -431,88 +673,80 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.light.text,
     marginTop: 16,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: COLORS.light.lightText,
     marginTop: 8,
     textAlign: 'center',
   },
   newMessageBtn: {
-    backgroundColor: COLORS.light.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 20,
     marginTop: 20,
   },
   newMessageBtnText: {
-    color: COLORS.light.white,
+    color: '#FFFFFF',
     fontWeight: 'bold',
     fontSize: 16,
   },
-  profileInfoContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: COLORS.light.white,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  profileContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  profilePic: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 12,
-  },
-  headerInfo: {
+  storyViewerContainer: {
     flex: 1,
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: COLORS.light.lightText,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 15,
-  },
-
-  mainHeader: {
-    paddingTop: Platform.OS === 'ios' ? 50 : 40,
-    paddingBottom: 12,
-    borderBottomWidth: 0.5,
-    zIndex: 1000,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  headerIcons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    backgroundColor: 'black',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerBtn: {
+  storyImageFull: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  closeStoryButton: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    zIndex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
     padding: 8,
+  },
+  storyHeader: {
+    position: 'absolute',
+    top: 60,
+    left: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  storyUserAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
+    borderWidth: 2,
+    borderColor: '#FF7F11',
+  },
+  storyUsername: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  storyVideoContainer: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'black',
+  },
+  storyVideoPlaceholder: {
+    color: 'white',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  storyVideoText: {
+    color: 'white',
+    fontSize: 16,
   },
 });

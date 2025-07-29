@@ -1,32 +1,26 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useTheme } from '../app/context/ThemeContext';
+import { Ionicons } from '@expo/vector-icons';
 import { massCoinService, WalletInfo } from '../app/lib/services/massCoinService';
 import { useAuth } from '../app/context/AuthContext';
+import MassCoinIcon from './MassCoinIcon';
 
 interface MassCoinBalanceProps {
   size?: 'small' | 'medium' | 'large';
-  showIcon?: boolean;
   style?: any;
-  textColor?: string;
+  showIcon?: boolean;
+  clickable?: boolean;
 }
 
-export default function MassCoinBalance({ 
-  size = 'medium', 
-  showIcon = true, 
+export default function MassCoinBalance({
+  size = 'medium',
   style,
-  textColor
+  showIcon = true,
+  clickable = true,
 }: MassCoinBalanceProps) {
   const router = useRouter();
-  const { currentTheme } = useTheme();
   const { user } = useAuth();
-  const colors = {
-    light: { text: '#212529' },
-    dark: { text: '#FFFFFF' }
-  };
-  const defaultTextColor = textColor || colors[currentTheme === 'dark' ? 'dark' : 'light'].text;
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -40,16 +34,16 @@ export default function MassCoinBalance({
   const displayWallet = wallet || massCoinService.getMockWallet();
 
   const loadWallet = async () => {
+    if (!user?.id) return;
+    
+    setIsLoading(true);
     try {
-      setIsLoading(true);
       const walletData = await massCoinService.getWallet(Number(user.id));
       setWallet(walletData);
     } catch (error: any) {
-      if (error.response?.status === 404) {
-        Alert.alert('Wallet not found', 'No wallet exists for your account. Please contact support.');
-      } else {
+      // Don't show alerts for 404 errors, just use mock data
+      if (error.response?.status !== 404) {
         console.error('Error loading wallet:', error);
-        Alert.alert('Error', 'Failed to load wallet.');
       }
       setWallet(massCoinService.getMockWallet());
     } finally {
@@ -57,61 +51,60 @@ export default function MassCoinBalance({
     }
   };
 
-  const getSizeStyles = () => {
-    switch (size) {
-      case 'small':
-        return {
-          container: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
-          icon: 12,
-          text: 10,
-        };
-      case 'large':
-        return {
-          container: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
-          icon: 20,
-          text: 14,
-        };
-      default: // medium
-        return {
-          container: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
-          icon: 16,
-          text: 12,
-        };
+  const handlePress = () => {
+    if (clickable) {
+      router.push('/screens/MassCoinDashboardScreen');
     }
   };
 
-  const sizeStyles = getSizeStyles();
+  const sizeStyles = {
+    small: {
+      container: { paddingHorizontal: 8, paddingVertical: 4 },
+      text: { fontSize: 12 },
+      icon: 16,
+    },
+    medium: {
+      container: { paddingHorizontal: 12, paddingVertical: 6 },
+      text: { fontSize: 14 },
+      icon: 20,
+    },
+    large: {
+      container: { paddingHorizontal: 16, paddingVertical: 8 },
+      text: { fontSize: 16 },
+      icon: 24,
+    },
+  };
 
-  // Show loading state briefly
+  const currentSize = sizeStyles[size];
+
   if (isLoading && !wallet) {
     return (
-      <View style={[styles.massCoinBalance, sizeStyles.container, style]}>
-        <Text style={[styles.balanceText, { fontSize: sizeStyles.text, color: defaultTextColor }]}>
-          ...
-        </Text>
+      <View style={[styles.massCoinBalance, currentSize.container, style]}>
+        <Text style={[styles.loadingText, currentSize.text]}>Loading...</Text>
       </View>
     );
   }
 
   return (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={[
         styles.massCoinBalance,
-        sizeStyles.container,
-        style
-      ]} 
-      onPress={() => router.push('/screens/MassCoinDashboardScreen')}
+        currentSize.container,
+        style,
+        !clickable && styles.nonClickable
+      ]}
+      onPress={handlePress}
+      disabled={!clickable}
     >
       {showIcon && (
-        <MaterialIcons 
-          name="monetization-on" 
-          size={sizeStyles.icon} 
-          color="#FFD700" 
-        />
+        <MassCoinIcon size={currentSize.icon} style={styles.coinIcon} />
       )}
-      <Text style={[styles.balanceText, { fontSize: sizeStyles.text, color: defaultTextColor }]}>
+      <Text style={[styles.balanceText, currentSize.text]}>
         {massCoinService.formatAmount(displayWallet.balance)}
       </Text>
+      {clickable && (
+        <Ionicons name="chevron-forward" size={16} color="#FFD700" style={styles.chevron} />
+      )}
     </TouchableOpacity>
   );
 }
@@ -121,10 +114,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 215, 0, 0.1)',
-    gap: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.3)',
+  },
+  nonClickable: {
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
+  },
+  coinIcon: {
+    marginRight: 6,
   },
   balanceText: {
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: 'bold',
+    color: '#FFD700',
+    marginRight: 4,
+  },
+  chevron: {
+    marginLeft: 2,
+  },
+  loadingText: {
+    color: '#FFD700',
+    fontStyle: 'italic',
   },
 }); 

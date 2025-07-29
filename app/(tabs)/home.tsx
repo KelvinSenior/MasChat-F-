@@ -1,17 +1,17 @@
-import { Feather, FontAwesome, Ionicons, MaterialIcons } from "@expo/vector-icons";
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, RefreshControl, Alert, Modal, Dimensions, FlatList, Animated, Share, Easing, ActivityIndicator, TouchableWithoutFeedback } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { Video, ResizeMode } from 'expo-av';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState, useRef } from "react";
-import { Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, KeyboardAvoidingView, Platform, Dimensions, TouchableWithoutFeedback, PanResponder, Animated, FlatList, ActivityIndicator, Share, RefreshControl, Easing } from "react-native";
-import { Video, ResizeMode } from 'expo-av';
-import CommentDialog from "../components/CommentDialog";
-import MassCoinSendButton from "../components/MassCoinSendButton";
 import { useAuth } from '../context/AuthContext';
-import { getPosts, deletePost, Post, likePost, unlikePost, addComment, getComments, PostComment } from '../lib/services/postService';
-import { fetchStories, Story, fetchStoriesByUser } from '../lib/services/storyService';
 import { useTheme } from '../context/ThemeContext';
-import ModernHeader from '../../components/ModernHeader';
+import { getPosts, likePost, unlikePost, deletePost, Post } from '../lib/services/postService';
+import { fetchStories, Story } from '../lib/services/storyService';
+import CommentDialog from '../components/CommentDialog';
+import MassCoinTipButton from '../../components/MassCoinTipButton';
+import MassCoinIcon from '../../components/MassCoinIcon';
 
 
 // Modern Color Palette
@@ -351,6 +351,9 @@ export default function HomeScreen() {
             </TouchableOpacity>
             <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/screens/MessengerScreen')}>
               <Ionicons name="chatbubble-ellipses" size={24} color={colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/screens/MassCoinDashboardScreen')}>
+              <MassCoinIcon size={24} />
             </TouchableOpacity>
           </View>
         </View>
@@ -798,20 +801,13 @@ export default function HomeScreen() {
                   <Text style={styles.actionText}>Share</Text>
                 </TouchableOpacity>
 
-                {/* Mass Coin Send Button */}
+                {/* Mass Coin Tip Button */}
                 {user && user.id !== post.user.id && (
-                  <MassCoinSendButton
-                    recipientId={parseInt(post.user.id)}
-                    recipientName={post.user.fullName || post.user.username}
-                    recipientAvatar={post.user.profilePicture}
-                    contextType="POST"
-                    contextId={post.id}
+                  <MassCoinTipButton
+                    postId={post.id}
+                    creatorId={post.user.id}
+                    creatorName={post.user.fullName || post.user.username}
                     size="small"
-                    variant="icon"
-                    onSuccess={() => {
-                      // Optionally refresh posts or show success message
-                      console.log('Mass Coin transfer request sent successfully');
-                    }}
                   />
                 )}
               </View>

@@ -69,6 +69,14 @@ export interface UserStats {
   totalTipsSentAmount: number;
 }
 
+export interface UserSearchResult {
+  id: number;
+  username: string;
+  fullName: string;
+  profilePicture?: string;
+  email: string;
+}
+
 export interface PlatformStats {
   totalUsers: number;
   totalWallets: number;
@@ -84,9 +92,14 @@ class MassCoinService {
     try {
       const response = await client.get(`/api/masscoin/wallet?userId=${userId}`);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
+      // Don't log 404 errors to console to reduce noise
+      if (error.response?.status === 404) {
+        return this.getMockWallet();
+      }
+      // Only log other errors
       console.error('Error fetching wallet:', error);
-      throw error;
+      return this.getMockWallet();
     }
   }
 
@@ -132,13 +145,19 @@ class MassCoinService {
     }
   }
 
+  // Get transfer requests
   async getTransferRequests(userId: number): Promise<TransferRequestInfo[]> {
     try {
       const response = await client.get(`/api/masscoin/transfer-requests?userId=${userId}`);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
+      // Don't log 404 errors to console to reduce noise
+      if (error.response?.status === 404) {
+        return [];
+      }
+      // Only log other errors
       console.error('Error fetching transfer requests:', error);
-      throw error;
+      return [];
     }
   }
 
@@ -216,13 +235,26 @@ class MassCoinService {
   }
 
   // Transaction operations
-  async getUserTransactions(userId: number, page: number = 0, size: number = 10): Promise<{ content: TransactionInfo[], totalElements: number, totalPages: number }> {
+  async getUserTransactions(userId: number, page: number = 0, size: number = 10): Promise<{ content: TransactionInfo[]; last: boolean; totalElements: number }> {
     try {
       const response = await client.get(`/api/masscoin/transactions?userId=${userId}&page=${page}&size=${size}`);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
+      // Don't log 404 errors to console to reduce noise
+      if (error.response?.status === 404) {
+        return {
+          content: this.getMockTransactions(),
+          last: true,
+          totalElements: 0,
+        };
+      }
+      // Only log other errors
       console.error('Error fetching user transactions:', error);
-      throw error;
+      return {
+        content: this.getMockTransactions(),
+        last: true,
+        totalElements: 0,
+      };
     }
   }
 
@@ -234,6 +266,54 @@ class MassCoinService {
     } catch (error) {
       console.error('Error checking mass coin service health:', error);
       throw error;
+    }
+  }
+
+  // User search
+  async searchUsers(query: string, currentUserId: number): Promise<UserSearchResult[]> {
+    try {
+      const response = await client.get(`/api/masscoin/search-users?query=${encodeURIComponent(query)}&currentUserId=${currentUserId}`);
+      return response.data;
+    } catch (error: any) {
+      // Don't log 404 errors to console to reduce noise
+      if (error.response?.status === 404) {
+        return [];
+      }
+      // Only log other errors
+      console.error('Error searching users:', error);
+      return [];
+    }
+  }
+
+  // Get user statistics
+  async getUserStats(userId: number): Promise<UserStats> {
+    try {
+      const response = await client.get(`/api/masscoin/user-stats?userId=${userId}`);
+      return response.data;
+    } catch (error: any) {
+      // Don't log 404 errors to console to reduce noise
+      if (error.response?.status === 404) {
+        return {
+          totalTransactions: 0,
+          totalVolume: 0,
+          averageTransactionAmount: 0,
+          totalTipsReceived: 0,
+          totalTipsAmount: 0,
+          totalTipsSent: 0,
+          totalTipsSentAmount: 0,
+        };
+      }
+      // Only log other errors
+      console.error('Error fetching user stats:', error);
+      return {
+        totalTransactions: 0,
+        totalVolume: 0,
+        averageTransactionAmount: 0,
+        totalTipsReceived: 0,
+        totalTipsAmount: 0,
+        totalTipsSent: 0,
+        totalTipsSentAmount: 0,
+      };
     }
   }
 

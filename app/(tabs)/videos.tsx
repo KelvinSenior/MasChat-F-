@@ -10,6 +10,7 @@ import { fetchReels, deleteReel, Reel, likeReel, unlikeReel, shareReel, getReelM
 import { Video, ResizeMode } from 'expo-av';
 import CommentDialog from "../components/CommentDialog";
 import MenuModal from '../components/MenuModal';
+import MassCoinTipButton from '../../components/MassCoinTipButton';
 import { Colors } from '../../constants/Colors';
 import client from '../api/client';
 
@@ -444,6 +445,19 @@ export default function Videos() {
                   <Text style={[styles.actionCount, { color: '#fff' }]}>{reel.comments ? reel.comments.length : 0}</Text>
                 </TouchableOpacity>
 
+                {/* Mass Coin Tip Button */}
+                {user && user.id !== reel.userId && (
+                  <View style={styles.actionButton}>
+                    <MassCoinTipButton
+                      postId={reel.id}
+                      creatorId={reel.userId}
+                      creatorName={reel.username}
+                      size="small"
+                      style={styles.massCoinButton}
+                    />
+                  </View>
+                )}
+
                 {/* Share Button */}
                 <TouchableOpacity 
                   onPress={() => handleShareMedia(reel)} 
@@ -665,5 +679,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 4,
+  },
+  massCoinButton: {
+    marginTop: 0, // Adjust as needed to position it correctly
   },
 });
