@@ -54,7 +54,7 @@ export default function CommentDialog({
   onClose, 
   onComment, 
   postOwnerId, 
-  postOwnerName = "justinwillman" 
+  postOwnerName = "" 
 }: CommentDialogProps) {
   const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(false);

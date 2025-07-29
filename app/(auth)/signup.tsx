@@ -10,7 +10,19 @@ import { useAuth } from '../context/AuthContext';
 import client, { BASE_URL, testConnection } from '../api/client';
 
 // Color Palette (matching home screen)
-const COLORS = {
+type ColorScheme = {
+  primary: string;
+  accent: string;
+  background: string;
+  white: string;
+  text: string;
+  lightText: string;
+  card: string;
+  border: string;
+  error: string;
+};
+
+const COLORS: { light: ColorScheme; dark: ColorScheme } = {
   light: {
     primary: '#3A8EFF',  // New Blue
     accent: '#FF7F11',   // Vibrant Orange
@@ -49,9 +61,11 @@ export default function Signup() {
     fullName: ''
   });
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const router = useRouter();
   const colorScheme = useColorScheme();
-  const colors = COLORS[colorScheme === 'dark' ? 'dark' : 'light'];
+  const colors: ColorScheme = COLORS[colorScheme === 'dark' ? 'dark' : 'light'];
 
   const { signIn } = useAuth();
 
@@ -215,104 +229,118 @@ export default function Signup() {
   }, []);
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
       
       {/* Header matching home screen */}
       <LinearGradient
-        colors={[COLORS.primary, '#2B6CD9']}
+        colors={[colors.primary, '#2B6CD9']}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
         <Text style={styles.logo}>
-          Mas<Text style={{ color: COLORS.accent }}>Chat</Text>
+          Mas<Text style={{ color: colors.accent }}>Chat</Text>
         </Text>
       </LinearGradient>
 
       <Animatable.View animation="fadeInUp" duration={1000} style={styles.content}>
-        <View style={styles.formContainer}>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Join the MasChat community</Text>
+        <View style={[styles.formContainer, { backgroundColor: colors.card }]}>
+          <Text style={[styles.title, { color: colors.primary }]}>Create Account</Text>
+          <Text style={[styles.subtitle, { color: colors.lightText }]}>Join the MasChat community</Text>
 
           {/* Full Name Input */}
           <View style={styles.inputContainer}>
-            <Ionicons name="person-circle-outline" size={20} color={COLORS.lightText} style={styles.inputIcon} />
+            <Ionicons name="person-circle-outline" size={20} color={colors.lightText} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: colors.text, backgroundColor: colors.card, borderColor: colors.border }]}
               placeholder="Full Name (Optional)"
-              placeholderTextColor={COLORS.lightText}
+              placeholderTextColor={colors.lightText}
               value={fullName}
               onChangeText={setFullName}
               autoCapitalize="words"
             />
           </View>
-          {errors.fullName && <Text style={styles.errorText}>{errors.fullName}</Text>}
+          {errors.fullName && <Text style={[styles.errorText, { color: colors.error }]}>{errors.fullName}</Text>}
 
           {/* Username Input */}
           <View style={styles.inputContainer}>
-            <Ionicons name="person-outline" size={20} color={COLORS.lightText} style={styles.inputIcon} />
+            <Ionicons name="person-outline" size={20} color={colors.lightText} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: colors.text, backgroundColor: colors.card, borderColor: colors.border }]}
               placeholder="Username"
-              placeholderTextColor={COLORS.lightText}
+              placeholderTextColor={colors.lightText}
               value={username}
               onChangeText={setUsername}
               autoCapitalize="none"
             />
           </View>
-          {errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
+          {errors.username && <Text style={[styles.errorText, { color: colors.error }]}>{errors.username}</Text>}
 
           {/* Email Input */}
           <View style={styles.inputContainer}>
-            <Ionicons name="mail-outline" size={20} color={COLORS.lightText} style={styles.inputIcon} />
+            <Ionicons name="mail-outline" size={20} color={colors.lightText} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: colors.text, backgroundColor: colors.card, borderColor: colors.border }]}
               placeholder="Email"
-              placeholderTextColor={COLORS.lightText}
+              placeholderTextColor={colors.lightText}
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
             />
           </View>
-          {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+          {errors.email && <Text style={[styles.errorText, { color: colors.error }]}>{errors.email}</Text>}
 
           {/* Password Input */}
           <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color={COLORS.lightText} style={styles.inputIcon} />
+            <Ionicons name="lock-closed-outline" size={20} color={colors.lightText} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: colors.text, backgroundColor: colors.card, borderColor: colors.border }]}
               placeholder="Password"
-              placeholderTextColor={COLORS.lightText}
+              placeholderTextColor={colors.lightText}
               value={password}
               onChangeText={setPassword}
-              secureTextEntry
+              secureTextEntry={!showPassword}
             />
+            <TouchableOpacity onPress={() => setShowPassword((prev) => !prev)}>
+              <Ionicons
+                name={showPassword ? "eye-off-outline" : "eye-outline"}
+                size={22}
+                color={colors.lightText}
+              />
+            </TouchableOpacity>
           </View>
-          {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+          {errors.password && <Text style={[styles.errorText, { color: colors.error }]}>{errors.password}</Text>}
 
           {/* Confirm Password Input */}
           <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color={COLORS.lightText} style={styles.inputIcon} />
+            <Ionicons name="lock-closed-outline" size={20} color={colors.lightText} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: colors.text, backgroundColor: colors.card, borderColor: colors.border }]}
               placeholder="Confirm Password"
-              placeholderTextColor={COLORS.lightText}
+              placeholderTextColor={colors.lightText}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
-              secureTextEntry
+              secureTextEntry={!showConfirmPassword}
             />
+            <TouchableOpacity onPress={() => setShowConfirmPassword((prev) => !prev)}>
+              <Ionicons
+                name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+                size={22}
+                color={colors.lightText}
+              />
+            </TouchableOpacity>
           </View>
-          {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
+          {errors.confirmPassword && <Text style={[styles.errorText, { color: colors.error }]}>{errors.confirmPassword}</Text>}
 
-          <TouchableOpacity 
-            style={[styles.button, loading && styles.disabledButton]} 
+          <TouchableOpacity
+            style={[styles.button, loading && styles.disabledButton]}
             onPress={handleSignup}
             disabled={loading}
           >
             <LinearGradient
-              colors={loading ? ['#ccc', '#ccc'] : [COLORS.accent, '#FF9E40']}
+              colors={loading ? ['#ccc', '#ccc'] : [colors.primary, '#2B6CD9']}
               style={styles.buttonGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -324,16 +352,26 @@ export default function Signup() {
           </TouchableOpacity>
           
           <View style={styles.dividerContainer}>
-            <View style={styles.divider} />
-            <Text style={styles.or}>OR</Text>
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            <Text style={[styles.or, { color: colors.lightText }]}>OR</Text>
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
           </View>
           
           <TouchableOpacity
-            style={styles.loginButton}
+            style={[styles.loginButton, loading && styles.disabledButton]}
             onPress={() => router.push("/(auth)/login")}
+            disabled={loading}
           >
-            <Text style={styles.loginButtonText}>Already have an account? Log In</Text>
+            <LinearGradient
+              colors={loading ? ['#ccc', '#ccc'] : [colors.accent, '#FF9E40']}
+              style={styles.loginButtonGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Text style={styles.loginButtonText}>
+                {loading ? 'Loading...' : 'Already have an account? Log In'}
+              </Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       </Animatable.View>
@@ -345,7 +383,6 @@ export default function Signup() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   header: {
     paddingTop: 50,
@@ -369,7 +406,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   formContainer: {
-    backgroundColor: COLORS.white,
     borderRadius: 16,
     padding: 24,
     shadowColor: "#000",
@@ -379,14 +415,12 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   title: {
-    color: COLORS.primary,
     fontSize: 24,
     fontWeight: "bold",
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
-    color: COLORS.lightText,
     fontSize: 16,
     marginBottom: 24,
     textAlign: 'center',
@@ -394,7 +428,6 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: '#F0F2F5',
     borderRadius: 12,
     paddingHorizontal: 16,
     marginBottom: 8,
@@ -405,8 +438,11 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    color: COLORS.text,
     fontSize: 16,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   button: {
     borderRadius: 12,
@@ -424,7 +460,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   buttonText: {
-    color: COLORS.white,
+    color: 'white',
     fontSize: 16,
     fontWeight: "bold",
   },
@@ -436,28 +472,28 @@ const styles = StyleSheet.create({
   divider: {
     flex: 1,
     height: 1,
-    backgroundColor: "#e4e6eb",
   },
   or: {
-    color: COLORS.lightText,
     marginHorizontal: 10,
     fontWeight: "bold",
     fontSize: 14,
   },
   loginButton: {
     borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: COLORS.primary,
+    overflow: 'hidden',
+    height: 50,
+  },
+  loginButtonGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   loginButtonText: {
-    color: COLORS.primary,
+    color: 'white',
     fontSize: 16,
     fontWeight: "bold",
   },
   errorText: {
-    color: "#f02849",
     fontSize: 13,
     marginBottom: 12,
     marginLeft: 12,

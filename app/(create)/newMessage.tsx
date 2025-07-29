@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
-import { Text, View, TextInput, TouchableOpacity, Image, ScrollView, StyleSheet, StatusBar, Platform, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { Text, View, TextInput, TouchableOpacity, Image, ScrollView, StyleSheet, StatusBar, Platform, FlatList, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { friendService, User } from '../lib/services/friendService';
 
@@ -24,6 +25,8 @@ export default function NewMessage() {
   const [loading, setLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
+  const [friendsLoading, setFriendsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const { user } = useAuth();
 
@@ -34,13 +37,29 @@ export default function NewMessage() {
     }
   }, [user?.id]);
 
+  // Refresh friends when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (user?.id) {
+        loadFriends();
+        loadSuggestions();
+      }
+    }, [user?.id])
+  );
+
   const loadFriends = async () => {
     if (!user?.id) return;
+    setFriendsLoading(true);
     try {
+      console.log('Loading friends for user:', user.id);
       const friendsData = await friendService.getFriends(user.id);
+      console.log('Friends loaded:', friendsData.length, friendsData);
       setFriends(friendsData);
     } catch (error) {
       console.error('Error loading friends:', error);
+      setFriends([]);
+    } finally {
+      setFriendsLoading(false);
     }
   };
 
@@ -51,6 +70,18 @@ export default function NewMessage() {
       setSuggestions(suggestionsData);
     } catch (error) {
       console.error('Error loading suggestions:', error);
+      setSuggestions([]);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([loadFriends(), loadSuggestions()]);
+    } catch (error) {
+      console.error('Error refreshing:', error);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -200,7 +231,17 @@ export default function NewMessage() {
       </View>
 
       {/* Content */}
-      <ScrollView style={styles.content}>
+      <ScrollView 
+        style={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
+          />
+        }
+      >
         {/* Search Results */}
         {search.trim() && (
           <>
@@ -230,34 +271,43 @@ export default function NewMessage() {
           </>
         )}
 
-        {/* Friends */}
-        {friends.length > 0 && !search.trim() && (
+        {/* Friends Section - Always show when friends exist, regardless of search */}
+        {!search.trim() && (
           <>
-            {renderSectionHeader('Friends')}
-            {friends.map(friend => (
-              <TouchableOpacity 
-                key={friend.id} 
-                style={styles.userItem}
-                onPress={() => startConversation(friend)}
-              >
-                <Image 
-                  source={{ uri: friend.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} 
-                  style={styles.userAvatar} 
-                />
-                <View style={styles.userInfo}>
-                  <Text style={styles.userName}>{friend.fullName || friend.username}</Text>
-                  <Text style={styles.userUsername}>@{friend.username}</Text>
-                </View>
-                <TouchableOpacity style={styles.messageBtn}>
-                  <Ionicons name="chatbubble-outline" size={20} color={COLORS.primary} />
-                </TouchableOpacity>
-              </TouchableOpacity>
-            ))}
+            {friendsLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+                <Text style={styles.loadingText}>Loading friends...</Text>
+              </View>
+            ) : friends.length > 0 ? (
+              <>
+                {renderSectionHeader('Friends')}
+                {friends.map(friend => (
+                  <TouchableOpacity 
+                    key={friend.id} 
+                    style={styles.userItem}
+                    onPress={() => startConversation(friend)}
+                  >
+                    <Image 
+                      source={{ uri: friend.profilePicture || 'https://randomuser.me/api/portraits/men/1.jpg' }} 
+                      style={styles.userAvatar} 
+                    />
+                    <View style={styles.userInfo}>
+                      <Text style={styles.userName}>{friend.fullName || friend.username}</Text>
+                      <Text style={styles.userUsername}>@{friend.username}</Text>
+                    </View>
+                    <TouchableOpacity style={styles.messageBtn}>
+                      <Ionicons name="chatbubble-outline" size={20} color={COLORS.primary} />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                ))}
+              </>
+            ) : null}
           </>
         )}
 
-        {/* Suggestions */}
-        {suggestions.length > 0 && !search.trim() && (
+        {/* Suggestions - Only show when no search and no friends */}
+        {!search.trim() && !friendsLoading && friends.length === 0 && suggestions.length > 0 && (
           <>
             {renderSectionHeader('People You May Know')}
             {suggestions.map(suggestion => (
@@ -282,11 +332,30 @@ export default function NewMessage() {
           </>
         )}
 
-        {!search.trim() && friends.length === 0 && suggestions.length === 0 && (
+        {/* Empty State - Only show when no search, no friends, and no suggestions */}
+        {!search.trim() && !friendsLoading && friends.length === 0 && suggestions.length === 0 && (
           <View style={styles.emptyState}>
             <Ionicons name="people-outline" size={48} color={COLORS.lightText} />
             <Text style={styles.emptyTitle}>No Friends Yet</Text>
             <Text style={styles.emptySubtitle}>Add friends to start messaging</Text>
+            <TouchableOpacity 
+              style={styles.addFriendsButton}
+              onPress={() => router.push('/friends/SuggestionsScreen')}
+            >
+              <Text style={styles.addFriendsButtonText}>Find Friends</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Debug Info - Only show in development */}
+        {__DEV__ && (
+          <View style={styles.debugContainer}>
+            <Text style={styles.debugText}>Debug Info:</Text>
+            <Text style={styles.debugText}>User ID: {user?.id || 'Not set'}</Text>
+            <Text style={styles.debugText}>Friends Loading: {friendsLoading ? 'Yes' : 'No'}</Text>
+            <Text style={styles.debugText}>Friends Count: {friends.length}</Text>
+            <Text style={styles.debugText}>Suggestions Count: {suggestions.length}</Text>
+            <Text style={styles.debugText}>Search Active: {search.trim() ? 'Yes' : 'No'}</Text>
           </View>
         )}
       </ScrollView>
@@ -415,6 +484,15 @@ const styles = StyleSheet.create({
     padding: 20,
     fontSize: 16,
   },
+  loadingContainer: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    color: COLORS.lightText,
+    fontSize: 16,
+  },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
@@ -432,5 +510,28 @@ const styles = StyleSheet.create({
     color: COLORS.lightText,
     marginTop: 8,
     textAlign: 'center',
+    marginBottom: 20,
+  },
+  addFriendsButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  addFriendsButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  debugContainer: {
+    padding: 16,
+    backgroundColor: '#f0f0f0',
+    margin: 16,
+    borderRadius: 8,
+  },
+  debugText: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
   },
 });
