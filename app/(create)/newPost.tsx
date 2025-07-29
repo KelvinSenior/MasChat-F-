@@ -107,7 +107,8 @@ export default function NewPost() {
       let imageUrl = null;
       let videoUrl = null;
       
-      if (image && mediaType === 'image') {
+      // Handle any image (picked or AI-generated)
+      if (image) {
         // Upload image to Cloudinary
         const folder = 'maschat/posts';
         console.log('Uploading image to Cloudinary:', image);
@@ -115,6 +116,7 @@ export default function NewPost() {
         console.log('Image uploaded successfully:', imageUrl);
       }
       
+      // Handle video
       if (video && mediaType === 'video') {
         // Upload video to Cloudinary
         const folder = 'maschat/posts/videos';
@@ -160,6 +162,8 @@ export default function NewPost() {
       console.log(result);
       if (result && result.generated_image) {
         setImage(result.generated_image);
+        setMediaType('image'); // Set mediaType to 'image' for AI-generated images
+        setVideo(null); // Clear any video selection
       } else {
         Alert.alert('Error', 'Failed to generate image.');
       }

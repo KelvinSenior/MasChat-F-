@@ -153,12 +153,24 @@ export async function markNotificationRead(notificationId: string) {
   await client.post(`/notifications/read/${notificationId}`);
 }
 
+export async function markMultipleNotificationsRead(notificationIds: string[]) {
+  await client.post(`/notifications/mark-read`, { notificationIds });
+}
+
+export async function markAllNotificationsRead(userId: string) {
+  await client.post(`/notifications/mark-all-read?userId=${userId}`);
+}
+
 export async function acceptFriendRequest(requestId: string) {
   await client.post(`/friends/accept/${requestId}`);
 }
 
 export async function deleteNotification(notificationId: string) {
   await client.delete(`/notifications/${notificationId}`);
+}
+
+export async function deleteMultipleNotifications(notificationIds: string[]) {
+  await client.delete(`/notifications/delete-multiple`, { data: { notificationIds } });
 }
 
 export async function deleteFriendRequest(requestId: string, userId: string) {

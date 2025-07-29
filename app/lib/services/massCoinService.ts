@@ -90,7 +90,7 @@ class MassCoinService {
   // Wallet operations
   async getWallet(userId: number): Promise<WalletInfo> {
     try {
-      const response = await client.get(`/api/masscoin/wallet?userId=${userId}`);
+      const response = await client.get(`/masscoin/wallet?userId=${userId}`);
       return response.data;
     } catch (error: any) {
       // Don't log 404 errors to console to reduce noise
@@ -105,7 +105,7 @@ class MassCoinService {
 
   async updateWalletAddress(userId: number, address: string): Promise<WalletInfo> {
     try {
-      const response = await client.post(`/api/masscoin/wallet/address?userId=${userId}`, {
+      const response = await client.post(`/masscoin/wallet/address?userId=${userId}`, {
         address: address
       });
       return response.data;
@@ -118,7 +118,7 @@ class MassCoinService {
   // Transfer request operations
   async createTransferRequest(senderId: number, request: TransferRequest): Promise<TransferRequestInfo> {
     try {
-      const response = await client.post(`/api/masscoin/transfer-request?senderId=${senderId}`, request);
+      const response = await client.post(`/masscoin/transfer-request?senderId=${senderId}`, request);
       return response.data;
     } catch (error) {
       console.error('Error creating transfer request:', error);
@@ -128,7 +128,7 @@ class MassCoinService {
 
   async approveTransferRequest(requestId: number, recipientId: number): Promise<TransactionInfo> {
     try {
-      const response = await client.post(`/api/masscoin/transfer-request/${requestId}/approve?recipientId=${recipientId}`);
+      const response = await client.post(`/masscoin/transfer-request/${requestId}/approve?recipientId=${recipientId}`);
       return response.data;
     } catch (error) {
       console.error('Error approving transfer request:', error);
@@ -138,7 +138,7 @@ class MassCoinService {
 
   async rejectTransferRequest(requestId: number, recipientId: number): Promise<void> {
     try {
-      await client.post(`/api/masscoin/transfer-request/${requestId}/reject?recipientId=${recipientId}`);
+      await client.post(`/masscoin/transfer-request/${requestId}/reject?recipientId=${recipientId}`);
     } catch (error) {
       console.error('Error rejecting transfer request:', error);
       throw error;
@@ -148,7 +148,7 @@ class MassCoinService {
   // Get transfer requests
   async getTransferRequests(userId: number): Promise<TransferRequestInfo[]> {
     try {
-      const response = await client.get(`/api/masscoin/transfer-requests?userId=${userId}`);
+      const response = await client.get(`/masscoin/transfer-requests?userId=${userId}`);
       return response.data;
     } catch (error: any) {
       // Don't log 404 errors to console to reduce noise
@@ -163,7 +163,7 @@ class MassCoinService {
 
   async getPendingTransferRequestsCount(userId: number): Promise<number> {
     try {
-      const response = await client.get(`/api/masscoin/transfer-requests/pending-count?userId=${userId}`);
+      const response = await client.get(`/masscoin/transfer-requests/pending-count?userId=${userId}`);
       return response.data.count;
     } catch (error) {
       console.error('Error fetching pending transfer requests count:', error);
@@ -174,7 +174,7 @@ class MassCoinService {
   // Direct transfer operations
   async transferMass(senderId: number, request: TransferRequest): Promise<TransactionInfo> {
     try {
-      const response = await client.post(`/api/masscoin/transfer?senderId=${senderId}`, request);
+      const response = await client.post(`/masscoin/transfer?senderId=${senderId}`, request);
       return response.data;
     } catch (error) {
       console.error('Error transferring mass coins:', error);
@@ -194,7 +194,7 @@ class MassCoinService {
         params.append('description', description);
       }
       
-      const response = await client.post(`/api/masscoin/tip?${params.toString()}`);
+      const response = await client.post(`/masscoin/tip?${params.toString()}`);
       return response.data;
     } catch (error) {
       console.error('Error tipping creator:', error);
@@ -205,7 +205,7 @@ class MassCoinService {
   // Reward operations
   async rewardUser(userId: number, amount: number, reason: string): Promise<TransactionInfo> {
     try {
-      const response = await client.post(`/api/masscoin/reward?userId=${userId}&amount=${amount}&reason=${encodeURIComponent(reason)}`);
+      const response = await client.post(`/masscoin/reward?userId=${userId}&amount=${amount}&reason=${encodeURIComponent(reason)}`);
       return response.data;
     } catch (error) {
       console.error('Error rewarding user:', error);
@@ -216,7 +216,7 @@ class MassCoinService {
   // Staking operations
   async stakeMass(userId: number, amount: number): Promise<WalletInfo> {
     try {
-      const response = await client.post(`/api/masscoin/stake?userId=${userId}&amount=${amount}`);
+      const response = await client.post(`/masscoin/stake?userId=${userId}&amount=${amount}`);
       return response.data;
     } catch (error) {
       console.error('Error staking mass coins:', error);
@@ -226,7 +226,7 @@ class MassCoinService {
 
   async unstakeMass(userId: number, amount: number): Promise<WalletInfo> {
     try {
-      const response = await client.post(`/api/masscoin/unstake?userId=${userId}&amount=${amount}`);
+      const response = await client.post(`/masscoin/unstake?userId=${userId}&amount=${amount}`);
       return response.data;
     } catch (error) {
       console.error('Error unstaking mass coins:', error);
@@ -237,7 +237,7 @@ class MassCoinService {
   // Transaction operations
   async getUserTransactions(userId: number, page: number = 0, size: number = 10): Promise<{ content: TransactionInfo[]; last: boolean; totalElements: number }> {
     try {
-      const response = await client.get(`/api/masscoin/transactions?userId=${userId}&page=${page}&size=${size}`);
+      const response = await client.get(`/masscoin/transactions?userId=${userId}&page=${page}&size=${size}`);
       return response.data;
     } catch (error: any) {
       // Don't log 404 errors to console to reduce noise
@@ -261,7 +261,7 @@ class MassCoinService {
   // Health check
   async healthCheck(): Promise<{ status: string; service: string }> {
     try {
-      const response = await client.get('/api/masscoin/health');
+      const response = await client.get('/masscoin/health');
       return response.data;
     } catch (error) {
       console.error('Error checking mass coin service health:', error);
@@ -272,7 +272,7 @@ class MassCoinService {
   // User search
   async searchUsers(query: string, currentUserId: number): Promise<UserSearchResult[]> {
     try {
-      const response = await client.get(`/api/masscoin/search-users?query=${encodeURIComponent(query)}&currentUserId=${currentUserId}`);
+      const response = await client.get(`/masscoin/search-users?query=${encodeURIComponent(query)}&currentUserId=${currentUserId}`);
       return response.data;
     } catch (error: any) {
       // Don't log 404 errors to console to reduce noise
@@ -288,7 +288,7 @@ class MassCoinService {
   // Get user statistics
   async getUserStats(userId: number): Promise<UserStats> {
     try {
-      const response = await client.get(`/api/masscoin/user-stats?userId=${userId}`);
+      const response = await client.get(`/masscoin/user-stats?userId=${userId}`);
       return response.data;
     } catch (error: any) {
       // Don't log 404 errors to console to reduce noise

@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { fetchNotifications, markNotificationRead, Notification, acceptFriendRequest, deleteFriendRequest, deleteNotification } from '../lib/services/userService';
+import { fetchNotifications, markNotificationRead, markMultipleNotificationsRead, markAllNotificationsRead, deleteMultipleNotifications, Notification, acceptFriendRequest, deleteFriendRequest, deleteNotification } from '../lib/services/userService';
 import client from '../api/client';
 import { getWebSocketUrl } from '../api/client';
 import { Client } from '@stomp/stompjs';
@@ -24,6 +24,7 @@ import SockJS from 'sockjs-client';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useNotification } from '../context/NotificationContext';
 import ModernHeader from '../../components/ModernHeader';
+import notificationService from '../lib/services/notificationService';
 
 // Modern Color Palette
 const COLORS = {
@@ -90,12 +91,13 @@ export default function Notifications() {
   const { currentTheme } = useTheme();
   const colors = COLORS[currentTheme === 'dark' ? 'dark' : 'light'];
   const currentColors = colors;
-  const styles = getStyles(currentColors);
+  const styles = getStyles(currentColors, currentTheme);
   const [notifications, setNotifications] = React.useState<Notification[]>([]);
   const [loading, setLoading] = React.useState(true);
   const { user } = useAuth();
   const { showBanner } = useNotification();
   const [refreshing, setRefreshing] = React.useState(false);
+  const pulseAnimation = React.useRef(new Animated.Value(1)).current;
 
   React.useEffect(() => {
     if (!user?.id) return;
@@ -111,23 +113,107 @@ export default function Notifications() {
       debug: str => console.log(str),
       onConnect: () => {
         client.subscribe(`/user/${user.id}/queue/notifications`, message => {
-          const notif = JSON.parse(message.body);
-          const newNotification = {
-            id: notif.id?.toString() || `${Date.now()}`,
-            message: notif.message,
-            read: false,
-            createdAt: notif.createdAt || new Date().toISOString(),
-          };
-          setNotifications(prev => [newNotification, ...prev]);
+          const notificationData = JSON.parse(message.body);
+          console.log('Received notification update:', notificationData);
           
-          // Show banner for new notifications
-          showBanner(notif.message);
+          switch (notificationData.type) {
+            case 'NEW_NOTIFICATION':
+              const newNotification = {
+                id: notificationData.id?.toString() || `${Date.now()}`,
+                message: notificationData.message,
+                read: false,
+                createdAt: notificationData.createdAt || new Date().toISOString(),
+              };
+              setNotifications(prev => [newNotification, ...prev]);
+              
+              // Show device notification
+              notificationService.scheduleLocalNotification({
+                id: newNotification.id,
+                title: notificationData.title || 'New Notification',
+                body: notificationData.message,
+                data: { notificationId: newNotification.id }
+              });
+              
+              // Show banner for new notifications
+              showBanner(notificationData.message);
+              break;
+              
+            case 'NOTIFICATION_READ':
+              setNotifications(prev => prev.map(n => 
+                n.id === notificationData.id?.toString() 
+                  ? { ...n, read: true } 
+                  : n
+              ));
+              break;
+              
+            case 'BULK_NOTIFICATIONS_READ':
+              setNotifications(prev => prev.map(n => 
+                notificationData.notificationIds?.includes(parseInt(n.id))
+                  ? { ...n, read: true }
+                  : n
+              ));
+              break;
+              
+            case 'ALL_NOTIFICATIONS_READ':
+              setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+              break;
+              
+            case 'NOTIFICATION_DELETED':
+              setNotifications(prev => prev.filter(n => n.id !== notificationData.id?.toString()));
+              break;
+              
+            case 'BULK_NOTIFICATIONS_DELETED':
+              setNotifications(prev => prev.filter(n => 
+                !notificationData.notificationIds?.includes(parseInt(n.id))
+              ));
+              break;
+          }
         });
       },
     });
     client.activate();
     return () => { client.deactivate(); };
   }, [user?.id]);
+
+  // Initialize device notifications
+  React.useEffect(() => {
+    notificationService.registerForPushNotificationsAsync();
+    
+    // Listen for notification responses (when user taps notification)
+    const responseListener = notificationService.addNotificationResponseReceivedListener(response => {
+      const notificationId = response.notification.request.content.data?.notificationId;
+      if (notificationId) {
+        handleMarkRead(notificationId);
+      }
+    });
+
+    return () => {
+      responseListener?.remove();
+    };
+  }, []);
+
+  // Pulse animation for unread notifications
+  React.useEffect(() => {
+    const hasUnread = notifications.some(n => !n.read);
+    if (hasUnread) {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnimation, {
+            toValue: 1.05,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnimation, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      pulse.start();
+      return () => pulse.stop();
+    }
+  }, [notifications, pulseAnimation]);
 
   const handleMarkRead = async (notificationId: string) => {
     await markNotificationRead(notificationId);
@@ -152,10 +238,12 @@ export default function Notifications() {
   };
 
   const handleMarkAllRead = async () => {
-    for (const n of notifications.filter(n => !n.read)) {
-      await markNotificationRead(n.id);
+    try {
+      await markAllNotificationsRead(user.id);
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
     }
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
   const renderRightActions = (notificationId: string) => (
@@ -237,11 +325,32 @@ export default function Notifications() {
         {loading ? (
           <View style={{ padding: 24 }}>
             {[...Array(4)].map((_, i) => (
-              <View key={i} style={[styles.card, { opacity: 0.5, backgroundColor: '#e4e6eb', marginBottom: 16 }]} />
+              <View key={i} style={[
+                styles.card, 
+                { 
+                  opacity: 0.6, 
+                  backgroundColor: currentTheme === 'dark' ? '#3A3A4E' : '#F0F0F0',
+                  marginBottom: 16,
+                  height: 80,
+                  borderRadius: 16,
+                  shadowOpacity: 0.05,
+                }
+              ]} />
             ))}
           </View>
         ) : notifications.length === 0 ? (
-          <Text style={{ textAlign: 'center', marginVertical: 24, color: currentColors.text }}>No notifications yet.</Text>
+          <View style={styles.emptyContainer}>
+            <LinearGradient
+              colors={[colors.primary, colors.secondary]}
+              style={styles.emptyIconContainer}
+            >
+              <Ionicons name="notifications-off" size={48} color="white" />
+            </LinearGradient>
+            <Text style={[styles.emptyTitle, { color: currentColors.text }]}>No notifications yet</Text>
+            <Text style={[styles.emptySubtitle, { color: currentColors.lightText }]}>
+              When you receive notifications, they'll appear here
+            </Text>
+          </View>
         ) : notifications.map((item) => (
           <Swipeable
             key={item.id}
@@ -251,7 +360,11 @@ export default function Notifications() {
             <Animated.View style={[
               styles.card,
               !item.read && styles.unreadCard,
-              { borderLeftWidth: 4, borderLeftColor: !item.read ? colors.accent : 'transparent' }
+              { 
+                borderLeftWidth: 4, 
+                borderLeftColor: !item.read ? colors.accent : 'transparent',
+                transform: !item.read ? [{ scale: pulseAnimation }] : []
+              }
             ]}>
               <TouchableOpacity style={{ flex: 1 }} onPress={() => handleMarkRead(item.id)}>
                 <View style={styles.row}>
@@ -280,6 +393,13 @@ export default function Notifications() {
                       >
                         <Ionicons name="chatbubble" size={20} color="white" />
                       </LinearGradient>
+                    ) : item.message?.toLowerCase().includes('masscoin') || item.message?.toLowerCase().includes('token') ? (
+                      <LinearGradient
+                        colors={['#FFD700', '#FFA500']}
+                        style={styles.iconGradient}
+                      >
+                        <Ionicons name="diamond" size={20} color="white" />
+                      </LinearGradient>
                     ) : (
                       <LinearGradient
                         colors={[colors.success, '#4CC9F0']}
@@ -290,8 +410,19 @@ export default function Notifications() {
                     )}
                   </View>
                   <View style={styles.notificationContent}>
-                    <Text style={[styles.messageText, !item.read && styles.bold]}>{item.message}</Text>
-                    <Text style={styles.time}>{formatTimeAgo(new Date(item.createdAt))}</Text>
+                    <Text style={[
+                      styles.messageText, 
+                      !item.read && styles.bold,
+                      { color: currentTheme === 'dark' ? '#FFFFFF' : '#1A1A1A' }
+                    ]}>
+                      {item.message}
+                    </Text>
+                    <Text style={[
+                      styles.time,
+                      { color: currentTheme === 'dark' ? '#B0B0B0' : '#666666' }
+                    ]}>
+                      {formatTimeAgo(new Date(item.createdAt))}
+                    </Text>
                     {/* Friend request actions */}
                     {item.message?.toLowerCase().includes('friend request') && !item.read && (
                       <View style={styles.actionButtons}>
@@ -334,10 +465,10 @@ export default function Notifications() {
   );
 }
 
-const getStyles = (currentColors: any) => StyleSheet.create({
+const getStyles = (currentColors: any, currentTheme: string) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.light.background,
+    backgroundColor: currentColors.background,
   },
   header: {
     flexDirection: "row",
@@ -389,14 +520,14 @@ const getStyles = (currentColors: any) => StyleSheet.create({
   notificationsHeader: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: COLORS.light.card,
+    backgroundColor: currentColors.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: currentColors.border,
   },
   notificationsTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: COLORS.light.text,
+    color: currentColors.text,
   },
   iconBtn: {
     width: 36,
@@ -421,7 +552,7 @@ const getStyles = (currentColors: any) => StyleSheet.create({
   },
   card: {
     backgroundColor: currentColors.card,
-    borderRadius: 12,
+    borderRadius: 16,
     marginHorizontal: 16,
     marginBottom: 12,
     padding: 16,
@@ -430,7 +561,7 @@ const getStyles = (currentColors: any) => StyleSheet.create({
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
     borderWidth: 1,
@@ -447,8 +578,13 @@ const getStyles = (currentColors: any) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
-    backgroundColor: COLORS.light.background,
+    backgroundColor: currentColors.background,
     overflow: 'hidden',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   avatar: {
     width: '100%',
@@ -459,20 +595,22 @@ const getStyles = (currentColors: any) => StyleSheet.create({
     color: currentColors.text,
     marginBottom: 4,
     lineHeight: 20,
+    fontWeight: '500',
   },
   bold: {
-    fontWeight: "bold",
+    fontWeight: "700",
     color: currentColors.text,
   },
   mutual: {
     fontSize: 13,
-    color: COLORS.light.lightText,
+    color: currentColors.lightText,
     marginBottom: 4,
   },
   time: {
     fontSize: 12,
     color: currentColors.lightText,
     marginTop: 4,
+    fontWeight: '400',
   },
   actionsRow: {
     flexDirection: "row",
@@ -486,20 +624,20 @@ const getStyles = (currentColors: any) => StyleSheet.create({
     paddingHorizontal: 16,
   },
   primaryAction: {
-    backgroundColor: COLORS.light.primary,
+    backgroundColor: currentColors.primary,
   },
   secondaryAction: {
-    backgroundColor: '#e4e6eb',
+    backgroundColor: currentColors.background,
   },
   actionText: {
     fontSize: 15,
     fontWeight: "bold",
   },
   primaryText: {
-    color: COLORS.light.white,
+    color: currentColors.white,
   },
   secondaryText: {
-    color: COLORS.light.text,
+    color: currentColors.text,
   },
   markAllBtn: {
     borderRadius: 8,
@@ -508,43 +646,56 @@ const getStyles = (currentColors: any) => StyleSheet.create({
     marginLeft: 12,
   },
   markAllText: {
-    color: COLORS.light.white,
+    color: currentColors.white,
     fontWeight: 'bold',
     fontSize: 14,
     marginLeft: 4,
   },
   unreadCard: {
-    shadowColor: COLORS.light.accent,
-    shadowOpacity: 0.15,
+    shadowColor: currentColors.accent,
+    shadowOpacity: 0.2,
     shadowRadius: 12,
-    elevation: 4,
-    backgroundColor: '#FFF8E1',
-    borderColor: COLORS.light.accent,
+    elevation: 6,
+    backgroundColor: currentColors.theme === 'dark' ? '#2A2A3E' : '#FFF8F0',
+    borderColor: currentColors.accent,
+    borderWidth: 1.5,
+    transform: [{ scale: 1.02 }],
   },
   statsContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: COLORS.light.card,
+    paddingVertical: 16,
+    backgroundColor: currentColors.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: currentColors.border,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   statItem: {
     alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: currentColors.background,
+    minWidth: 80,
   },
   statNumber: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: COLORS.light.primary,
+    color: currentColors.primary,
   },
   statLabel: {
     fontSize: 14,
-    color: COLORS.light.lightText,
+    color: currentColors.lightText,
     marginTop: 4,
+    fontWeight: '500',
   },
   markAllGradient: {
     flexDirection: 'row',
@@ -555,7 +706,9 @@ const getStyles = (currentColors: any) => StyleSheet.create({
     paddingHorizontal: 12,
   },
   unreadAvatar: {
-    backgroundColor: '#f0f0f0', // Slightly lighter background for unread
+    backgroundColor: currentColors.theme === 'dark' ? '#3A3A4E' : '#FFF0E0',
+    borderWidth: 2,
+    borderColor: currentColors.accent,
   },
   iconGradient: {
     width: 40,
@@ -563,47 +716,99 @@ const getStyles = (currentColors: any) => StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   notificationContent: {
     flex: 1,
+    paddingRight: 8,
   },
   actionButtons: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 8,
+    marginTop: 12,
   },
   confirmBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 6,
+    borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   declineBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 6,
+    borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   actionGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 6,
+    borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 16,
   },
   unreadDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     marginLeft: 8,
+    shadowColor: currentColors.accent,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 2,
   },
   dotGradient: {
     flex: 1,
-    borderRadius: 5,
+    borderRadius: 6,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 32,
+  },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 22,
+    opacity: 0.8,
   },
 });

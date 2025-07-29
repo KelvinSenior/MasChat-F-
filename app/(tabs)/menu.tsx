@@ -132,7 +132,17 @@ export default function Menu() {
 
   const menuOptions = [
     { label: "Friends", icon: <MaterialIcons name="people" size={24} color={colors.primary} /> },
-    { label: "Mass Coin", icon: <MaterialIcons name="monetization-on" size={24} color="#FFD700" /> },
+    { 
+      label: "Mass Coin", 
+      icon: (
+        <LinearGradient
+          colors={['#FFD700', '#FFA500']}
+          style={{ width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center' }}
+        >
+          <Ionicons name="diamond" size={16} color="white" />
+        </LinearGradient>
+      ) 
+    },
     { label: "Dashboard", icon: <MaterialCommunityIcons name="view-dashboard" size={24} color={colors.primary} /> },
     { label: "Memories", icon: <MaterialIcons name="history" size={24} color={colors.primary} /> },
     { label: "Feeds", icon: <MaterialCommunityIcons name="rss" size={24} color={colors.primary} /> },

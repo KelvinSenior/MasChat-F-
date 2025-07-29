@@ -12,6 +12,7 @@ import { fetchStories, Story } from '../lib/services/storyService';
 import CommentDialog from '../components/CommentDialog';
 import MassCoinTipButton from '../../components/MassCoinTipButton';
 import MassCoinIcon from '../../components/MassCoinIcon';
+import { useFocusEffect } from '@react-navigation/native';
 
 
 // Modern Color Palette
@@ -121,6 +122,14 @@ export default function HomeScreen() {
     fetchAllStories();
   }, []);
  
+  // Refresh data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchPosts();
+      fetchAllStories();
+    }, [])
+  );
+ 
   // Cleanup timers on unmount
   useEffect(() => {
     return () => {
@@ -185,12 +194,26 @@ export default function HomeScreen() {
       Alert.alert('Error', 'User not found');
       return;
     }
-    try {
-      await deletePost(postId, user.id);
-      removePost(postId);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to delete post');
-    }
+    
+    Alert.alert(
+      'Delete Post',
+      'Are you sure you want to delete this post? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive', 
+          onPress: async () => {
+            try {
+              await deletePost(postId, user.id);
+              removePost(postId);
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete post');
+            }
+          }
+        },
+      ]
+    );
   };
 
   const handleLikePost = async (post: Post) => {

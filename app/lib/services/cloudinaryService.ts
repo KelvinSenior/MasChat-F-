@@ -9,7 +9,7 @@ const CLOUDINARY_CONFIG = {
 
 /**
  * Upload image to Cloudinary
- * @param imageUri - Local URI of the image
+ * @param imageUri - Local URI of the image or remote URL
  * @param folder - Optional folder name in Cloudinary
  * @returns Promise<string> - Cloudinary URL of uploaded image
  */
@@ -22,7 +22,61 @@ export const uploadImageToCloudinary = async (
     console.log('Image URI:', imageUri);
     console.log('Folder:', folder);
     
-    // Validate the file first
+    // Handle remote URLs (like AI-generated images)
+    if (imageUri.startsWith('http://') || imageUri.startsWith('https://')) {
+      console.log('Remote URL detected, using Cloudinary remote URL upload');
+      
+      // Use Cloudinary's remote URL upload
+      const formData = new FormData();
+      formData.append('file', imageUri);
+      formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
+      formData.append('folder', folder);
+
+      console.log('Uploading remote URL to Cloudinary with:', {
+        cloudName: CLOUDINARY_CONFIG.cloudName,
+        uploadPreset: CLOUDINARY_CONFIG.uploadPreset,
+        folder: folder,
+        imageUri: imageUri
+      });
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/image/upload`,
+        {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Accept': 'application/json',
+          },
+        }
+      );
+
+      console.log('Cloudinary response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Cloudinary response error:', errorText);
+        console.error('Response status:', response.status);
+        
+        // Try to parse error for better debugging
+        try {
+          const errorJson = JSON.parse(errorText);
+          console.error('Parsed error:', errorJson);
+          if (errorJson.error?.message) {
+            throw new Error(`Cloudinary upload failed: ${errorJson.error.message}`);
+          }
+        } catch (parseError) {
+          // If we can't parse the error, use the raw text
+        }
+        
+        throw new Error(`Upload failed: ${response.status} - ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('Cloudinary upload successful:', result.secure_url);
+      return result.secure_url;
+    }
+    
+    // Handle local files (existing logic)
     const isValid = await validateFileForUpload(imageUri, 'image');
     if (!isValid) {
       throw new Error('Invalid image file. Please choose a valid image format (JPEG, PNG, GIF, WebP).');
@@ -308,10 +362,16 @@ export const validateFileForUpload = async (
       return false;
     }
     
-    // Check file extension
+    // Handle remote URLs (like AI-generated images)
+    if (fileUri.startsWith('http://') || fileUri.startsWith('https://')) {
+      console.log('Remote URL detected, skipping local file validation');
+      return true; // Remote URLs are assumed to be valid
+    }
+    
+    // Check file extension for local files
     const fileExtension = fileUri.split('.').pop()?.toLowerCase();
     if (!fileExtension) {
-      console.error('No file extension found');
+      console.error('No file extension found for local file');
       return false;
     }
     

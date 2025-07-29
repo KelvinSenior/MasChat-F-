@@ -43,6 +43,16 @@ export default function NewReel() {
   const [isLoading, setIsLoading] = useState(false);
   const [mediaType, setMediaType] = useState<'image' | 'video' | 'audio' | null>(null);
 
+  // Handle AI-generated image from router params
+  React.useEffect(() => {
+    const params = router.params as any;
+    if (params?.aiImage) {
+      console.log('AI image received from router:', params.aiImage);
+      setVideo(params.aiImage);
+      setMediaType('image');
+    }
+  }, [router.params]);
+
   const pickMedia = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.All,

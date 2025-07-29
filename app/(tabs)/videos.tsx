@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Dimensions, AppState, Share } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Dimensions, AppState, Share, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialIcons, Feather, FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -64,6 +64,12 @@ export default function Videos() {
   const videoRefs = useRef<any[]>([]);
   const appState = useRef(AppState.currentState);
   const [videoLoading, setVideoLoading] = useState<{ [key: number]: boolean }>({});
+  
+  // Double tap like functionality
+  const lastTap = useRef<{ reelId: string; time: number } | null>(null);
+  const doubleTapTimer = useRef<NodeJS.Timeout | null>(null);
+  const [doubleTapHeart, setDoubleTapHeart] = useState<{ reelId: string; visible: boolean } | null>(null);
+  const heartAnimation = useRef(new Animated.Value(0)).current;
 
   const testReelsEndpoint = async () => {
     try {
@@ -80,6 +86,13 @@ export default function Videos() {
     // Test the endpoint to see what's in the database
     testReelsEndpoint();
   }, []);
+
+  // Refresh reels when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchAllReels();
+    }, [])
+  );
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', handleAppStateChange);
@@ -240,6 +253,61 @@ export default function Videos() {
     });
   };
 
+  const handleReelTap = (reel: Reel) => {
+    if (!user) return;
+    
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 250; // 250ms for double tap (more responsive)
+    
+    if (lastTap.current && 
+        lastTap.current.reelId === reel.id && 
+        now - lastTap.current.time < DOUBLE_TAP_DELAY) {
+      // Double tap detected
+      if (doubleTapTimer.current) {
+        clearTimeout(doubleTapTimer.current);
+      }
+      lastTap.current = null;
+      
+      // Set the heart animation for this reel
+      setDoubleTapHeart({ reelId: reel.id, visible: true });
+      
+      // Animate the heart
+      heartAnimation.setValue(0);
+      Animated.sequence([
+        Animated.timing(heartAnimation, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(heartAnimation, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setDoubleTapHeart(null);
+      });
+      
+      // Like the reel if not already liked
+      const alreadyLiked = (optimisticLikes[reel.id] || reel.likedBy || []).includes(String(user.id));
+      if (!alreadyLiked) {
+        handleLikeReel(reel);
+      }
+    } else {
+      // Single tap - pause/play video
+      const currentIndex = reels.findIndex(r => r.id === reel.id);
+      if (currentIndex !== -1) {
+        handleVideoPress(currentIndex);
+      }
+      
+      // Set up for potential double tap
+      lastTap.current = { reelId: reel.id, time: now };
+      doubleTapTimer.current = setTimeout(() => {
+        lastTap.current = null;
+      }, DOUBLE_TAP_DELAY);
+    }
+  };
+
   const handleMuteToggle = () => {
     setMuted((prev) => {
       const newMuted = !prev;
@@ -313,7 +381,7 @@ export default function Videos() {
               <TouchableOpacity
                 activeOpacity={1}
                 style={styles.mediaContainer}
-                onPress={() => handleVideoPress(index)}
+                onPress={() => handleReelTap(reel)}
               >
                 {(() => {
                   const mediaUrl = getReelMediaUrl(reel);
@@ -390,11 +458,40 @@ export default function Videos() {
                   const mediaUrl = getReelMediaUrl(reel);
                   const isVideo = mediaUrl.match(/\.(mp4|mov|avi|wmv|flv|webm|mkv)$/i);
                   return isVideo ? (
-                    <TouchableOpacity style={styles.muteBtn} onPress={handleMuteToggle}>
-                      <Ionicons name={muted ? 'volume-mute' : 'volume-high'} size={28} color="#fff" />
+                    <TouchableOpacity
+                      style={styles.muteButton}
+                      onPress={handleMuteToggle}
+                    >
+                      <Ionicons 
+                        name={muted ? "volume-mute" : "volume-high"} 
+                        size={24} 
+                        color="#fff" 
+                      />
                     </TouchableOpacity>
                   ) : null;
                 })()}
+                
+                {/* Double-tap heart animation */}
+                {doubleTapHeart?.reelId === reel.id && doubleTapHeart.visible && (
+                  <Animated.View
+                    style={[
+                      styles.doubleTapHeart,
+                      {
+                        opacity: heartAnimation,
+                        transform: [
+                          {
+                            scale: heartAnimation.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0.3, 1.5],
+                            }),
+                          },
+                        ],
+                      },
+                    ]}
+                  >
+                    <Ionicons name="heart" size={80} color="#FF3040" />
+                  </Animated.View>
+                )}
               </TouchableOpacity>
 
               {/* Bottom Info Section */}
@@ -436,15 +533,6 @@ export default function Videos() {
                   </Text>
                 </TouchableOpacity>
 
-                {/* Comment Button */}
-                <TouchableOpacity 
-                  onPress={() => setCommentModalReel(reel)} 
-                  style={styles.actionButton}
-                >
-                  <Ionicons name="chatbubble-outline" size={34} color="#fff" />
-                  <Text style={[styles.actionCount, { color: '#fff' }]}>{reel.comments ? reel.comments.length : 0}</Text>
-                </TouchableOpacity>
-
                 {/* Mass Coin Tip Button */}
                 {user && user.id !== reel.userId && (
                   <View style={styles.actionButton}>
@@ -457,6 +545,15 @@ export default function Videos() {
                     />
                   </View>
                 )}
+
+                {/* Comment Button */}
+                <TouchableOpacity 
+                  onPress={() => setCommentModalReel(reel)} 
+                  style={styles.actionButton}
+                >
+                  <Ionicons name="chatbubble-outline" size={34} color="#fff" />
+                  <Text style={[styles.actionCount, { color: '#fff' }]}>{reel.comments ? reel.comments.length : 0}</Text>
+                </TouchableOpacity>
 
                 {/* Share Button */}
                 <TouchableOpacity 
@@ -682,5 +779,21 @@ const styles = StyleSheet.create({
   },
   massCoinButton: {
     marginTop: 0, // Adjust as needed to position it correctly
+  },
+  muteButton: {
+    position: 'absolute',
+    right: 15,
+    bottom: 95, // Adjust position to be above the double-tap heart
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    padding: 8,
+    zIndex: 20,
+  },
+  doubleTapHeart: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -40 }, { translateY: -40 }], // Center the heart
+    zIndex: 10,
   },
 });
