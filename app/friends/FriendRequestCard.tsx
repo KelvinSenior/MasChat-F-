@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
-import client, { BASE_URL } from '../api/client';
+import client from '../api/client';
+import { friendService } from '../lib/services/friendService';
 
 // Color Palette (matching home screen)
 const COLORS = {
@@ -41,19 +42,35 @@ export default function FriendRequestCard({ request, onAccepted }: Props) {
   const { user } = useAuth();
   const router = useRouter();
 
-  const handleAccept = () => {
-    client.post(`/friends/accept/${request.id}`)
-      .then(() => {
-        setAccepted(true);
-        if (onAccepted) onAccepted();
-      })
-      .catch(error => console.error('Error accepting friend request:', error));
+  const handleAccept = async () => {
+    try {
+      await client.post(`/friends/accept/${request.id}`);
+      setAccepted(true);
+      if (onAccepted) onAccepted();
+    } catch (error) {
+      console.error('Error accepting friend request:', error);
+      Alert.alert('Error', 'Failed to accept friend request. Please try again.');
+    }
   };
 
-  const handleDelete = () => {
-    client.delete(`/friends/request/${request.id}`)
-      .then(() => setDeleted(true))
-      .catch(error => console.error('Error deleting friend request:', error));
+  const handleDelete = async () => {
+    try {
+      await client.delete(`/friends/request/${request.id}`);
+      setDeleted(true);
+    } catch (error) {
+      console.error('Error deleting friend request:', error);
+      Alert.alert('Error', 'Failed to delete friend request. Please try again.');
+    }
+  };
+
+  const handleCancelRequest = async () => {
+    try {
+      await friendService.cancelFriendRequest(request.sender.id, request.receiver.id);
+      setDeleted(true);
+    } catch (error) {
+      console.error('Error cancelling friend request:', error);
+      Alert.alert('Error', 'Failed to cancel friend request. Please try again.');
+    }
   };
 
   const handleViewProfile = () => {
@@ -104,12 +121,22 @@ export default function FriendRequestCard({ request, onAccepted }: Props) {
         <TouchableOpacity style={styles.messageButton} onPress={handleMessage}>
           <Ionicons name="chatbubble-outline" size={20} color={COLORS.primary} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.acceptButton} onPress={handleAccept}>
-          <Ionicons name="checkmark" size={20} color="white" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-          <Ionicons name="close" size={20} color="white" />
-        </TouchableOpacity>
+        {request.sender.id === user?.id ? (
+          // User sent this request - show cancel button
+          <TouchableOpacity style={styles.cancelButton} onPress={handleCancelRequest}>
+            <Ionicons name="close" size={20} color="white" />
+          </TouchableOpacity>
+        ) : (
+          // User received this request - show accept/decline buttons
+          <>
+            <TouchableOpacity style={styles.acceptButton} onPress={handleAccept}>
+              <Ionicons name="checkmark" size={20} color="white" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+              <Ionicons name="close" size={20} color="white" />
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </View>
   );
@@ -172,6 +199,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
   deleteButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#ff6b6b',
+  },
+  cancelButton: {
     padding: 8,
     borderRadius: 20,
     backgroundColor: '#ff6b6b',

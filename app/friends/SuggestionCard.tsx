@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
-import client, { BASE_URL } from '../api/client';
+import client from '../api/client';
+import { friendService } from '../lib/services/friendService';
 
 // Color Palette (matching home screen)
 const COLORS = {
@@ -31,16 +32,51 @@ export default function SuggestionCard({ suggestion }: Props) {
   const { user } = useAuth();
   const router = useRouter();
 
-  const handleSendRequest = () => {
-    if (!user?.id || user.id === suggestion.id) return;
-    client.post('/friends/request', null, {
-      params: {
-        senderId: user.id,
-        recipientId: suggestion.id
+  useEffect(() => {
+    const checkRequestStatus = async () => {
+      if (!user?.id || user.id === suggestion.id) return;
+      try {
+        const statusRes = await client.get(`/friends/status?senderId=${user.id}&receiverId=${suggestion.id}`);
+        if (statusRes.data.status === 'SENT') {
+          setSent(true);
+        } else {
+          setSent(false);
+        }
+      } catch (error) {
+        console.error('Error checking friend request status:', error);
+        setSent(false); // Assume not sent if there's an error
       }
-    })
-    .then(() => setSent(true))
-    .catch(error => console.error('Error sending friend request:', error));
+    };
+    checkRequestStatus();
+  }, [user?.id, suggestion.id]);
+
+  const handleSendRequest = async () => {
+    if (!user?.id || user.id === suggestion.id) return;
+    try {
+      await client.post('/friends/request', null, {
+        params: {
+          senderId: user.id,
+          recipientId: suggestion.id
+        }
+      });
+      setSent(true);
+      Alert.alert('Success', 'Friend request sent successfully!');
+    } catch (error) {
+      console.error('Error sending friend request:', error);
+      Alert.alert('Error', 'Failed to send friend request. Please try again.');
+    }
+  };
+
+  const handleCancelRequest = async () => {
+    if (!user?.id || user.id === suggestion.id) return;
+    try {
+      await friendService.cancelFriendRequest(user.id, suggestion.id);
+      setSent(false);
+      Alert.alert('Success', 'Friend request cancelled.');
+    } catch (error) {
+      console.error('Error cancelling friend request:', error);
+      Alert.alert('Error', 'Failed to cancel friend request. Please try again.');
+    }
   };
 
   const handleViewProfile = () => {
@@ -89,13 +125,22 @@ export default function SuggestionCard({ suggestion }: Props) {
         <TouchableOpacity style={styles.messageButton} onPress={handleMessage}>
           <Ionicons name="chatbubble-outline" size={20} color={COLORS.primary} />
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.addButton, sent && styles.sentButton]} 
-          onPress={handleSendRequest}
-          disabled={sent || user?.id === suggestion.id}
-        >
-          <Ionicons name={sent ? "checkmark" : "person-add"} size={20} color="white" />
-        </TouchableOpacity>
+        {!sent ? (
+          <TouchableOpacity 
+            style={[styles.addButton, sent && styles.sentButton]} 
+            onPress={handleSendRequest}
+            disabled={user?.id === suggestion.id}
+          >
+            <Ionicons name="person-add" size={20} color="white" />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity 
+            style={[styles.addButton, styles.cancelButton]} 
+            onPress={handleCancelRequest}
+          >
+            <Ionicons name="close" size={20} color="white" />
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -159,5 +204,8 @@ const styles = StyleSheet.create({
   },
   sentButton: {
     backgroundColor: '#22c55e',
+  },
+  cancelButton: {
+    backgroundColor: '#ef4444',
   },
 });

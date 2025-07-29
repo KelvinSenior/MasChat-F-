@@ -71,6 +71,16 @@ export const friendService = {
     }
   },
 
+  // Cancel friend request
+  async cancelFriendRequest(senderId: string, receiverId: string): Promise<void> {
+    try {
+      await client.delete(`/friends/cancel?senderId=${senderId}&receiverId=${receiverId}`);
+    } catch (error) {
+      console.error('Error cancelling friend request:', error);
+      throw error;
+    }
+  },
+
   // Get pending friend requests
   async getPendingRequests(userId: string): Promise<FriendRequest[]> {
     try {
@@ -79,6 +89,17 @@ export const friendService = {
     } catch (error) {
       console.error('Error getting pending requests:', error);
       return [];
+    }
+  },
+
+  // Check if friend request exists between two users
+  async checkFriendRequestStatus(senderId: string, receiverId: string): Promise<string> {
+    try {
+      const response = await client.get(`/friends/status?senderId=${senderId}&receiverId=${receiverId}`);
+      return response.data.status;
+    } catch (error) {
+      console.error('Error checking friend request status:', error);
+      return 'NONE';
     }
   },
 

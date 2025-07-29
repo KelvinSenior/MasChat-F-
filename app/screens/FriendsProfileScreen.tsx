@@ -84,13 +84,26 @@ export default function FriendsProfileScreen() {
 
   const fetchFriendStatus = async () => {
     if (!user || !targetUserId) return;
-    // Fetch friends
-    const friendsRes = await client.get(`/friends/list/${user.id}`);
-    setIsFriend(friendsRes.data.some((f: any) => f.id === targetUserId));
-    // Fetch pending requests
-    const pendingRes = await client.get(`/friends/pending/${user.id}`);
-    setPendingRequests(pendingRes.data);
-    setRequestSent(pendingRes.data.some((r: any) => r.sender.id === user.id && r.receiver.id === targetUserId));
+    try {
+      // Check friend request status
+      const statusRes = await client.get(`/friends/status?senderId=${user.id}&receiverId=${targetUserId}`);
+      const status = statusRes.data.status;
+      
+      setIsFriend(status === 'FRIENDS');
+      setRequestSent(status === 'SENT');
+      
+      // If status is RECEIVED, we should show accept/decline options
+      if (status === 'RECEIVED') {
+        // Fetch the specific request to get its ID
+        const pendingRes = await client.get(`/friends/pending/${user.id}`);
+        const receivedRequest = pendingRes.data.find((r: any) => r.sender.id === targetUserId);
+        if (receivedRequest) {
+          setPendingRequests([receivedRequest]);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching friend status:', error);
+    }
   };
 
   const handleFriendRequest = async () => {
@@ -102,7 +115,42 @@ export default function FriendsProfileScreen() {
       Alert.alert('Success', 'Friend request sent!');
     } catch (error) {
       console.error('Error sending friend request:', error);
-      Alert.alert('Error', 'Failed to send friend request');
+      Alert.alert('Error', 'Failed to send friend request. Please try again.');
+    }
+  };
+
+  const handleAcceptFriendRequest = async (requestId: string) => {
+    try {
+      await client.post(`/friends/accept/${requestId}`);
+      setIsFriend(true);
+      setPendingRequests([]);
+      Alert.alert('Success', 'Friend request accepted!');
+    } catch (error) {
+      console.error('Error accepting friend request:', error);
+      Alert.alert('Error', 'Failed to accept friend request. Please try again.');
+    }
+  };
+
+  const handleDeclineFriendRequest = async (requestId: string) => {
+    try {
+      await client.delete(`/friends/request/${requestId}`);
+      setPendingRequests([]);
+      Alert.alert('Success', 'Friend request declined.');
+    } catch (error) {
+      console.error('Error declining friend request:', error);
+      Alert.alert('Error', 'Failed to decline friend request. Please try again.');
+    }
+  };
+
+  const handleCancelFriendRequest = async () => {
+    if (!user?.id || !targetUserId) return;
+    try {
+      await friendService.cancelFriendRequest(user.id, targetUserId);
+      setRequestSent(false);
+      Alert.alert('Success', 'Friend request cancelled.');
+    } catch (error) {
+      console.error('Error cancelling friend request:', error);
+      Alert.alert('Error', 'Failed to cancel friend request. Please try again.');
     }
   };
 
@@ -414,8 +462,32 @@ export default function FriendsProfileScreen() {
           </View>
         )}
         {requestSent && (
-          <View style={{ backgroundColor: '#fbbf24', padding: 12, borderRadius: 8, marginVertical: 12, alignItems: 'center' }}>
-            <Text style={{ color: 'white', fontWeight: 'bold' }}>Request Sent</Text>
+          <View style={{ flexDirection: 'row', gap: 12, marginVertical: 12 }}>
+            <View style={{ flex: 1, backgroundColor: '#fbbf24', padding: 12, borderRadius: 8, alignItems: 'center' }}>
+              <Text style={{ color: 'white', fontWeight: 'bold' }}>Request Sent</Text>
+            </View>
+            <TouchableOpacity
+              style={{ flex: 1, backgroundColor: '#ff4444', padding: 12, borderRadius: 8, alignItems: 'center' }}
+              onPress={handleCancelFriendRequest}
+            >
+              <Text style={{ color: 'white', fontWeight: 'bold' }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        {pendingRequests.length > 0 && pendingRequests.some((r: any) => r.sender.id === targetUserId) && (
+          <View style={{ flexDirection: 'row', gap: 12, marginVertical: 12 }}>
+            <TouchableOpacity
+              style={{ flex: 1, backgroundColor: '#22c55e', padding: 12, borderRadius: 8, alignItems: 'center' }}
+              onPress={() => handleAcceptFriendRequest(pendingRequests.find((r: any) => r.sender.id === targetUserId)?.id || '')}
+            >
+              <Text style={{ color: 'white', fontWeight: 'bold' }}>Accept Request</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{ flex: 1, backgroundColor: '#ff4444', padding: 12, borderRadius: 8, alignItems: 'center' }}
+              onPress={() => handleDeclineFriendRequest(pendingRequests.find((r: any) => r.sender.id === targetUserId)?.id || '')}
+            >
+              <Text style={{ color: 'white', fontWeight: 'bold' }}>Decline</Text>
+            </TouchableOpacity>
           </View>
         )}
         {isFriend && (

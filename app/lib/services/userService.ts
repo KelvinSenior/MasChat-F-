@@ -145,8 +145,8 @@ export type Notification = {
 };
 
 export async function fetchNotifications(userId: string) {
-  const res = await client.get(`/notifications/${userId}`);
-  return res.data as Notification[];
+  const res = await client.get(`/notifications?userId=${userId}`);
+  return res.data.content as Notification[];
 }
 
 export async function markNotificationRead(notificationId: string) {
