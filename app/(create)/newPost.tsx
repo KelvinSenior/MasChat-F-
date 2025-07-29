@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { useAuth } from '../context/AuthContext';
 import { createPost } from '../lib/services/postService';
-import { uploadImageToCloudinary } from '../lib/services/cloudinaryService';
+import { uploadImageToCloudinary, uploadVideoToCloudinary } from '../lib/services/cloudinaryService';
 import { BlurView } from 'expo-blur';
 
 // Color Palette (matching home/friends screens)
@@ -57,6 +57,7 @@ export default function NewPost() {
   const [audio, setAudio] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
+  const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
 
   const pickMedia = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -66,9 +67,29 @@ export default function NewPost() {
     });
     if (!result.canceled) {
       const asset = result.assets[0];
-      if (asset.type === 'video') setVideo(asset.uri);
-      else if (asset.type === 'image') setImage(asset.uri);
-      // Remove audio handling since it's not supported in posts
+      console.log('Selected media asset:', asset);
+      console.log('Asset type:', asset.type);
+      console.log('Asset URI:', asset.uri);
+      
+      // Clear previous media
+      setImage(null);
+      setVideo(null);
+      setMediaType(null);
+      
+      if (asset.type === 'video' || asset.type === 'pairedVideo') {
+        setVideo(asset.uri);
+        setMediaType('video');
+        console.log('Set as video:', asset.uri);
+      } else if (asset.type === 'image' || asset.type === 'livePhoto') {
+        setImage(asset.uri);
+        setMediaType('image');
+        console.log('Set as image:', asset.uri);
+      } else {
+        // Default to image if type is unknown
+        setImage(asset.uri);
+        setMediaType('image');
+        console.log('Set as image (default):', asset.uri);
+      }
     }
   };
 
@@ -86,16 +107,20 @@ export default function NewPost() {
       let imageUrl = null;
       let videoUrl = null;
       
-      if (image) {
+      if (image && mediaType === 'image') {
         // Upload image to Cloudinary
         const folder = 'maschat/posts';
+        console.log('Uploading image to Cloudinary:', image);
         imageUrl = await uploadImageToCloudinary(image, folder);
+        console.log('Image uploaded successfully:', imageUrl);
       }
       
-      if (video) {
+      if (video && mediaType === 'video') {
         // Upload video to Cloudinary
         const folder = 'maschat/posts/videos';
-        videoUrl = await uploadImageToCloudinary(video, folder);
+        console.log('Uploading video to Cloudinary:', video);
+        videoUrl = await uploadVideoToCloudinary(video, folder);
+        console.log('Video uploaded successfully:', videoUrl);
       }
       
       await createPost({
@@ -105,6 +130,7 @@ export default function NewPost() {
       }, user.id);
       router.back();
     } catch (error) {
+      console.error('Error creating post:', error);
       Alert.alert("Error", "Failed to create post. Please try again.");
     } finally {
       setIsLoading(false);

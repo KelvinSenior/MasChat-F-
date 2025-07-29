@@ -6,7 +6,7 @@ import { Ionicons, MaterialIcons, Feather, FontAwesome } from '@expo/vector-icon
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { fetchReels, deleteReel, Reel, likeReel, unlikeReel, shareReel } from '../lib/services/reelService';
+import { fetchReels, deleteReel, Reel, likeReel, unlikeReel, shareReel, getReelMediaUrl, hasValidMedia } from '../lib/services/reelService';
 import { Video, ResizeMode } from 'expo-av';
 import CommentDialog from "../components/CommentDialog";
 import MenuModal from '../components/MenuModal';
@@ -314,57 +314,86 @@ export default function Videos() {
                 style={styles.mediaContainer}
                 onPress={() => handleVideoPress(index)}
               >
-                {reel.videoUrl && reel.videoUrl.startsWith('http') ? (
-                  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                    {videoLoading[index] && (
-                      <ActivityIndicator size="large" color="#fff" style={{ position: 'absolute', top: '50%', left: '50%', zIndex: 10 }} />
-                    )}
-                    <Video
-                      ref={ref => { videoRefs.current[index] = ref; return undefined; }}
-                      source={{ uri: reel.videoUrl }}
-                      style={styles.fullVideo}
-                      resizeMode={ResizeMode.COVER}
-                      shouldPlay={index === currentReelIndex && !paused}
-                      isLooping
-                      useNativeControls={false}
-                      isMuted={muted}
-                      rate={videoSpeed}
-                      onLoadStart={() => {
-                        console.log('Video loading started for reel:', reel.id, 'URL:', reel.videoUrl);
-                        setVideoLoading(v => ({ ...v, [index]: true }));
-                      }}
-                      onReadyForDisplay={() => {
-                        console.log('Video ready for display for reel:', reel.id);
-                        setVideoLoading(v => ({ ...v, [index]: false }));
-                      }}
-                      onError={error => {
-                        console.error('Video error for reel:', reel.id, 'URL:', reel.videoUrl, error);
-                        setVideoLoading(v => ({ ...v, [index]: false }));
-                      }}
-                    />
-                  </View>
-                ) : reel.mediaUrl && reel.mediaUrl.startsWith('http') ? (
-                  <Image 
-                    source={{ uri: reel.mediaUrl }} 
-                    style={styles.fullImage} 
-                    resizeMode="cover"
-                    onError={(error) => console.error('Image error for reel:', reel.id, 'URL:', reel.mediaUrl, error)}
-                  />
-                ) : (
-                  <View style={[styles.fullVideo, { backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }]}>
-                    <Ionicons name="videocam-off" size={48} color="#fff" />
-                    <Text style={{ color: '#fff', fontSize: 16, marginTop: 8 }}>Invalid media URL</Text>
-                    <Text style={{ color: '#fff', fontSize: 12, marginTop: 4, textAlign: 'center' }}>
-                      {reel.videoUrl || reel.mediaUrl || 'No URL provided'}
-                    </Text>
-                  </View>
-                )}
-                {/* Mute/Unmute Button */}
-                {reel.videoUrl && reel.videoUrl.startsWith('http') && (
-                  <TouchableOpacity style={styles.muteBtn} onPress={handleMuteToggle}>
-                    <Ionicons name={muted ? 'volume-mute' : 'volume-high'} size={28} color="#fff" />
-                  </TouchableOpacity>
-                )}
+                {(() => {
+                  const mediaUrl = getReelMediaUrl(reel);
+                  const isValidMedia = hasValidMedia(reel);
+                  
+                  console.log(`Rendering reel ${reel.id}:`, {
+                    mediaUrl,
+                    isValidMedia,
+                    originalVideoUrl: reel.videoUrl,
+                    originalMediaUrl: reel.mediaUrl
+                  });
+                  
+                  if (!isValidMedia) {
+                    return (
+                      <View style={[styles.fullVideo, { backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }]}>
+                        <Ionicons name="videocam-off" size={48} color="#fff" />
+                        <Text style={{ color: '#fff', fontSize: 16, marginTop: 8 }}>Invalid media URL</Text>
+                        <Text style={{ color: '#fff', fontSize: 12, marginTop: 4, textAlign: 'center' }}>
+                          {mediaUrl || 'No URL provided'}
+                        </Text>
+                      </View>
+                    );
+                  }
+                  
+                  // Determine if this is a video based on file extension
+                  const isVideo = mediaUrl.match(/\.(mp4|mov|avi|wmv|flv|webm|mkv)$/i);
+                  
+                  if (isVideo) {
+                    return (
+                      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                        {videoLoading[index] && (
+                          <ActivityIndicator size="large" color="#fff" style={{ position: 'absolute', top: '50%', left: '50%', zIndex: 10 }} />
+                        )}
+                        <Video
+                          ref={ref => { videoRefs.current[index] = ref; return undefined; }}
+                          source={{ uri: mediaUrl }}
+                          style={styles.fullVideo}
+                          resizeMode={ResizeMode.COVER}
+                          shouldPlay={index === currentReelIndex && !paused}
+                          isLooping
+                          useNativeControls={false}
+                          isMuted={muted}
+                          rate={videoSpeed}
+                          onLoadStart={() => {
+                            console.log('Video loading started for reel:', reel.id, 'URL:', mediaUrl);
+                            setVideoLoading(v => ({ ...v, [index]: true }));
+                          }}
+                          onReadyForDisplay={() => {
+                            console.log('Video ready for display for reel:', reel.id);
+                            setVideoLoading(v => ({ ...v, [index]: false }));
+                          }}
+                          onError={error => {
+                            console.error('Video error for reel:', reel.id, 'URL:', mediaUrl, error);
+                            setVideoLoading(v => ({ ...v, [index]: false }));
+                          }}
+                        />
+                      </View>
+                    );
+                  } else {
+                    // Assume it's an image
+                    return (
+                      <Image 
+                        source={{ uri: mediaUrl }} 
+                        style={styles.fullImage} 
+                        resizeMode="cover"
+                        onError={(error) => console.error('Image error for reel:', reel.id, 'URL:', mediaUrl, error)}
+                      />
+                    );
+                  }
+                })()}
+                
+                {/* Mute/Unmute Button - only show for videos */}
+                {(() => {
+                  const mediaUrl = getReelMediaUrl(reel);
+                  const isVideo = mediaUrl.match(/\.(mp4|mov|avi|wmv|flv|webm|mkv)$/i);
+                  return isVideo ? (
+                    <TouchableOpacity style={styles.muteBtn} onPress={handleMuteToggle}>
+                      <Ionicons name={muted ? 'volume-mute' : 'volume-high'} size={28} color="#fff" />
+                    </TouchableOpacity>
+                  ) : null;
+                })()}
               </TouchableOpacity>
 
               {/* Bottom Info Section */}

@@ -25,7 +25,7 @@ import { useAuth } from '../context/AuthContext';
 import { getUserProfile, updateProfile, uploadImage, UserProfile } from '../lib/services/userService';
 import client, { BASE_URL } from '../api/client';
 import ModernHeader from '../components/ModernHeader';
-import { testCloudinaryConnection } from '../lib/services/cloudinaryService';
+import { testCloudinaryConnection, testCloudinaryUploadPreset } from '../lib/services/cloudinaryService';
 
 // Color Palette (matching home screen)
 const COLORS = {
@@ -459,11 +459,23 @@ export default function EditProfile() {
   const testUpload = async () => {
     try {
       console.log('Testing Cloudinary connection...');
+      
+      // Test basic connection
       const isConnected = await testCloudinaryConnection();
-      if (isConnected) {
-        Alert.alert('Success', 'Cloudinary connection is working!');
+      console.log('Basic connection test result:', isConnected);
+      
+      // Test upload preset
+      const isPresetValid = await testCloudinaryUploadPreset();
+      console.log('Upload preset test result:', isPresetValid);
+      
+      if (isConnected && isPresetValid) {
+        Alert.alert('Success', 'Cloudinary connection and upload preset are working!');
+      } else if (isConnected && !isPresetValid) {
+        Alert.alert('Partial Success', 'Cloudinary connection works, but upload preset has issues. Check your Cloudinary configuration.');
+      } else if (!isConnected && isPresetValid) {
+        Alert.alert('Partial Success', 'Upload preset works, but connection has issues.');
       } else {
-        Alert.alert('Error', 'Cloudinary connection failed. Check console for details.');
+        Alert.alert('Error', 'Both Cloudinary connection and upload preset failed. Check console for details.');
       }
     } catch (error) {
       console.error('Test upload error:', error);

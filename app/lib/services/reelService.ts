@@ -6,8 +6,8 @@ export type Reel = {
   userId: string;
   username: string;
   profilePicture?: string;
-  mediaUrl: string;
-  videoUrl: string;
+  mediaUrl: string;  // Primary media field
+  videoUrl: string;  // For backward compatibility
   caption?: string;
   createdAt: string;
   likedBy?: string[];
@@ -15,6 +15,18 @@ export type Reel = {
   commentCount?: number;
   shareCount?: number;
   comments?: ReelComment[];
+};
+
+// Helper function to get the media URL from a reel
+export const getReelMediaUrl = (reel: Reel): string => {
+  // Prefer mediaUrl, fallback to videoUrl for backward compatibility
+  return reel.mediaUrl || reel.videoUrl || '';
+};
+
+// Helper function to check if a reel has valid media
+export const hasValidMedia = (reel: Reel): boolean => {
+  const mediaUrl = getReelMediaUrl(reel);
+  return Boolean(mediaUrl && mediaUrl.startsWith('http'));
 };
 
 export type ReelComment = {

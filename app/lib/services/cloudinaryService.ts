@@ -22,12 +22,26 @@ export const uploadImageToCloudinary = async (
     console.log('Image URI:', imageUri);
     console.log('Folder:', folder);
     
+    // Validate the file first
+    const isValid = await validateFileForUpload(imageUri, 'image');
+    if (!isValid) {
+      throw new Error('Invalid image file. Please choose a valid image format (JPEG, PNG, GIF, WebP).');
+    }
+    
+    // Determine file type from URI
+    const fileExtension = imageUri.split('.').pop()?.toLowerCase() || 'jpg';
+    const mimeType = fileExtension === 'png' ? 'image/png' : 
+                    fileExtension === 'gif' ? 'image/gif' : 
+                    fileExtension === 'webp' ? 'image/webp' : 'image/jpeg';
+    
+    console.log('Detected file type:', mimeType);
+    
     // Create form data
     const formData = new FormData();
     formData.append('file', {
       uri: imageUri,
-      type: 'image/jpeg',
-      name: 'image.jpg',
+      type: mimeType,
+      name: `image.${fileExtension}`,
     } as any);
     formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
     formData.append('folder', folder);
@@ -36,7 +50,8 @@ export const uploadImageToCloudinary = async (
       cloudName: CLOUDINARY_CONFIG.cloudName,
       uploadPreset: CLOUDINARY_CONFIG.uploadPreset,
       folder: folder,
-      imageUri: imageUri
+      imageUri: imageUri,
+      mimeType: mimeType
     });
 
     // Upload to Cloudinary
@@ -45,6 +60,9 @@ export const uploadImageToCloudinary = async (
       {
         method: 'POST',
         body: formData,
+        headers: {
+          'Accept': 'application/json',
+        },
       }
     );
 
@@ -55,6 +73,18 @@ export const uploadImageToCloudinary = async (
       const errorText = await response.text();
       console.error('Cloudinary response error:', errorText);
       console.error('Response status:', response.status);
+      
+      // Try to parse error for better debugging
+      try {
+        const errorJson = JSON.parse(errorText);
+        console.error('Parsed error:', errorJson);
+        if (errorJson.error?.message) {
+          throw new Error(`Cloudinary upload failed: ${errorJson.error.message}`);
+        }
+      } catch (parseError) {
+        // If we can't parse the error, use the raw text
+      }
+      
       throw new Error(`Upload failed: ${response.status} - ${errorText}`);
     }
 
@@ -65,7 +95,17 @@ export const uploadImageToCloudinary = async (
     console.error('Error uploading to Cloudinary:', error);
     console.error('Error message:', error.message);
     console.error('Error stack:', error.stack);
-    throw new Error(`Failed to upload image to cloud storage: ${error.message || error}`);
+    
+    // Provide more specific error messages
+    if (error.message.includes('Invalid image file')) {
+      throw new Error('The selected file is not a valid image. Please choose a JPEG, PNG, GIF, or WebP file.');
+    } else if (error.message.includes('File too large')) {
+      throw new Error('The image file is too large. Please choose a smaller image (max 10MB).');
+    } else if (error.message.includes('Invalid upload preset')) {
+      throw new Error('Upload configuration error. Please try again later.');
+    } else {
+      throw new Error(`Failed to upload image: ${error.message || 'Unknown error'}`);
+    }
   }
 };
 
@@ -80,12 +120,32 @@ export const uploadVideoToCloudinary = async (
   folder: string = 'maschat/videos'
 ): Promise<string> => {
   try {
+    console.log('Starting Cloudinary video upload...');
+    console.log('Video URI:', videoUri);
+    console.log('Folder:', folder);
+    
+    // Validate the file first
+    const isValid = await validateFileForUpload(videoUri, 'video');
+    if (!isValid) {
+      throw new Error('Invalid video file. Please choose a valid video format (MP4, MOV, AVI, WebM).');
+    }
+
+    // Determine file type from URI
+    const fileExtension = videoUri.split('.').pop()?.toLowerCase() || 'mp4';
+    const mimeType = fileExtension === 'mov' ? 'video/quicktime' : 
+                    fileExtension === 'avi' ? 'video/x-msvideo' : 
+                    fileExtension === 'wmv' ? 'video/x-ms-wmv' : 
+                    fileExtension === 'flv' ? 'video/x-flv' : 
+                    fileExtension === 'webm' ? 'video/webm' : 'video/mp4';
+    
+    console.log('Detected video type:', mimeType);
+    
     // Create form data
     const formData = new FormData();
     formData.append('file', {
       uri: videoUri,
-      type: 'video/mp4',
-      name: 'video.mp4',
+      type: mimeType,
+      name: `video.${fileExtension}`,
     } as any);
     formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
     formData.append('folder', folder);
@@ -95,7 +155,8 @@ export const uploadVideoToCloudinary = async (
       cloudName: CLOUDINARY_CONFIG.cloudName,
       uploadPreset: CLOUDINARY_CONFIG.uploadPreset,
       folder: folder,
-      videoUri: videoUri
+      videoUri: videoUri,
+      mimeType: mimeType
     });
 
     // Upload to Cloudinary
@@ -104,13 +165,31 @@ export const uploadVideoToCloudinary = async (
       {
         method: 'POST',
         body: formData,
+        headers: {
+          'Accept': 'application/json',
+        },
       }
     );
+
+    console.log('Cloudinary video response status:', response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Cloudinary video response error:', errorText);
-      throw new Error(`Upload failed: ${response.status} - ${errorText}`);
+      console.error('Response status:', response.status);
+      
+      // Try to parse error for better debugging
+      try {
+        const errorJson = JSON.parse(errorText);
+        console.error('Parsed video error:', errorJson);
+        if (errorJson.error?.message) {
+          throw new Error(`Cloudinary video upload failed: ${errorJson.error.message}`);
+        }
+      } catch (parseError) {
+        // If we can't parse the error, use the raw text
+      }
+      
+      throw new Error(`Video upload failed: ${response.status} - ${errorText}`);
     }
 
     const result = await response.json();
@@ -118,7 +197,19 @@ export const uploadVideoToCloudinary = async (
     return result.secure_url;
   } catch (error: any) {
     console.error('Error uploading video to Cloudinary:', error);
-    throw new Error(`Failed to upload video to cloud storage: ${error.message || error}`);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    
+    // Provide more specific error messages
+    if (error.message.includes('Invalid video file')) {
+      throw new Error('The selected file is not a valid video. Please choose an MP4, MOV, AVI, or WebM file.');
+    } else if (error.message.includes('File too large')) {
+      throw new Error('The video file is too large. Please choose a smaller video (max 100MB).');
+    } else if (error.message.includes('Invalid upload preset')) {
+      throw new Error('Upload configuration error. Please try again later.');
+    } else {
+      throw new Error(`Failed to upload video: ${error.message || 'Unknown error'}`);
+    }
   }
 };
 
@@ -199,6 +290,54 @@ export const getOptimizedImageUrl = (
 };
 
 /**
+ * Validate file before uploading to Cloudinary
+ * @param fileUri - Local URI of the file
+ * @param fileType - Type of file ('image' or 'video')
+ * @returns Promise<boolean> - Whether the file is valid
+ */
+export const validateFileForUpload = async (
+  fileUri: string,
+  fileType: 'image' | 'video'
+): Promise<boolean> => {
+  try {
+    console.log(`Validating ${fileType} file:`, fileUri);
+    
+    // Check if file exists
+    if (!fileUri || fileUri.trim() === '') {
+      console.error('File URI is empty');
+      return false;
+    }
+    
+    // Check file extension
+    const fileExtension = fileUri.split('.').pop()?.toLowerCase();
+    if (!fileExtension) {
+      console.error('No file extension found');
+      return false;
+    }
+    
+    // Validate file extensions
+    const validImageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+    const validVideoExtensions = ['mp4', 'mov', 'avi', 'wmv', 'flv', 'webm'];
+    
+    if (fileType === 'image' && !validImageExtensions.includes(fileExtension)) {
+      console.error(`Invalid image extension: ${fileExtension}`);
+      return false;
+    }
+    
+    if (fileType === 'video' && !validVideoExtensions.includes(fileExtension)) {
+      console.error(`Invalid video extension: ${fileExtension}`);
+      return false;
+    }
+    
+    console.log(`File validation passed for ${fileType}:`, fileUri);
+    return true;
+  } catch (error) {
+    console.error('File validation error:', error);
+    return false;
+  }
+};
+
+/**
  * Test Cloudinary connection and upload preset
  */
 export const testCloudinaryConnection = async (): Promise<boolean> => {
@@ -222,6 +361,9 @@ export const testCloudinaryConnection = async (): Promise<boolean> => {
       {
         method: 'POST',
         body: formData,
+        headers: {
+          'Accept': 'application/json',
+        },
       }
     );
 
@@ -242,10 +384,62 @@ export const testCloudinaryConnection = async (): Promise<boolean> => {
   }
 };
 
+/**
+ * Test Cloudinary upload preset specifically
+ */
+export const testCloudinaryUploadPreset = async (): Promise<boolean> => {
+  try {
+    console.log('Testing Cloudinary upload preset...');
+    console.log('Upload Preset:', CLOUDINARY_CONFIG.uploadPreset);
+    
+    // Test with a minimal image upload
+    const formData = new FormData();
+    formData.append('file', {
+      uri: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k=',
+      type: 'image/jpeg',
+      name: 'test.jpg',
+    } as any);
+    formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
+
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/image/upload`,
+      {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Accept': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Upload preset test failed:', errorText);
+      console.error('Response status:', response.status);
+      
+      // Check if it's an upload preset issue
+      if (errorText.includes('Invalid upload preset') || errorText.includes('upload_preset')) {
+        console.error('Upload preset configuration issue detected');
+        return false;
+      }
+      return false;
+    }
+
+    const result = await response.json();
+    console.log('Upload preset test successful:', result.secure_url);
+    return true;
+  } catch (error: any) {
+    console.error('Upload preset test error:', error);
+    console.error('Error message:', error.message);
+    return false;
+  }
+};
+
 export default {
   uploadImageToCloudinary,
   uploadVideoToCloudinary,
   deleteFromCloudinary,
   getOptimizedImageUrl,
   testCloudinaryConnection,
+  validateFileForUpload,
 }; 

@@ -181,33 +181,49 @@ export default function HomeScreen() {
   };
 
   const handleDeletePost = async (postId: string) => {
-    if (!user?.id) return;
-    Alert.alert('Delete Post', 'Are you sure you want to delete this post?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
-        await deletePost(postId, user.id);
-        fetchPosts();
-      }},
-    ]);
+    if (!user?.id) {
+      Alert.alert('Error', 'User not found');
+      return;
+    }
+    try {
+      await deletePost(postId, user.id);
+      removePost(postId);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to delete post');
+    }
   };
 
   const handleLikePost = async (post: Post) => {
-    if (!user) return;
+    if (!user?.id) {
+      Alert.alert('Error', 'User not found');
+      return;
+    }
+    
     const alreadyLiked = (optimisticLikes[post.id] || post.likedBy || []).includes(user.id);
+    
+    // Optimistic update
     setOptimisticLikes(prev => ({
       ...prev,
-      [post.id]: alreadyLiked
+      [post.id]: alreadyLiked 
         ? (prev[post.id] || post.likedBy || []).filter(id => id !== user.id)
         : [...(prev[post.id] || post.likedBy || []), user.id]
     }));
+
     try {
       if (alreadyLiked) {
         await unlikePost(post.id, user.id);
       } else {
         await likePost(post.id, user.id);
       }
-    } catch (err) {
-      console.error('Like error:', err);
+    } catch (error) {
+      // Revert optimistic update on error
+      setOptimisticLikes(prev => ({
+        ...prev,
+        [post.id]: alreadyLiked 
+          ? [...(prev[post.id] || post.likedBy || []), user.id]
+          : (prev[post.id] || post.likedBy || []).filter(id => id !== user.id)
+      }));
+      Alert.alert('Error', 'Failed to update like');
     }
   };
 
@@ -742,13 +758,13 @@ export default function HomeScreen() {
                   onPress={() => user && handleLikePost(post)}
                 >
                   <Ionicons
-                    name={(optimisticLikes[post.id] || post.likedBy || []).includes(user.id) ? 'heart' : 'heart-outline'}
+                    name={(optimisticLikes[post.id] || post.likedBy || []).includes(user?.id || '') ? 'heart' : 'heart-outline'}
                     size={24}
-                    color={(optimisticLikes[post.id] || post.likedBy || []).includes(user.id) ? LIKE_ACTIVE_COLOR : colors.lightText}
+                    color={(optimisticLikes[post.id] || post.likedBy || []).includes(user?.id || '') ? LIKE_ACTIVE_COLOR : colors.lightText}
                   />
                   <Text style={[
                     styles.actionText,
-                    (optimisticLikes[post.id] || post.likedBy || []).includes(user.id) && 
+                    (optimisticLikes[post.id] || post.likedBy || []).includes(user?.id || '') && 
                       { color: LIKE_ACTIVE_COLOR }
                   ]}>
                     Like
@@ -1397,12 +1413,6 @@ const getStyles = (currentColors: any) => StyleSheet.create({
     borderBottomColor: 'rgba(0, 0, 0, 0.1)',
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
   },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-  },
   addMenuOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.3)',
@@ -1432,6 +1442,5 @@ const getStyles = (currentColors: any) => StyleSheet.create({
   addMenuClose: {
     marginTop: 12,
     alignSelf: 'center',
-  },
-
+  }
 });
