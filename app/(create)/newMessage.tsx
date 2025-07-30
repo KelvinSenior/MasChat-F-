@@ -66,10 +66,11 @@ export default function NewMessage() {
   const loadSuggestions = async () => {
     if (!user?.id) return;
     try {
-      const suggestionsData = await friendService.getSuggestions(user.id);
+      // Use messenger suggestions instead of regular suggestions
+      const suggestionsData = await friendService.getMessengerSuggestions(user.id);
       setSuggestions(suggestionsData);
     } catch (error) {
-      console.error('Error loading suggestions:', error);
+      console.error('Error loading messenger suggestions:', error);
       setSuggestions([]);
     }
   };
@@ -309,7 +310,7 @@ export default function NewMessage() {
         {/* Suggestions - Only show when no search and no friends */}
         {!search.trim() && !friendsLoading && friends.length === 0 && suggestions.length > 0 && (
           <>
-            {renderSectionHeader('People You May Know')}
+            {renderSectionHeader('Friends You Haven\'t Chatted With')}
             {suggestions.map(suggestion => (
               <View key={suggestion.id} style={styles.userItem}>
                 <Image 
@@ -321,11 +322,10 @@ export default function NewMessage() {
                   <Text style={styles.userUsername}>@{suggestion.username}</Text>
                 </View>
                 <TouchableOpacity 
-                  style={styles.addFriendBtn}
-                  onPress={() => sendFriendRequest(suggestion.id)}
-                  disabled={loading}
+                  style={styles.messageBtn}
+                  onPress={() => startConversation(suggestion)}
                 >
-                  <Ionicons name="person-add" size={20} color={COLORS.accent} />
+                  <Ionicons name="chatbubble-outline" size={20} color={COLORS.primary} />
                 </TouchableOpacity>
               </View>
             ))}

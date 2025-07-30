@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import ModernHeader from '../components/ModernHeader';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View, Alert } from 'react-native';
 import SuggestionCard from './SuggestionCard';
 import { useAuth } from '../context/AuthContext';
 import { friendService } from '../lib/services/friendService';
@@ -28,17 +28,29 @@ type Suggestion = {
 export default function SuggestionsScreen() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const { user } = useAuth();
 
   const fetchSuggestions = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setError('User not authenticated');
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true);
+    setError(null);
+    
     try {
+      console.log('Fetching suggestions for user:', user.id);
       const data = await friendService.getSuggestions(user.id);
-      setSuggestions(data);
+      console.log('Suggestions data received:', data);
+      setSuggestions(data || []);
     } catch (error) {
       console.error('Error fetching suggestions:', error);
+      setError('Failed to load suggestions. Please try again.');
+      setSuggestions([]);
     } finally {
       setLoading(false);
     }
@@ -54,14 +66,33 @@ export default function SuggestionsScreen() {
     }, [user?.id])
   );
 
+  const handleRetry = () => {
+    fetchSuggestions();
+  };
+
   const renderContent = () => {
     if (loading) {
       return (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Loading suggestions...</Text>
         </View>
       );
     }
+
+    if (error) {
+      return (
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={60} color={COLORS.accent} />
+          <Text style={styles.errorText}>Something went wrong</Text>
+          <Text style={styles.errorSubtext}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
     if (suggestions.length === 0) {
       return (
         <View style={styles.emptyContainer}>
@@ -71,6 +102,7 @@ export default function SuggestionsScreen() {
         </View>
       );
     }
+
     return suggestions.map(sug => (
       <SuggestionCard key={sug.id} suggestion={sug} />
     ));
@@ -78,32 +110,17 @@ export default function SuggestionsScreen() {
 
   return (
     <View style={styles.container}>
-      <ModernHeader
-        title="Suggestions"
+      <ModernHeader 
+        title="Friend Suggestions" 
         showBackButton={true}
-        onBackPress={() => {
-          if (router.canGoBack?.()) {
-            router.back();
-          } else {
-            router.replace('/(tabs)/menu');
-          }
-        }}
-        rightIcon="refresh"
-        onRightPress={() => {}}
+        onBackPress={() => router.back()}
       />
-
-      {/* Section Header */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>
-          People you may know
-        </Text>
-        <Text style={styles.sectionSubtitle}>
-          {suggestions.length} {suggestions.length === 1 ? 'suggestion' : 'suggestions'}
-        </Text>
-      </View>
-
-      {/* Suggestions List */}
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+      
+      <ScrollView 
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         {renderContent()}
       </ScrollView>
     </View>
@@ -115,83 +132,75 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 50,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  refreshButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sectionHeader: {
-    backgroundColor: COLORS.white,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.text,
-  },
-  sectionSubtitle: {
-    fontSize: 14,
-    color: COLORS.lightText,
-    marginTop: 2,
-  },
-  scroll: {
+  content: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 20,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 60,
+    paddingVertical: 50,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: COLORS.lightText,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+    paddingHorizontal: 20,
+  },
+  errorText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginTop: 15,
+    textAlign: 'center',
+  },
+  errorSubtext: {
+    fontSize: 16,
+    color: COLORS.lightText,
+    marginTop: 8,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  retryButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 25,
+    marginTop: 20,
+  },
+  retryButtonText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: '600',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: 32,
+    paddingVertical: 50,
+    paddingHorizontal: 20,
   },
   emptyText: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '600',
     color: COLORS.text,
+    marginTop: 15,
     textAlign: 'center',
-    marginTop: 16,
   },
   emptySubtext: {
-    fontSize: 14,
+    fontSize: 16,
     color: COLORS.lightText,
-    textAlign: 'center',
     marginTop: 8,
-    lineHeight: 20,
+    textAlign: 'center',
+    lineHeight: 22,
   },
 });

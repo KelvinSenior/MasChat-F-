@@ -13,6 +13,7 @@ import {
   RefreshControl,
   Animated,
   Dimensions,
+  Alert,
 } from "react-native";
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -181,7 +182,7 @@ export default function Notifications() {
     
     // Listen for notification responses (when user taps notification)
     const responseListener = notificationService.addNotificationResponseReceivedListener(response => {
-      const notificationId = response.notification.request.content.data?.notificationId;
+      const notificationId = response.notification.request.content.data?.notificationId as string;
       if (notificationId) {
         handleMarkRead(notificationId);
       }
@@ -221,15 +222,29 @@ export default function Notifications() {
   };
 
   const handleConfirmFriendRequest = async (requestId: string) => {
-    await acceptFriendRequest(requestId);
-    setNotifications(prev => prev.map(n =>
-      n.id === requestId ? { ...n, read: true, message: 'Friend request accepted.' } : n
-    ));
+    try {
+      console.log('Accepting friend request:', requestId);
+      await acceptFriendRequest(requestId);
+      setNotifications(prev => prev.map(n =>
+        n.id === requestId ? { ...n, read: true, message: 'Friend request accepted.' } : n
+      ));
+      console.log('Friend request accepted successfully');
+    } catch (error) {
+      console.error('Error accepting friend request:', error);
+      Alert.alert('Error', 'Failed to accept friend request. Please try again.');
+    }
   };
+
   const handleDeleteFriendRequest = async (requestId: string) => {
-    if (!user?.id) return;
-    await deleteFriendRequest(requestId, user.id);
-    setNotifications(prev => prev.filter(n => n.id !== requestId));
+    try {
+      console.log('Declining friend request:', requestId);
+      await deleteFriendRequest(requestId);
+      setNotifications(prev => prev.filter(n => n.id !== requestId));
+      console.log('Friend request declined successfully');
+    } catch (error) {
+      console.error('Error declining friend request:', error);
+      Alert.alert('Error', 'Failed to decline friend request. Please try again.');
+    }
   };
 
   const handleDeleteNotification = async (notificationId: string) => {
@@ -238,6 +253,7 @@ export default function Notifications() {
   };
 
   const handleMarkAllRead = async () => {
+    if (!user?.id) return;
     try {
       await markAllNotificationsRead(user.id);
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));

@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View, Alert } from 'react-native';
 import FriendRequestCard from './FriendRequestCard';
 import { useAuth } from '../context/AuthContext';
 import { friendService } from '../lib/services/friendService';
@@ -36,17 +36,29 @@ type FriendRequest = {
 export default function FriendRequestsScreen() {
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const { user } = useAuth();
 
   const fetchRequests = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setError('User not authenticated');
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true);
+    setError(null);
+    
     try {
+      console.log('Fetching friend requests for user:', user.id);
       const data = await friendService.getPendingRequests(user.id);
-      setRequests(data);
+      console.log('Friend requests data received:', data);
+      setRequests(data || []);
     } catch (error) {
       console.error('Error fetching friend requests:', error);
+      setError('Failed to load friend requests. Please try again.');
+      setRequests([]);
     } finally {
       setLoading(false);
     }
@@ -62,14 +74,33 @@ export default function FriendRequestsScreen() {
     }, [user?.id])
   );
 
+  const handleRetry = () => {
+    fetchRequests();
+  };
+
   const renderContent = () => {
     if (loading) {
       return (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Loading friend requests...</Text>
         </View>
       );
     }
+
+    if (error) {
+      return (
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={60} color={COLORS.accent} />
+          <Text style={styles.errorText}>Something went wrong</Text>
+          <Text style={styles.errorSubtext}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
     if (requests.length === 0) {
       return (
         <View style={styles.emptyContainer}>
@@ -79,6 +110,7 @@ export default function FriendRequestsScreen() {
         </View>
       );
     }
+
     return requests.map(req => (
       <FriendRequestCard key={req.id} request={req} onAccepted={fetchRequests} />
     ));
@@ -93,19 +125,11 @@ export default function FriendRequestsScreen() {
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
       >
-        <TouchableOpacity onPress={() => {
-          if (router.canGoBack?.()) {
-            router.back();
-          } else {
-            router.replace('/(tabs)/menu');
-          }
-        }} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Friend Requests</Text>
-        <TouchableOpacity style={styles.menuButton}>
-          <Ionicons name="ellipsis-vertical" size={24} color="white" />
-        </TouchableOpacity>
+        <View style={styles.placeholder} />
       </LinearGradient>
 
       {/* Section Header */}
@@ -135,16 +159,12 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingHorizontal: 16,
     paddingBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
   },
   backButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -153,12 +173,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: 'white',
   },
-  menuButton: {
+  placeholder: {
     width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   sectionHeader: {
     backgroundColor: COLORS.white,
@@ -179,27 +195,65 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 60,
+    paddingVertical: 50,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: COLORS.lightText,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+    paddingHorizontal: 20,
+  },
+  errorText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginTop: 15,
+    textAlign: 'center',
+  },
+  errorSubtext: {
+    fontSize: 16,
+    color: COLORS.lightText,
+    marginTop: 8,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  retryButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 25,
+    marginTop: 20,
+  },
+  retryButtonText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: '600',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: 32,
+    paddingVertical: 50,
+    paddingHorizontal: 20,
   },
   emptyText: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '600',
     color: COLORS.text,
+    marginTop: 15,
     textAlign: 'center',
-    marginTop: 16,
   },
   emptySubtext: {
-    fontSize: 14,
+    fontSize: 16,
     color: COLORS.lightText,
-    textAlign: 'center',
     marginTop: 8,
-    lineHeight: 20,
+    textAlign: 'center',
+    lineHeight: 22,
   },
 });

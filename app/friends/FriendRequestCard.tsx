@@ -44,9 +44,11 @@ export default function FriendRequestCard({ request, onAccepted }: Props) {
 
   const handleAccept = async () => {
     try {
+      console.log('Accepting friend request:', request.id);
       await client.post(`/friends/accept/${request.id}`);
       setAccepted(true);
       if (onAccepted) onAccepted();
+      console.log('Friend request accepted successfully');
     } catch (error) {
       console.error('Error accepting friend request:', error);
       Alert.alert('Error', 'Failed to accept friend request. Please try again.');
@@ -55,8 +57,10 @@ export default function FriendRequestCard({ request, onAccepted }: Props) {
 
   const handleDelete = async () => {
     try {
+      console.log('Deleting friend request:', request.id);
       await client.delete(`/friends/request/${request.id}`);
       setDeleted(true);
+      console.log('Friend request deleted successfully');
     } catch (error) {
       console.error('Error deleting friend request:', error);
       Alert.alert('Error', 'Failed to delete friend request. Please try again.');
@@ -65,8 +69,10 @@ export default function FriendRequestCard({ request, onAccepted }: Props) {
 
   const handleCancelRequest = async () => {
     try {
+      console.log('Cancelling friend request from', request.sender.id, 'to', request.receiver.id);
       await friendService.cancelFriendRequest(request.sender.id, request.receiver.id);
       setDeleted(true);
+      console.log('Friend request cancelled successfully');
     } catch (error) {
       console.error('Error cancelling friend request:', error);
       Alert.alert('Error', 'Failed to cancel friend request. Please try again.');

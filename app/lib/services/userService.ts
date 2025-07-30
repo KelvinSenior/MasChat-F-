@@ -161,9 +161,44 @@ export async function markAllNotificationsRead(userId: string) {
   await client.post(`/notifications/mark-all-read?userId=${userId}`);
 }
 
-export async function acceptFriendRequest(requestId: string) {
-  await client.post(`/friends/accept/${requestId}`);
-}
+// Friend request handling functions
+export const acceptFriendRequest = async (requestId: string): Promise<void> => {
+  try {
+    console.log('Accepting friend request:', requestId);
+    await client.post(`/friends/accept/${requestId}`);
+    console.log('Friend request accepted successfully');
+  } catch (error: any) {
+    console.error('Error accepting friend request:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const deleteFriendRequest = async (requestId: string): Promise<void> => {
+  try {
+    console.log('Deleting friend request:', requestId);
+    await client.delete(`/friends/request/${requestId}`);
+    console.log('Friend request deleted successfully');
+  } catch (error: any) {
+    console.error('Error deleting friend request:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const sendFriendRequest = async (senderId: string, receiverId: string): Promise<void> => {
+  try {
+    console.log('Sending friend request from', senderId, 'to', receiverId);
+    await client.post('/friends/request', null, {
+      params: {
+        senderId: parseInt(senderId),
+        receiverId: parseInt(receiverId)
+      }
+    });
+    console.log('Friend request sent successfully');
+  } catch (error: any) {
+    console.error('Error sending friend request:', error.response?.data || error.message);
+    throw error;
+  }
+};
 
 export async function deleteNotification(notificationId: string) {
   await client.delete(`/notifications/${notificationId}`);
@@ -173,7 +208,7 @@ export async function deleteMultipleNotifications(notificationIds: string[]) {
   await client.delete(`/notifications/delete-multiple`, { data: { notificationIds } });
 }
 
-export async function deleteFriendRequest(requestId: string, userId: string) {
+export async function deleteFriendRequestOld(requestId: string, userId: string) {
   await client.delete('/users/request', { data: { fromUserId: requestId, toUserId: userId } });
 }
 

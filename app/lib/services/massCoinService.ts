@@ -185,19 +185,24 @@ class MassCoinService {
   // Tip operations
   async tipCreator(senderId: number, postId: string, amount: number, description?: string): Promise<TransactionInfo> {
     try {
-      const params = new URLSearchParams({
-        senderId: senderId.toString(),
-        postId: postId,
-        amount: amount.toString()
-      });
-      if (description) {
-        params.append('description', description);
-      }
+      console.log('Tipping creator with params:', { senderId, postId, amount, description });
       
-      const response = await client.post(`/masscoin/tip?${params.toString()}`);
+      // Send as request parameters, not query parameters
+      const response = await client.post('/masscoin/tip', null, {
+        params: {
+          senderId: senderId.toString(),
+          postId: postId,
+          amount: amount.toString(),
+          ...(description && { description })
+        }
+      });
+      
+      console.log('Tip response:', response.data);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error tipping creator:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
       throw error;
     }
   }
