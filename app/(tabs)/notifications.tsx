@@ -429,7 +429,7 @@ export default function Notifications() {
                     <Text style={[
                       styles.messageText, 
                       !item.read && styles.bold,
-                      { color: currentTheme === 'dark' ? '#FFFFFF' : '#1A1A1A' }
+                      { color: currentTheme === 'dark' ? '#000000' : '#1A1A1A' }
                     ]}>
                       {item.message}
                     </Text>
