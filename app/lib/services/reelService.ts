@@ -19,8 +19,30 @@ export type Reel = {
 
 // Helper function to get the media URL from a reel
 export const getReelMediaUrl = (reel: Reel): string => {
-  // Prefer mediaUrl, fallback to videoUrl for backward compatibility
-  return reel.mediaUrl || reel.videoUrl || '';
+  let url = reel.mediaUrl || reel.videoUrl || '';
+  
+  // Fix common Cloudinary URL issues
+  if (url.includes('cloudinary.com')) {
+    // Ensure HTTPS is used
+    if (url.startsWith('http://')) {
+      url = url.replace('http://', 'https://');
+    }
+    
+    // Add optimization parameters for better loading
+    if (url.includes('/upload/') && !url.includes('/upload/f_auto,q_auto/')) {
+      url = url.replace('/upload/', '/upload/f_auto,q_auto/');
+    }
+    
+    // Add optimization parameters for video URLs (without invalid timeout parameter)
+    if (url.match(/\.(mp4|mov|avi|wmv|flv|webm|mkv)$/i)) {
+      // Use quality optimization instead of timeout
+      if (!url.includes('q_auto')) {
+        url = url.replace('/upload/', '/upload/q_auto/');
+      }
+    }
+  }
+  
+  return url;
 };
 
 // Helper function to check if a reel has valid media
@@ -91,4 +113,25 @@ export const getReelComments = async (reelId: string): Promise<ReelComment[]> =>
 export const shareReel = async (reelId: string) => {
   const res = await client.post(`/reels/${reelId}/share`);
   return res.data;
+};
+
+// Helper function to test if a Cloudinary URL is accessible
+export const testCloudinaryUrl = async (url: string): Promise<boolean> => {
+  try {
+    if (!url.includes('cloudinary.com')) {
+      return true; // Not a Cloudinary URL, assume it's accessible
+    }
+    
+    const response = await fetch(url, { 
+      method: 'HEAD',
+      headers: {
+        'User-Agent': 'MasChat/1.0',
+      }
+    });
+    
+    return response.ok;
+  } catch (error) {
+    console.error('Error testing Cloudinary URL:', url, error);
+    return false;
+  }
 }; 

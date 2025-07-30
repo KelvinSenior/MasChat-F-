@@ -64,6 +64,59 @@ export default function Videos() {
   const videoRefs = useRef<any[]>([]);
   const appState = useRef(AppState.currentState);
   const [videoLoading, setVideoLoading] = useState<{ [key: number]: boolean }>({});
+  const [videoErrors, setVideoErrors] = useState<{ [key: number]: boolean }>({});
+  const [videoRetryCount, setVideoRetryCount] = useState<{ [key: number]: number }>({});
+  
+  // Function to retry video loading
+  const retryVideoLoad = (index: number) => {
+    const currentRetryCount = videoRetryCount[index] || 0;
+    if (currentRetryCount < 3) {
+      setVideoRetryCount(v => ({ ...v, [index]: currentRetryCount + 1 }));
+      setVideoErrors(v => ({ ...v, [index]: false }));
+      setVideoLoading(v => ({ ...v, [index]: true }));
+      
+      // Force re-render of video component with optimized URL
+      const videoRef = videoRefs.current[index];
+      if (videoRef && videoRef.loadAsync) {
+        const originalUrl = getReelMediaUrl(reels[index]);
+        const optimizedUrl = getOptimizedVideoUrl(originalUrl);
+        videoRef.loadAsync({ uri: optimizedUrl }, {}, false);
+      }
+    }
+  };
+
+  // Function to preload video URLs to check accessibility
+  const preloadVideoUrl = async (url: string): Promise<boolean> => {
+    try {
+      const response = await fetch(url, { 
+        method: 'HEAD',
+        headers: {
+          'User-Agent': 'MasChat/1.0',
+        }
+      });
+      return response.ok;
+    } catch (error) {
+      console.error('Preload check failed for URL:', url, error);
+      return false;
+    }
+  };
+
+  // Function to get optimized video URL
+  const getOptimizedVideoUrl = (originalUrl: string): string => {
+    if (!originalUrl.includes('cloudinary.com')) {
+      return originalUrl;
+    }
+
+    // Ensure HTTPS
+    let url = originalUrl.startsWith('http://') ? originalUrl.replace('http://', 'https://') : originalUrl;
+    
+    // Add Cloudinary optimizations for better mobile loading
+    if (url.includes('/upload/') && !url.includes('/upload/f_auto,q_auto/')) {
+      url = url.replace('/upload/', '/upload/f_auto,q_auto/');
+    }
+    
+    return url;
+  };
   
   // Double tap like functionality
   const lastTap = useRef<{ reelId: string; time: number } | null>(null);
@@ -410,14 +463,40 @@ export default function Videos() {
                   const isVideo = mediaUrl.match(/\.(mp4|mov|avi|wmv|flv|webm|mkv)$/i);
                   
                   if (isVideo) {
+                    const optimizedVideoUrl = getOptimizedVideoUrl(mediaUrl);
+                    
                     return (
                       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                         {videoLoading[index] && (
                           <ActivityIndicator size="large" color="#fff" style={{ position: 'absolute', top: '50%', left: '50%', zIndex: 10 }} />
                         )}
+                        {videoErrors[index] && (
+                          <View style={{ position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -50 }, { translateY: -50 }], zIndex: 10, alignItems: 'center' }}>
+                            <Ionicons name="videocam-off" size={48} color="#fff" />
+                            <Text style={{ color: '#fff', fontSize: 16, marginTop: 8, textAlign: 'center' }}>Video failed to load</Text>
+                            <Text style={{ color: '#fff', fontSize: 12, marginTop: 4, textAlign: 'center', opacity: 0.7 }}>
+                              {(videoRetryCount[index] || 0) < 3 ? 'Check your connection and try again' : 'Video unavailable'}
+                            </Text>
+                            {(videoRetryCount[index] || 0) < 3 && (
+                              <TouchableOpacity 
+                                style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginTop: 8 }}
+                                onPress={() => retryVideoLoad(index)}
+                              >
+                                <Text style={{ color: '#fff', fontSize: 14 }}>Retry</Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        )}
                         <Video
                           ref={ref => { videoRefs.current[index] = ref; return undefined; }}
-                          source={{ uri: mediaUrl }}
+                          source={{ 
+                            uri: optimizedVideoUrl,
+                            headers: {
+                              'User-Agent': 'MasChat/1.0',
+                              'Accept': 'video/*,*/*;q=0.9',
+                              'Accept-Encoding': 'gzip, deflate, br',
+                            },
+                          }}
                           style={styles.fullVideo}
                           resizeMode={ResizeMode.COVER}
                           shouldPlay={index === currentReelIndex && !paused}
@@ -426,16 +505,43 @@ export default function Videos() {
                           isMuted={muted}
                           rate={videoSpeed}
                           onLoadStart={() => {
-                            console.log('Video loading started for reel:', reel.id, 'URL:', mediaUrl);
+                            console.log('Video loading started for reel:', reel.id, 'URL:', optimizedVideoUrl);
                             setVideoLoading(v => ({ ...v, [index]: true }));
+                            setVideoErrors(v => ({ ...v, [index]: false }));
                           }}
                           onReadyForDisplay={() => {
                             console.log('Video ready for display for reel:', reel.id);
                             setVideoLoading(v => ({ ...v, [index]: false }));
+                            setVideoErrors(v => ({ ...v, [index]: false }));
                           }}
-                          onError={error => {
-                            console.error('Video error for reel:', reel.id, 'URL:', mediaUrl, error);
+                          onError={(error: any) => {
+                            console.error('Video error for reel:', reel.id, 'URL:', optimizedVideoUrl, error);
                             setVideoLoading(v => ({ ...v, [index]: false }));
+                            setVideoErrors(v => ({ ...v, [index]: true }));
+                            
+                            // Log specific error details for debugging
+                            if (error && typeof error === 'object' && error.error) {
+                              console.error('Error details:', {
+                                code: error.error.code,
+                                domain: error.error.domain,
+                                description: error.error.description,
+                                userInfo: error.error.userInfo
+                              });
+                            }
+                            
+                            // Log retry information
+                            const currentRetryCount = videoRetryCount[index] || 0;
+                            console.log(`Video failed to load for reel ${reel.id}. Retry count: ${currentRetryCount}`);
+                            
+                            // Auto-retry for network timeouts (error code -1001)
+                            if (error?.error?.code === -1001 && currentRetryCount < 2) {
+                              console.log('Auto-retrying due to network timeout...');
+                              setTimeout(() => retryVideoLoad(index), 2000);
+                            }
+                          }}
+                          onLoad={() => {
+                            console.log('Video loaded successfully for reel:', reel.id);
+                            setVideoErrors(v => ({ ...v, [index]: false }));
                           }}
                         />
                       </View>
