@@ -2,12 +2,14 @@ import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { StatusBar, ActivityIndicator, FlatList, Image, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert } from 'react-native';
+import { StatusBar, ActivityIndicator, FlatList, Image, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert, PermissionsAndroid } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { messageService, Message } from '../lib/services/messageService';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import * as ImagePicker from 'expo-image-picker';
+import * as Camera from 'expo-camera';
+import { Audio } from 'expo-av';
 import { uploadImageSimple } from '../lib/services/userService';
 import { useTheme } from '../context/ThemeContext';
 import { getWebSocketUrl } from '../api/client';
@@ -76,6 +78,29 @@ export default function ChatScreen() {
   const pendingMessages = useRef<Message[]>([]);
   const stompClient = useRef<any>(null);
   const [imageSending, setImageSending] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [audioPermission, setAudioPermission] = useState<boolean>(false);
+  const [cameraPermission, setCameraPermission] = useState<boolean>(false);
+
+  // Request permissions on component mount
+  useEffect(() => {
+    requestPermissions();
+  }, []);
+
+  const requestPermissions = async () => {
+    try {
+      // Request camera permission using ImagePicker (which includes camera access)
+      const cameraStatus = await ImagePicker.requestCameraPermissionsAsync();
+      setCameraPermission(cameraStatus.status === 'granted');
+
+      // Request audio permission
+      const audioStatus = await Audio.requestPermissionsAsync();
+      setAudioPermission(audioStatus.status === 'granted');
+    } catch (error) {
+      console.error('Error requesting permissions:', error);
+    }
+  };
 
   // Deduplicate messages by id before setting state
   const dedupeMessages = (msgs: Message[]) => {
@@ -222,6 +247,119 @@ export default function ChatScreen() {
     }
   };
 
+  const takeAndSendPhoto = async () => {
+    if (imageSending || !currentUser?.id) return;
+    setImageSending(true);
+    try {
+      if (!cameraPermission) {
+        Alert.alert('Permission Required', 'Camera permission is required to take photos');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const imageUri = result.assets[0].uri;
+        const uploadedUrl = await uploadImageSimple(imageUri);
+        
+        if (uploadedUrl) {
+          await messageService.sendImageMessage(currentUser.id, recipient.id, uploadedUrl, '');
+        }
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      Alert.alert('Error', 'Failed to take photo');
+    } finally {
+      setImageSending(false);
+    }
+  };
+
+  const startRecording = async () => {
+    if (!currentUser?.id || !audioPermission) {
+      Alert.alert('Permission Required', 'Microphone permission is required to record audio');
+      return;
+    }
+
+    try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      
+      setRecording(recording);
+      setIsRecording(true);
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      Alert.alert('Error', 'Failed to start recording');
+    }
+  };
+
+  const stopRecording = async () => {
+    if (!recording) return;
+
+    try {
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      setRecording(null);
+      setIsRecording(false);
+
+      if (uri) {
+        try {
+          // Upload the audio file
+          const audioUrl = await uploadImageSimple(uri); // Reusing image upload for now
+          
+          if (audioUrl) {
+            await messageService.sendAudioMessage(currentUser.id, recipient.id, audioUrl, '');
+          } else {
+            Alert.alert('Error', 'Failed to upload audio recording');
+          }
+        } catch (uploadError) {
+          console.error('Error uploading audio:', uploadError);
+          Alert.alert('Error', 'Failed to upload audio recording');
+        }
+      }
+    } catch (error) {
+      console.error('Error stopping recording:', error);
+      Alert.alert('Error', 'Failed to stop recording');
+    }
+  };
+
+  const handleImagePicker = async () => {
+    if (imageSending || !currentUser?.id) return;
+    setImageSending(true);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const imageUri = result.assets[0].uri;
+        const uploadedUrl = await uploadImageSimple(imageUri);
+        
+        if (uploadedUrl) {
+          await messageService.sendImageMessage(currentUser.id, recipient.id, uploadedUrl, '');
+        }
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image');
+    } finally {
+      setImageSending(false);
+    }
+  };
+
   const deleteMessage = async (messageId: string) => {
     if (!currentUser?.id) return;
     
@@ -311,7 +449,18 @@ export default function ChatScreen() {
               {item.content}
             </Text>
           )}
-          {item.image && <Image source={item.image} style={styles.messageImage} />}
+          {item.image && <Image source={{ uri: item.image }} style={styles.messageImage} />}
+          {item.audio && (
+            <TouchableOpacity style={styles.audioContainer}>
+              <Ionicons name="play-circle" size={32} color={isSentByMe ? "#fff" : colors.primary} />
+              <Text style={[
+                styles.audioText,
+                isSentByMe ? styles.sentText : styles.receivedText
+              ]}>
+                Audio Message
+              </Text>
+            </TouchableOpacity>
+          )}
           <View style={styles.messageStatus}>
             {item.time && (
               <Text style={[
@@ -407,14 +556,38 @@ export default function ChatScreen() {
               <TouchableOpacity style={styles.iconBtn} onPress={pickAndSendImage} disabled={imageSending}>
                 <Ionicons name="add" size={24} color={colors.primary} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.iconBtn}>
-                <Ionicons name="camera-outline" size={24} color={colors.lightText} />
+              <TouchableOpacity 
+                style={styles.iconBtn} 
+                onPress={takeAndSendPhoto} 
+                disabled={imageSending || !cameraPermission}
+              >
+                <Ionicons 
+                  name="camera-outline" 
+                  size={24} 
+                  color={cameraPermission ? colors.primary : colors.lightText} 
+                />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.iconBtn}>
-                <Ionicons name="image-outline" size={24} color={colors.lightText} />
+              <TouchableOpacity 
+                style={styles.iconBtn} 
+                onPress={handleImagePicker} 
+                disabled={imageSending}
+              >
+                <Ionicons 
+                  name="image-outline" 
+                  size={24} 
+                  color={colors.primary} 
+                />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.iconBtn}>
-                <Ionicons name="mic-outline" size={24} color={colors.lightText} />
+              <TouchableOpacity 
+                style={styles.iconBtn} 
+                onPress={isRecording ? stopRecording : startRecording}
+                disabled={!audioPermission}
+              >
+                <Ionicons 
+                  name={isRecording ? "stop-circle" : "mic-outline"} 
+                  size={24} 
+                  color={isRecording ? colors.accent : (audioPermission ? colors.primary : colors.lightText)} 
+                />
               </TouchableOpacity>
             </View>
             <TextInput
@@ -591,6 +764,21 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginTop: 6,
     marginBottom: 4,
+  },
+  audioContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    marginBottom: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+  },
+  audioText: {
+    fontSize: 14,
+    marginLeft: 8,
+    fontWeight: '500',
   },
   messageStatus: {
     flexDirection: 'row',

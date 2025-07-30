@@ -66,7 +66,7 @@
       "eas": {
         "projectId": "11448f8f-45d1-4c2c-a061-f9227f473390"
       },
-      "API_URL": "http://10.219.201.125:8080/api",
+      "API_URL": "http://10.47.121.125:8080/api",
       "ENV": "development",
       "router": {}
     },

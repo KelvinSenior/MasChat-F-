@@ -108,7 +108,6 @@ export default function SettingsScreen() {
           label: getThemeLabel(), 
           onPress: handleThemeToggle,
           showChevron: false,
-          showBadge: true,
           badgeText: themeMode === 'system' ? 'Auto' : themeMode === 'dark' ? 'Dark' : 'Light'
         } as any,
       ],

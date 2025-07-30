@@ -360,10 +360,12 @@ export default function HomeScreen() {
         style={[styles.header, { backgroundColor: colors.tabBarBg, borderBottomColor: colors.tabBarBorder }]}
       >
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>
-            <Text style={{ color: '#4361EE' }}>Mas</Text>
-            <Text style={{ color: '#FF7F11' }}>Chat</Text>
-          </Text>
+          <TouchableOpacity onPress={() => setShowIntroVideo(true)}>
+            <Text style={styles.headerTitle}>
+              <Text style={{ color: '#4361EE' }}>Mas</Text>
+              <Text style={{ color: '#FF7F11' }}>Chat</Text>
+            </Text>
+          </TouchableOpacity>
           
           <View style={styles.headerIcons}>
             <TouchableOpacity style={styles.iconBtn} onPress={() => setShowAddMenu(true)}>

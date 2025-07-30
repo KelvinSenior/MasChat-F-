@@ -6,6 +6,7 @@ export interface Message {
   recipient: { id: string };
   content?: string;
   image?: any;
+  audio?: any;
   time?: string;
   sentAt?: string;
   isPending?: boolean;
@@ -74,6 +75,28 @@ export const messageService = {
       return response.data;
     } catch (error: any) {
       console.error('Error sending image message:', error);
+      if (error.response) {
+        console.error('Response status:', error.response.status);
+        console.error('Response data:', error.response.data);
+      }
+      return null;
+    }
+  },
+
+  // Send an audio message
+  async sendAudioMessage(senderId: string, recipientId: string, audioUrl: string, content?: string): Promise<Message | null> {
+    try {
+      console.log('Sending audio message:', { senderId, recipientId, audioUrl, content });
+      const response = await client.post('/messages/send-audio', {
+        senderId,
+        recipientId,
+        audioUrl,
+        content,
+      });
+      console.log('Audio message sent successfully:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error sending audio message:', error);
       if (error.response) {
         console.error('Response status:', error.response.status);
         console.error('Response data:', error.response.data);

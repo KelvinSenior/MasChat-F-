@@ -308,8 +308,9 @@ class MassCoinService {
           totalTipsSentAmount: 0,
         };
       }
-      // Only log other errors
-      console.error('Error fetching user stats:', error);
+      // Log error details for debugging
+      console.error('Error fetching user stats:', error.response?.data || error.message);
+      // Return default values instead of throwing
       return {
         totalTransactions: 0,
         totalVolume: 0,
