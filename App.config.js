@@ -10,6 +10,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   scheme: 'MasChat',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
+  loading: {
+    icon: './assets/GROUP 88-MasChat.png',
+    backgroundColor: '#1A1A2E',
+  },
   splash: {
     image: './assets/GROUP 88-MasChat.png',
     resizeMode: 'contain',
@@ -69,7 +73,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       projectId: '11448f8f-45d1-4c2c-a061-f9227f473390'
     },
     // Use environment variable or fallback to local IP - Updated on 2025-07-30
-    API_URL: process.env.API_URL || 'http://10.224.67.125:8080/api',
+    API_URL: process.env.API_URL || 'http://10.132.74.85:8080/api',
     ENV: process.env.NODE_ENV || 'development',
     router: {}
   },

@@ -175,12 +175,45 @@ export default function Profile() {
         : [...(prev[post.id] || post.likedBy || []), user.id]
     }));
     // Backend update
-    if (alreadyLiked) {
-      await unlikePost(post.id, user.id);
-    } else {
-      await likePost(post.id, user.id);
+    try {
+      if (alreadyLiked) {
+        const response = await unlikePost(post.id, user.id);
+        // Update the post with the response from server
+        setUserPosts(prevPosts => 
+          prevPosts.map(p => 
+            p.id === post.id 
+              ? { ...p, likedBy: response.likedBy || [], likeCount: response.likeCount || 0 }
+              : p
+          )
+        );
+      } else {
+        const response = await likePost(post.id, user.id);
+        // Update the post with the response from server
+        setUserPosts(prevPosts => 
+          prevPosts.map(p => 
+            p.id === post.id 
+              ? { ...p, likedBy: response.likedBy || [], likeCount: response.likeCount || 0 }
+              : p
+          )
+        );
+      }
+      
+      // Clear optimistic update after successful server response
+      setOptimisticLikes(prev => {
+        const newState = { ...prev };
+        delete newState[post.id];
+        return newState;
+      });
+    } catch (error) {
+      // Revert optimistic update on error
+      setOptimisticLikes(prev => ({
+        ...prev,
+        [post.id]: alreadyLiked
+          ? [...(prev[post.id] || post.likedBy || []), user.id]
+          : (prev[post.id] || post.likedBy || []).filter(id => id !== user.id)
+      }));
+      console.error('Like error:', error);
     }
-    fetchProfileData();
   };
 
   const uniqueFriends = Array.from(new Map(userFriends.map(f => [f.id, f])).values());
@@ -209,7 +242,7 @@ export default function Profile() {
             />
           </TouchableOpacity>
           <View style={styles.headerActions}>
-            <MassCoinBalance size="small" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }} textColor="white" />
+            <MassCoinBalance size="small" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
             <TouchableOpacity 
               style={styles.actionButton}
               onPress={() => router.push("../screens/editProfile")}

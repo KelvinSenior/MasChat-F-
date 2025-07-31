@@ -254,12 +254,41 @@ export default function Videos() {
     }));
     try {
       if (alreadyLiked) {
-        await unlikeReel(String(reel.id), String(user.id));
+        const response = await unlikeReel(String(reel.id), String(user.id));
+        // Update the reel with the response from server
+        setReels(prevReels => 
+          prevReels.map(r => 
+            r.id === reel.id 
+              ? { ...r, likedBy: response.likedBy || [], likeCount: response.likeCount || 0 }
+              : r
+          )
+        );
       } else {
-        await likeReel(String(reel.id), String(user.id));
+        const response = await likeReel(String(reel.id), String(user.id));
+        // Update the reel with the response from server
+        setReels(prevReels => 
+          prevReels.map(r => 
+            r.id === reel.id 
+              ? { ...r, likedBy: response.likedBy || [], likeCount: response.likeCount || 0 }
+              : r
+          )
+        );
       }
-      // Do not call fetchAllReels here to avoid resetting the scroll position
+      
+      // Clear optimistic update after successful server response
+      setOptimisticLikes(prev => {
+        const newState = { ...prev };
+        delete newState[String(reel.id)];
+        return newState;
+      });
     } catch (err) {
+      // Revert optimistic update on error
+      setOptimisticLikes(prev => ({
+        ...prev,
+        [String(reel.id)]: alreadyLiked
+          ? [...(prev[String(reel.id)] || reel.likedBy || []), String(user.id)]
+          : (prev[String(reel.id)] || reel.likedBy || []).filter(id => id !== String(user.id))
+      }));
       console.error('Like error:', err);
     }
   };

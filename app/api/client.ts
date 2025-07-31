@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 // Function to get the device's IP address
 const getDeviceIP = (): string => {
   // Auto-detected IP address
-  return '10.224.67.125'; // Current IP address
+  return '10.132.74.85'; // Current IP address
 };
 
 // Centralized configuration

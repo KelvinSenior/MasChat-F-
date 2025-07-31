@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, RefreshControl, Alert, Modal, Dimensions, FlatList, Animated, Share, Easing, ActivityIndicator, TouchableWithoutFeedback } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -79,9 +79,12 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showCommentDialog, setShowCommentDialog] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<string>('');
+  const [visibleVideoIds, setVisibleVideoIds] = useState<Set<string>>(new Set());
   const heartAnimation = useRef(new Animated.Value(0)).current;
   const doubleTapTimer = useRef<NodeJS.Timeout | null>(null);
   const lastTap = useRef<{ postId: string; time: number } | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const videoRefs = useRef<{ [key: string]: any }>({});
 
   // Group stories by user
   const storiesByUser = stories.reduce((acc, story) => {
@@ -117,6 +120,16 @@ export default function HomeScreen() {
     router.push({ pathname: '/screens/StoryViewerScreen', params: { userId } });
   };
 
+  // Function to pause all videos
+  const pauseAllVideos = useCallback(() => {
+    setPlayingVideoId(null);
+    Object.values(videoRefs.current).forEach(ref => {
+      if (ref && ref.pauseAsync) {
+        ref.pauseAsync();
+      }
+    });
+  }, []);
+
   useEffect(() => {
     fetchPosts();
     fetchAllStories();
@@ -129,6 +142,17 @@ export default function HomeScreen() {
       fetchAllStories();
     }, [])
   );
+
+  // Pause all videos when screen loses focus
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        // Pause all videos when leaving the screen
+        pauseAllVideos();
+        setVisibleVideoIds(new Set());
+      };
+    }, [pauseAllVideos])
+  );
  
   // Cleanup timers on unmount
   useEffect(() => {
@@ -136,8 +160,11 @@ export default function HomeScreen() {
       if (doubleTapTimer.current) {
         clearTimeout(doubleTapTimer.current);
       }
+      // Pause all videos on unmount
+      pauseAllVideos();
+      setVisibleVideoIds(new Set());
     };
-  }, []);
+  }, [pauseAllVideos]);
 
   const fetchPosts = async () => {
     setLoadingPosts(true);
@@ -234,10 +261,27 @@ export default function HomeScreen() {
 
     try {
       if (alreadyLiked) {
-        await unlikePost(post.id, user.id);
+        const response = await unlikePost(post.id, user.id);
+        // Update the post with the response from server
+        updatePost(post.id, {
+          likedBy: response.likedBy || [],
+          likeCount: response.likeCount || 0
+        });
       } else {
-        await likePost(post.id, user.id);
+        const response = await likePost(post.id, user.id);
+        // Update the post with the response from server
+        updatePost(post.id, {
+          likedBy: response.likedBy || [],
+          likeCount: response.likeCount || 0
+        });
       }
+      
+      // Clear optimistic update after successful server response
+      setOptimisticLikes(prev => {
+        const newState = { ...prev };
+        delete newState[post.id];
+        return newState;
+      });
     } catch (error) {
       // Revert optimistic update on error
       setOptimisticLikes(prev => ({
@@ -320,8 +364,105 @@ export default function HomeScreen() {
     handlePostTap(post);
     
     // Then handle video play/pause
-    setPlayingVideoId(playingVideoId === post.id ? null : post.id);
+    const newPlayingId = playingVideoId === post.id ? null : post.id;
+    setPlayingVideoId(newPlayingId);
+    
+    // Handle video ref directly
+    if (videoRefs.current[post.id]) {
+      if (newPlayingId === post.id) {
+        videoRefs.current[post.id].playAsync();
+      } else {
+        videoRefs.current[post.id].pauseAsync();
+      }
+    }
   };
+
+  // Separate function for play button tap (no double-tap interference)
+  const handlePlayButtonTap = (post: Post) => {
+    // Pause all other videos first
+    Object.keys(videoRefs.current).forEach((videoId) => {
+      if (videoId !== post.id && videoRefs.current[videoId]) {
+        videoRefs.current[videoId].pauseAsync();
+      }
+    });
+    
+    const newPlayingId = playingVideoId === post.id ? null : post.id;
+    setPlayingVideoId(newPlayingId);
+    
+    // Handle video ref directly
+    if (videoRefs.current[post.id]) {
+      if (newPlayingId === post.id) {
+        videoRefs.current[post.id].playAsync();
+      } else {
+        videoRefs.current[post.id].pauseAsync();
+      }
+    }
+  };
+
+
+
+  // Handle scroll events to track video visibility
+  const handleScroll = useCallback((event: any) => {
+    const scrollY = event.nativeEvent.contentOffset.y;
+    const screenHeight = Dimensions.get('window').height;
+    const headerHeight = 120; // Approximate header height
+    const statusBarHeight = 60; // Approximate status bar height
+    const storiesHeight = 120; // Approximate stories height
+    
+    // Calculate which videos should be visible
+    const newVisibleVideoIds = new Set<string>();
+    let currentY = headerHeight + statusBarHeight + storiesHeight;
+    
+    posts.forEach((post) => {
+      if (post.videoUrl) {
+        // Calculate post position more accurately
+        const postHeight = 400; // Approximate post height
+        const videoTop = currentY;
+        const videoBottom = currentY + postHeight;
+        
+        // Check if video is in viewport (with some buffer)
+        const viewportTop = scrollY;
+        const viewportBottom = scrollY + screenHeight;
+        
+        if (videoBottom > viewportTop && videoTop < viewportBottom) {
+          newVisibleVideoIds.add(post.id);
+        }
+        
+        currentY += postHeight;
+      } else {
+        // For non-video posts, add smaller height
+        currentY += 200;
+      }
+    });
+    
+    setVisibleVideoIds(newVisibleVideoIds);
+    
+    // Pause all videos that are no longer visible
+    Object.keys(videoRefs.current).forEach((videoId) => {
+      if (!newVisibleVideoIds.has(videoId)) {
+        if (videoRefs.current[videoId]) {
+          videoRefs.current[videoId].pauseAsync();
+        }
+      }
+    });
+    
+    // Update playing video state
+    if (playingVideoId && !newVisibleVideoIds.has(playingVideoId)) {
+      setPlayingVideoId(null);
+    }
+  }, [posts, playingVideoId]);
+
+  // Check if a video should be playing
+  const shouldVideoPlay = useCallback((postId: string) => {
+    return playingVideoId === postId && visibleVideoIds.has(postId);
+  }, [playingVideoId, visibleVideoIds]);
+
+  // Helper function to check if a post is liked by current user
+  const getIsLiked = useCallback((post: Post) => {
+    if (!user?.id) return false;
+    const optimisticLikesForPost = optimisticLikes[post.id] || post.likedBy || [];
+    return optimisticLikesForPost.includes(user.id);
+  }, [user?.id, optimisticLikes]);
 
   const handleImageFullScreen = (imageUrl: string) => {
     setFullscreenImage({ uri: imageUrl, visible: true });
@@ -492,12 +633,15 @@ export default function HomeScreen() {
       )}
 
       <ScrollView 
+        ref={scrollViewRef}
         style={styles.scroll} 
         showsVerticalScrollIndicator={false} 
         contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 }]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
         }
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
       >
         {/* Status Bar */}
         <View style={styles.statusContainer}>
@@ -663,21 +807,42 @@ export default function HomeScreen() {
                         <ActivityIndicator size="large" color="#fff" style={styles.videoLoader} />
                       )}
                       <Video
+                        ref={(ref) => {
+                          if (ref) {
+                            videoRefs.current[post.id] = ref;
+                          }
+                        }}
                         source={{ uri: post.videoUrl || '' }}
                         style={styles.postVideo}
-                        resizeMode={ResizeMode.CONTAIN}
-                        shouldPlay={playingVideoId === post.id}
+                        resizeMode={ResizeMode.COVER}
+                        shouldPlay={shouldVideoPlay(post.id)}
                         isLooping
                         useNativeControls={false}
                         onLoadStart={() => setVideoLoading(v => ({ ...v, [post.id]: true }))}
                         onReadyForDisplay={() => setVideoLoading(v => ({ ...v, [post.id]: false }))}
+                        onPlaybackStatusUpdate={(status) => {
+                          if (status.isLoaded) {
+                            // Sync video state with our state
+                            if (status.isPlaying && !shouldVideoPlay(post.id)) {
+                              // Video is playing but shouldn't be - pause it
+                              if (videoRefs.current[post.id]) {
+                                videoRefs.current[post.id].pauseAsync();
+                              }
+                            } else if (!status.isPlaying && shouldVideoPlay(post.id)) {
+                              // Video should be playing but isn't - play it
+                              if (videoRefs.current[post.id]) {
+                                videoRefs.current[post.id].playAsync();
+                              }
+                            }
+                          }
+                        }}
                       />
                       <TouchableOpacity
                         style={styles.playButton}
-                        onPress={() => setPlayingVideoId(playingVideoId === post.id ? null : post.id)}
+                        onPress={() => handlePlayButtonTap(post)}
                       >
                         <Ionicons 
-                          name={playingVideoId === post.id ? 'pause-circle' : 'play-circle'} 
+                          name={shouldVideoPlay(post.id) ? 'pause-circle' : 'play-circle'} 
                           size={56} 
                           color="rgba(255,255,255,0.8)" 
                         />
@@ -771,7 +936,7 @@ export default function HomeScreen() {
                 <View style={styles.likeCountContainer}>
                   <Ionicons name="heart" size={16} color={LIKE_ACTIVE_COLOR} />
                   <Text style={styles.likeCountText}>
-                    {post.likeCount || (optimisticLikes[post.id] || post.likedBy || []).length}
+                    {optimisticLikes[post.id] ? optimisticLikes[post.id].length : (post.likeCount || (post.likedBy || []).length)}
                   </Text>
                 </View>
                 <Text style={styles.commentCountText}>
@@ -786,14 +951,13 @@ export default function HomeScreen() {
                   onPress={() => user && handleLikePost(post)}
                 >
                   <Ionicons
-                    name={(optimisticLikes[post.id] || post.likedBy || []).includes(user?.id || '') ? 'heart' : 'heart-outline'}
+                    name={getIsLiked(post) ? 'heart' : 'heart-outline'}
                     size={24}
-                    color={(optimisticLikes[post.id] || post.likedBy || []).includes(user?.id || '') ? LIKE_ACTIVE_COLOR : colors.lightText}
+                    color={getIsLiked(post) ? LIKE_ACTIVE_COLOR : colors.lightText}
                   />
                   <Text style={[
                     styles.actionText,
-                    (optimisticLikes[post.id] || post.likedBy || []).includes(user?.id || '') && 
-                      { color: LIKE_ACTIVE_COLOR }
+                    getIsLiked(post) && { color: LIKE_ACTIVE_COLOR }
                   ]}>
                     Like
                   </Text>
@@ -1153,6 +1317,7 @@ const getStyles = (currentColors: any) => StyleSheet.create({
     width: '100%',
     height: DEVICE_WIDTH * 1.5,
     backgroundColor: '#000',
+    overflow: 'hidden',
   },
   videoTouchable: {
     flex: 1,
@@ -1162,6 +1327,7 @@ const getStyles = (currentColors: any) => StyleSheet.create({
   postVideo: {
     width: '100%',
     height: '100%',
+    backgroundColor: '#000',
   },
   videoLoader: {
     position: 'absolute',
