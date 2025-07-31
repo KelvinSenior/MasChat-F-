@@ -68,8 +68,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     eas: {
       projectId: '11448f8f-45d1-4c2c-a061-f9227f473390'
     },
-    // Use environment variable or fallback to local IP
-    API_URL: process.env.API_URL || 'http://10.47.121.125:8080/api',
+    // Use environment variable or fallback to local IP - Updated on 2025-07-30
+    API_URL: process.env.API_URL || 'http://10.224.67.125:8080/api',
     ENV: process.env.NODE_ENV || 'development',
     router: {}
   },

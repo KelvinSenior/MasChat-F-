@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Dimensions, AppState, Share, Animated } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Dimensions, AppState, Share, Animated, RefreshControl } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialIcons, Feather, FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -66,6 +66,7 @@ export default function Videos() {
   const [videoLoading, setVideoLoading] = useState<{ [key: number]: boolean }>({});
   const [videoErrors, setVideoErrors] = useState<{ [key: number]: boolean }>({});
   const [videoRetryCount, setVideoRetryCount] = useState<{ [key: number]: number }>({});
+  const [refreshing, setRefreshing] = useState(false);
   
   // Function to retry video loading
   const retryVideoLoad = (index: number) => {
@@ -181,11 +182,17 @@ export default function Videos() {
     });
   };
 
-  const fetchAllReels = async () => {
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchAllReels(true);
+    setRefreshing(false);
+  };
+
+  const fetchAllReels = async (forceRefresh: boolean = false) => {
     setLoading(true);
     try {
-      console.log('Videos tab: Fetching reels...');
-      const data = await fetchReels();
+      console.log('Videos tab: Fetching reels...', forceRefresh ? '(force refresh)' : '(with cache)');
+      const data = await fetchReels(forceRefresh);
       console.log('Videos tab: Raw reels data:', data);
       console.log('Videos tab: Data type:', typeof data);
       console.log('Videos tab: Is array:', Array.isArray(data));
@@ -215,6 +222,9 @@ export default function Videos() {
       setReels(filteredReels);
     } catch (error) {
       console.error('Videos tab: Error fetching reels:', error);
+      if (!forceRefresh) {
+        Alert.alert('Error', 'Failed to load reels. Please try again.');
+      }
       setReels([]);
     } finally {
       setLoading(false);
@@ -427,6 +437,14 @@ export default function Videos() {
           showsVerticalScrollIndicator={false}
           onScroll={handleReelScroll}
           scrollEventThrottle={16}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
         >
           {reels.map((reel, index) => (
             <View key={reel.id} style={[styles.reelItem, { height: DEVICE_HEIGHT }]}> 

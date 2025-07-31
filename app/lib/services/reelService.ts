@@ -1,5 +1,6 @@
 import client from '../../api/client';
 import { User } from './postService';
+import reelCacheService from './reelCacheService';
 
 export type Reel = {
   id: string;
@@ -60,15 +61,41 @@ export type ReelComment = {
   createdAt: string;
 };
 
-export const fetchReels = async (): Promise<Reel[]> => {
+export const fetchReels = async (forceRefresh: boolean = false): Promise<Reel[]> => {
   try {
+    // Check if we have fresh cached data
+    if (!forceRefresh && await reelCacheService.isCacheFresh(30)) {
+      console.log('Using cached reels data...');
+      const cachedReels = await reelCacheService.getCachedReels();
+      if (cachedReels.length > 0) {
+        return cachedReels;
+      }
+    }
+
     console.log('Fetching reels from backend...');
     const res = await client.get('/reels');
     console.log('Reels response:', res.data);
     console.log('Number of reels received:', res.data.length);
+    
+    // Cache the fetched reels
+    await reelCacheService.cacheReels(res.data);
+    
     return res.data;
   } catch (error) {
     console.error('Error fetching reels:', error);
+    
+    // If network fails, try to return cached data
+    try {
+      console.log('Network failed, trying cached reels...');
+      const cachedReels = await reelCacheService.getCachedReels();
+      if (cachedReels.length > 0) {
+        console.log('Returning cached reels as fallback');
+        return cachedReels;
+      }
+    } catch (cacheError) {
+      console.error('Error getting cached reels:', cacheError);
+    }
+    
     throw error;
   }
 };
