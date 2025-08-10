@@ -551,6 +551,8 @@ export default function Videos() {
                           useNativeControls={false}
                           isMuted={muted}
                           rate={videoSpeed}
+                          volume={muted ? 0.0 : 1.0}
+                          progressUpdateIntervalMillis={250}
                           onLoadStart={() => {
                             console.log('Video loading started for reel:', reel.id, 'URL:', optimizedVideoUrl);
                             setVideoLoading(v => ({ ...v, [index]: true }));

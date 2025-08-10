@@ -63,6 +63,10 @@ export default function Posts() {
                     resizeMode={require('expo-av').ResizeMode.COVER}
                     shouldPlay={idx === currentIndex}
                     isLooping
+                    isMuted={false}
+                    rate={1.0}
+                    volume={1.0}
+                    progressUpdateIntervalMillis={250}
                     onError={() => setVideoError(true)}
                     onLoadStart={() => { setVideoLoading(true); setVideoError(false); }}
                     onReadyForDisplay={() => setVideoLoading(false)}

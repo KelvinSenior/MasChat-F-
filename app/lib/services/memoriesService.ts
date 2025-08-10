@@ -24,7 +24,7 @@ export interface MemoryStats {
 }
 
 class MemoriesService {
-  private baseUrl = '/api/memories';
+  private baseUrl = '/memories';
 
   async getMemories(filter: string = 'all', year: number = new Date().getFullYear()): Promise<Memory[]> {
     try {

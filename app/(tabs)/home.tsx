@@ -392,7 +392,10 @@ export default function HomeScreen() {
     // Handle video ref directly
     if (videoRefs.current[post.id]) {
       if (newPlayingId === post.id) {
-        videoRefs.current[post.id].playAsync();
+        // Ensure position reset when switching videos to prevent stalled frames
+        videoRefs.current[post.id].setPositionAsync(0).then(() => {
+          videoRefs.current[post.id].playAsync();
+        });
       } else {
         videoRefs.current[post.id].pauseAsync();
       }
@@ -413,10 +416,10 @@ export default function HomeScreen() {
     const newVisibleVideoIds = new Set<string>();
     let currentY = headerHeight + statusBarHeight + storiesHeight;
     
-    posts.forEach((post) => {
+    posts.forEach((post, index) => {
       if (post.videoUrl) {
-        // Calculate post position more accurately
-        const postHeight = 400; // Approximate post height
+        // Calculate post position more accurately per item
+        const postHeight = 480; // Slightly larger to include paddings/margins
         const videoTop = currentY;
         const videoBottom = currentY + postHeight;
         
@@ -430,8 +433,8 @@ export default function HomeScreen() {
         
         currentY += postHeight;
       } else {
-        // For non-video posts, add smaller height
-        currentY += 200;
+        // For non-video posts, add measured height fallback
+        currentY += 260;
       }
     });
     
@@ -818,6 +821,10 @@ export default function HomeScreen() {
                         shouldPlay={shouldVideoPlay(post.id)}
                         isLooping
                         useNativeControls={false}
+                         isMuted={false}
+                         rate={1.0}
+                         volume={1.0}
+                         progressUpdateIntervalMillis={250}
                         onLoadStart={() => setVideoLoading(v => ({ ...v, [post.id]: true }))}
                         onReadyForDisplay={() => setVideoLoading(v => ({ ...v, [post.id]: false }))}
                         onPlaybackStatusUpdate={(status) => {

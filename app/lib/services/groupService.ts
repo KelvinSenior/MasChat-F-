@@ -39,7 +39,7 @@ export interface CreateGroupRequest {
 }
 
 class GroupService {
-  private baseUrl = '/api/groups';
+  private baseUrl = '/groups';
 
   async getMyGroups(): Promise<Group[]> {
     try {
