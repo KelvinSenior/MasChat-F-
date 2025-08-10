@@ -12,6 +12,7 @@ interface MassCoinSendButtonProps {
   contextId?: string;
   style?: any;
   size?: 'small' | 'medium' | 'large';
+  variant?: 'icon' | 'button' | 'text';
 }
 
 export default function MassCoinSendButton({
@@ -21,6 +22,7 @@ export default function MassCoinSendButton({
   contextId,
   style,
   size = 'medium',
+  variant = 'button',
 }: MassCoinSendButtonProps) {
   const { user } = useAuth();
   const [modalVisible, setModalVisible] = useState(false);
@@ -93,13 +95,22 @@ export default function MassCoinSendButton({
 
   return (
     <>
-      <TouchableOpacity
-        style={[styles.sendButton, currentSize.container, style]}
-        onPress={() => setModalVisible(true)}
-      >
-        <MassCoinIcon size={currentSize.icon} />
-        <Text style={[styles.sendText, currentSize.text]}>Send MASS</Text>
-      </TouchableOpacity>
+      {variant === 'icon' ? (
+        <TouchableOpacity
+          style={[styles.iconOnlyButton, style]}
+          onPress={() => setModalVisible(true)}
+        >
+          <MassCoinIcon size={currentSize.icon} />
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          style={[styles.sendButton, currentSize.container, style]}
+          onPress={() => setModalVisible(true)}
+        >
+          <MassCoinIcon size={currentSize.icon} />
+          <Text style={[styles.sendText, currentSize.text]}>Send MASS</Text>
+        </TouchableOpacity>
+      )}
 
       <Modal
         visible={modalVisible}
@@ -179,6 +190,12 @@ export default function MassCoinSendButton({
 }
 
 const styles = StyleSheet.create({
+  iconOnlyButton: {
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 215, 0, 0.12)'
+  },
   sendButton: {
     flexDirection: 'row',
     alignItems: 'center',

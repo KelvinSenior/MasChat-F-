@@ -576,6 +576,7 @@ export default function ChatScreen() {
                   contextType="CHAT"
                   contextId={`${currentUser.id}-${recipient.id}`}
                   size="small"
+                  variant="icon"
                   style={{ paddingHorizontal: 6, paddingVertical: 4 }}
                 />
               </View>
