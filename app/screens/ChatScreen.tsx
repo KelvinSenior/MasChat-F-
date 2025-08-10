@@ -13,6 +13,7 @@ import { Audio } from 'expo-av';
 import { uploadImageSimple } from '../lib/services/userService';
 import { useTheme } from '../context/ThemeContext';
 import { getWebSocketUrl } from '../api/client';
+import MassCoinSendButton from '../../components/MassCoinSendButton';
 
 // Modern Color Palette (matching Home screen)
 const COLORS = {
@@ -567,17 +568,17 @@ export default function ChatScreen() {
                   color={cameraPermission ? colors.primary : colors.lightText} 
                 />
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.iconBtn} 
-                onPress={handleImagePicker} 
-                disabled={imageSending}
-              >
-                <Ionicons 
-                  name="image-outline" 
-                  size={24} 
-                  color={colors.primary} 
+              {/* Replace picture button with MassCoin tip button */}
+              <View style={{ marginHorizontal: 2 }}>
+                <MassCoinSendButton
+                  recipientId={recipient.id}
+                  recipientName={recipient?.name || recipient?.username || 'User'}
+                  contextType="CHAT"
+                  contextId={`${currentUser.id}-${recipient.id}`}
+                  size="small"
+                  style={{ paddingHorizontal: 6, paddingVertical: 4 }}
                 />
-              </TouchableOpacity>
+              </View>
               <TouchableOpacity 
                 style={styles.iconBtn} 
                 onPress={isRecording ? stopRecording : startRecording}
